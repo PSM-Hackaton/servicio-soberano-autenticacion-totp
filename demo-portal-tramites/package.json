@@ -1,0 +1,13 @@
+{
+  "name": "demo-portal-tramites",
+  "version": "1.0.0",
+  "description": "Portal Institucional de Trámites demo integrado con sdk/ (0 dependencias npm, Node.js 22)",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test portal.test.js"
+  }
+}

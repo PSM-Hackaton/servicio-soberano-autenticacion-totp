@@ -1,0 +1,17 @@
+{
+  "name": "totp-soberano-sdk",
+  "version": "1.0.0",
+  "description": "SDK oficial cero dependencias (Node.js 22 nativo) para integrar el Servicio Soberano TOTP en Portal de Trámites y Reto 1",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./jwks": "./jwks-verifier.js"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "test": "node --test sdk.test.js"
+  }
+}
