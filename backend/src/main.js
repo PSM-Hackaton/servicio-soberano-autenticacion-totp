@@ -94,6 +94,18 @@ export async function iniciar({ config = cargarConfig(), registro = crearRegistr
     }
   }
 
+  // Certificado público de la CA (opcional) para GET /ca.crt. Nunca se sirve algo que contenga una llave.
+  let certificadoCa = null;
+  if (config.tls.caPublica) {
+    try {
+      const pem = readFileSync(config.tls.caPublica, 'utf8');
+      if (/PRIVATE KEY/.test(pem) || !/-----BEGIN CERTIFICATE-----/.test(pem)) throw new Error('no es un certificado PEM sin llave');
+      certificadoCa = pem;
+    } catch (e) {
+      registro.warn(`No se ofrecerá /ca.crt (${config.tls.caPublica}): ${e?.message ?? e}`);
+    }
+  }
+
   const servidor = crearServidor({
     casos,
     metricas,
@@ -111,6 +123,7 @@ export async function iniciar({ config = cargarConfig(), registro = crearRegistr
       heuristicsMode: config.heuristicas,
     }),
     tls,
+    certificadoCa,
     registro,
     estaticos: [
       { prefijo: '/app', carpeta: resolve(CARPETA_REPO, 'authenticator-app') },

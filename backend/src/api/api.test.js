@@ -102,6 +102,7 @@ function levantar(opciones = {}) {
     registro: { info() {}, warn() {}, error: (m) => errores.push(m) },
     limitadores: opciones.limitadores,
     estaticos: opciones.estaticos ?? [],
+    certificadoCa: opciones.certificadoCa ?? null,
   });
   return new Promise((resolver) => {
     servidor.listen(0, '127.0.0.1', () => resolver({ servidor, puerto: servidor.address().port, casos, metricas, errores }));
@@ -540,6 +541,37 @@ describe('servidor HTTP: salud caída y límites de tasa', () => {
     } finally {
       s.servidor.close();
       s.servidor.closeAllConnections();
+    }
+  });
+});
+
+describe('servidor HTTP: descarga del certificado público de la CA', () => {
+  const PEM = '-----BEGIN CERTIFICATE-----\nMIIBfake\n-----END CERTIFICATE-----\n';
+
+  test('GET /ca.crt sirve el certificado configurado como application/x-x509-ca-cert', async () => {
+    const s = await levantar({ certificadoCa: PEM });
+    try {
+      const r = await pedir(s.puerto, { ruta: '/ca.crt' });
+      assert.equal(r.status, 200);
+      assert.equal(r.cabeceras['content-type'], 'application/x-x509-ca-cert');
+      assert.match(r.cabeceras['content-disposition'] ?? '', /attachment; filename="ca-servicio-totp\.crt"/);
+      assert.equal(r.texto, PEM);
+      const h = await pedir(s.puerto, { metodo: 'HEAD', ruta: '/ca.crt' });
+      assert.equal(h.status, 200);
+      assert.equal(h.texto, '');
+      const p = await pedir(s.puerto, { metodo: 'POST', ruta: '/ca.crt', cuerpo: {} });
+      assert.equal(p.status, 405);
+    } finally {
+      s.servidor.close();
+    }
+  });
+
+  test('sin certificado configurado responde 404', async () => {
+    const s = await levantar();
+    try {
+      assert.equal((await pedir(s.puerto, { ruta: '/ca.crt' })).status, 404);
+    } finally {
+      s.servidor.close();
     }
   });
 });

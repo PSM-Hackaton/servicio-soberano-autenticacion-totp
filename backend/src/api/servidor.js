@@ -238,6 +238,7 @@ function esObjetoPlano(v) {
  *   info?: () => { dbDriver: string, activeKeyId: string, heuristicsMode: string },
  *   puede?: (rol: string, accion: string) => boolean,
  *   tls?: { cert: string | Buffer, key: string | Buffer, ca?: string | Buffer } | null,
+ *   certificadoCa?: string | null,
  *   registro?: Registro,
  *   estaticos?: Estatico[],
  *   redirigirRaiz?: string | null,
@@ -256,6 +257,7 @@ export function crearServidor({
   info = () => ({ dbDriver: 'sqlite', activeKeyId: '', heuristicsMode: 'local' }),
   puede,
   tls = null,
+  certificadoCa = null,
   registro = console,
   estaticos = [],
   redirigirRaiz = '/app/',
@@ -381,6 +383,17 @@ export function crearServidor({
   router.agregar('GET', '/metrics', async () => ({
     status: 200, texto: metricas.formatoTexto(), tipoContenido: 'text/plain; version=0.0.4; charset=utf-8',
   }), { tipo: 'loopback' });
+
+  // Certificado PÚBLICO de la CA propia (solo lectura), para instalarlo en teléfonos y equipos de la red.
+  // Solo se ofrece si el despliegue lo configura (TLS_CA_PUBLIC_PATH); nunca contiene llaves privadas.
+  router.agregar('GET', '/ca.crt', async () => (certificadoCa
+    ? {
+      status: 200,
+      texto: certificadoCa,
+      tipoContenido: 'application/x-x509-ca-cert',
+      cabeceras: { 'Content-Disposition': 'attachment; filename="ca-servicio-totp.crt"' },
+    }
+    : respuestaError(404)), { tipo: 'publica' });
 
   router.agregar('GET', '/.well-known/jwks.json', async () => caso('jwks')(), { tipo: 'publica', cacheJwks: true });
 

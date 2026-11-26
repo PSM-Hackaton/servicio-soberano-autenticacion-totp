@@ -4,14 +4,18 @@
 //  - genera tráfico legítimo, códigos incorrectos y un código reutilizado,
 //  - simula un ataque de fuerza bruta distribuida y uno de "spraying" desde direcciones de loopback
 //    distintas (127.x.y.z) para que el detector de anomalías genere alertas,
-//  - escribe una página HTML local con enlaces para cargar las cuentas en la app autenticadora.
+//  - escribe una página HTML local con enlaces para cargar las cuentas en la app autenticadora
+//    (salvo con --sin-pagina: entonces solo imprime el resumen y no deja semillas en disco).
 //
 // Uso: node scripts/datos-demo.js --url http://localhost:8443 --client-id app_... --client-secret ...
 //      [--ciudadanos 12] [--salida data/demo-cuentas.html] [--app-url http://localhost:8443/app/]
+//      [--ca ruta/ca.crt] [--sin-pagina]
+//   --ca          verifica el certificado del servicio con esta CA (sin ella no se verifica: solo demo local)
+//   --sin-pagina  no escribe la página de cuentas (recomendado en un despliegue como servicio)
 
 import http from 'node:http';
 import https from 'node:https';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generateTotp } from '../src/core/totp/totp.js';
@@ -21,7 +25,11 @@ const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 function argumentos(argv) {
   const a = {};
-  for (let i = 0; i < argv.length; i++) if (argv[i].startsWith('--')) a[argv[i].slice(2)] = argv[i + 1];
+  for (let i = 0; i < argv.length; i++) {
+    if (!argv[i].startsWith('--')) continue;
+    const siguiente = argv[i + 1];
+    a[argv[i].slice(2)] = siguiente === undefined || siguiente.startsWith('--') ? true : siguiente;
+  }
   return a;
 }
 
@@ -38,6 +46,8 @@ if (!args['client-id'] || !args['client-secret']) {
 const TOTAL = Math.min(Number(args.ciudadanos ?? 12), 50);
 const SALIDA = resolve(RAIZ, args.salida ?? 'data/demo-cuentas.html');
 const APP_URL = args['app-url'] ?? `${BASE.origin}/app/`;
+const SIN_PAGINA = args['sin-pagina'] === true;
+const CA = typeof args.ca === 'string' ? readFileSync(resolve(args.ca)) : undefined;
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Llamada a la API v1 con las credenciales de la app; `origen` fija la IP local de salida. */
@@ -48,7 +58,7 @@ function api(ruta, cuerpo, origen) {
     const req = modulo.request({
       hostname: BASE.hostname === 'localhost' ? '127.0.0.1' : BASE.hostname,
       port: BASE.port, path: ruta, method: 'POST', localAddress: origen,
-      rejectUnauthorized: false,
+      ...(CA ? { ca: CA } : { rejectUnauthorized: false }),
       headers: {
         'content-type': 'application/json', 'content-length': Buffer.byteLength(datos),
         'x-client-id': args['client-id'], 'x-client-secret': args['client-secret'],
@@ -110,6 +120,12 @@ if (victima) {
 }
 for (let n = 0; n < 15; n++) await api('/api/v1/verify', { user_ref: `objetivo-${n}`, code: '000000' }, '127.30.0.9');
 console.log('  spraying: 15 cuentas probadas desde una sola dirección');
+
+for (const c of cuentas) c.semilla.fill(0);
+if (SIN_PAGINA) {
+  console.log(`\nListo: ${cuentas.length} ciudadanos de demostración activos. No se escribió ninguna página con semillas (--sin-pagina).`);
+  process.exit(0);
+}
 
 // Página local para cargar las cuentas en la app autenticadora.
 const esc = (t) => String(t).replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));

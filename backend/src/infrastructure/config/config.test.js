@@ -161,6 +161,11 @@ describe('validarConfig', () => {
     }
   });
 
+  test('TLS_CA_PUBLIC_PATH es opcional y se resuelve respecto a backend/', () => {
+    assert.equal(validarConfig({ ...VALIDAS }, { base: '/srv/backend' }).tls.caPublica, null);
+    assert.equal(validarConfig({ ...VALIDAS, TLS_CA_PUBLIC_PATH: './certs/ca.crt' }, { base: '/srv/backend' }).tls.caPublica, '/srv/backend/certs/ca.crt');
+  });
+
   test('TLS_MODE=off no se admite en producción', () => {
     assert.throws(() => validarConfig({ ...VALIDAS, NODE_ENV: 'production', TLS_MODE: 'off' }), /TLS_MODE=off/);
     assert.equal(validarConfig({ ...VALIDAS, TLS_MODE: 'off' }).tls.cert, null);

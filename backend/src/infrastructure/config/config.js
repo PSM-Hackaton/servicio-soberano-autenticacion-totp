@@ -149,14 +149,17 @@ export function validarConfig(vars, { base = CARPETA_BACKEND } = {}) {
   const puerto = entero('PORT', { defecto: 8443, min: 0, max: 65535 });
 
   const modoTls = opcion('TLS_MODE', MODOS_TLS, 'node');
-  /** @type {{ modo: string, cert: string | null, key: string | null }} */
-  const tls = { modo: modoTls, cert: null, key: null };
+  /** @type {{ modo: string, cert: string | null, key: string | null, caPublica: string | null }} */
+  const tls = { modo: modoTls, cert: null, key: null, caPublica: null };
   if (modoTls === 'node') {
     const cert = texto('TLS_CERT_PATH');
     const key = texto('TLS_KEY_PATH');
     if (cert) tls.cert = ruta(cert);
     if (key) tls.key = ruta(key);
-  } else if (modoTls === 'off' && entorno === 'production') {
+  }
+  // Opcional: certificado PÚBLICO de la CA propia, que se ofrece para descarga en GET /ca.crt.
+  const caPublica = texto('TLS_CA_PUBLIC_PATH', { obligatoria: false });
+  if (caPublica) tls.caPublica = ruta(caPublica); else if (modoTls === 'off' && entorno === 'production') {
     problemas.push('TLS_MODE=off no está permitido con NODE_ENV=production');
   }
 
