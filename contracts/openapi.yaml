@@ -1,0 +1,1651 @@
+openapi: 3.1.0
+info:
+  title: Servicio Soberano de Autenticación TOTP API (v1)
+  version: 1.2.0
+  description: |
+    Contrato alineado con el código del backend el 26-11-2026 (v1.2.0: correcciones del laboratorio
+    de ataques — origen por usuario final con `client_ip`, replay y bloqueo del detector
+    indistinguibles, deriva acotada, `user_ref` estricto, bloqueo persistente de cuentas inexistentes). La fuente de verdad es la
+    implementación: `backend/src/api/servidor.js` (rutas, cabeceras, límites, sesiones),
+    `backend/src/application/use-cases/{mfa.js,admin.js,esquemas.js,index.js}` (casos de uso y
+    esquemas de entrada) y `backend/src/security/errores.js` (formato de error genérico).
+    Los ejemplos de `contracts/mocks/` son respuestas reales del servicio con los secretos
+    sustituidos por valores ficticios.
+
+    Reglas transversales (aplican a todas las rutas):
+
+    * Transporte: HTTPS con TLS 1.3 mínimo (`node:https`, `TLS_MODE=node`). `TLS_MODE=off` solo para
+      pruebas locales y prohibido con `NODE_ENV=production`.
+    * Cabeceras de seguridad en toda respuesta: `Strict-Transport-Security`, `Content-Security-Policy`,
+      `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`,
+      `Cache-Control: no-store` (salvo JWKS: `public, max-age=300`), `Pragma: no-cache`,
+      `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy`, `Permissions-Policy`.
+    * Límites de tasa (429 `TOO_MANY_REQUESTS` con `Retry-After`, todos configurables):
+      - Global por IP TCP antes de cualquier trabajo, solo como protección anti-DDoS previa a la
+        autenticación: `RATE_LIMIT_GLOBAL_POR_MIN` (6000/minuto por defecto). Es alto a propósito:
+        un portal integrador concentra a todos sus ciudadanos en la IP de su servidor.
+      - Por app integradora autenticada en `/api/v1/*`: `RATE_LIMIT_APP_POR_MIN` (3000/minuto).
+      - Por (app, origen del usuario final) en las rutas que comprueban credenciales (`verify`,
+        `recovery`, `activate`, `resync`): `RATE_LIMIT_ORIGEN_POR_MIN` (60/minuto).
+      - Intentos de login admin por IP: 10 cada 5 minutos en `/admin/api/login`.
+    * Origen del usuario final (`client_ip`, opcional en `verify`, `recovery`, `activate` y `resync`):
+      la app integradora puede enviar la IP de SU usuario (IPv4 o IPv6 válida; forma canónica, sin
+      zona ni puerto; inválida → 400). La identidad de origen que usan el detector de anomalías, el
+      registro de intentos (`attempts.ip_hash`), el bloqueo adaptativo por origen y el límite por
+      origen es HMAC-SHA256(app_id + ':' + (client_ip ?? IP TCP), pepper diario): la IP nunca se
+      guarda en claro y el historial de un origen es propio de cada app. **Recomendación:** envíe
+      siempre `client_ip`. Sin él, la app sigue funcionando, pero todos sus usuarios comparten un
+      único origen (la IP de su servidor): los fallos de unos pocos pueden hacer que el detector y
+      el límite por origen frenen a todos. El servidor no confía en `X-Forwarded-For`.
+    * CORS por lista blanca (`CORS_ALLOWED_ORIGINS`). Un `Origin` ajeno y distinto del propio host
+      recibe 403 `FORBIDDEN`. `OPTIONS` de un origen permitido responde 204 con
+      `Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS` y
+      `Access-Control-Allow-Headers: Content-Type, X-Client-Id, X-Client-Secret, Idempotency-Key, X-CSRF-Token`;
+      de un origen no permitido, 403.
+    * Cuerpos: solo `application/json` (charset, si se indica, `utf-8`), máximo 16 KiB, 10 s para
+      recibirlos; el JSON debe ser un objeto. Todos los esquemas de entrada son cerrados
+      (`additionalProperties: false`): un campo no declarado produce 400.
+    * `Idempotency-Key` (opcional, cualquier ruta): si se envía debe cumplir `^[A-Za-z0-9_.:-]{8,128}$`
+      o la petición recibe 400. Solo `POST /api/v1/verify` la usa (ver esa ruta).
+    * Método no soportado en una ruta existente: 405 `METHOD_NOT_ALLOWED` con cabecera `Allow`.
+      Ruta inexistente: 404 `NOT_FOUND`.
+    * Falla cerrado: cualquier excepción interna responde 503 `SERVICE_UNAVAILABLE`, nunca 200.
+    * Errores genéricos: nunca revelan si un usuario, enrolamiento o app existe.
+
+    Además de esta API, el mismo servidor sirve estáticos: `/app/` (autenticador PWA,
+    `authenticator-app/`), `/consola/` (consola administrativa, `admin-console/`) y redirige `/`
+    a `/app/` (302).
+servers:
+  - url: https://localhost:8443
+    description: Servicio soberano en Node.js 22 con HTTPS nativo (TLS 1.3)
+
+tags:
+  - name: System
+    description: Salud, métricas y claves públicas.
+  - name: MFA v1
+    description: API para sistemas integradores (autenticación con X-Client-Id / X-Client-Secret).
+  - name: Admin
+    description: Consola administrativa (cookie de sesión sst_admin + X-CSRF-Token + RBAC).
+
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Estado operativo del servicio (vivo)
+      operationId: salud
+      responses:
+        '200':
+          description: Servicio en marcha
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthResponse' }
+              example:
+                status: ok
+                timestamp: '2026-11-26T16:52:43.774Z'
+                dbDriver: sqlite
+                activeKeyId: r0RDlpspVyB6l7jT1pZ0lw
+                heuristicsMode: local
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /health/ready:
+    get:
+      tags: [System]
+      summary: Preparación del servicio (consulta la base de datos con tope de 2 s)
+      operationId: saludLista
+      responses:
+        '200':
+          description: Base de datos accesible
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, timestamp, database]
+                properties:
+                  status: { type: string, enum: [ok] }
+                  timestamp: { type: string, format: date-time }
+                  database: { type: string, enum: [ok] }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /metrics:
+    get:
+      tags: [System]
+      summary: Métricas en formato de exposición de texto (estilo Prometheus 0.0.4), solo loopback
+      operationId: metricasTexto
+      description: |
+        Solo desde la propia máquina (IP de socket 127.0.0.1 o ::1), sin credenciales, para un
+        recolector local. Desde cualquier otra IP responde 403 `FORBIDDEN`, también con sesión admin
+        (el acceso remoto es `GET /admin/api/metrics`, con RBAC). Si se coloca un proxy inverso local
+        delante del servicio, todas las peticiones llegarían desde loopback: `/metrics` debe
+        bloquearse en el proxy. Incluye, entre otras, `totp_verifications_total{resultado=…}`
+        (ok, invalid_code, replay, locked, anomaly_blocked, rate_limited) y `totp_rate_limited_total`.
+      security:
+        - {}
+      responses:
+        '200':
+          description: Métricas (ver contracts/mocks/metrics.txt)
+          content:
+            text/plain:
+              schema: { type: string }
+              example: |
+                # HELP totp_uptime_seconds Segundos desde el arranque
+                # TYPE totp_uptime_seconds gauge
+                totp_uptime_seconds 68
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /.well-known/jwks.json:
+    get:
+      tags: [System]
+      summary: Claves públicas Ed25519 (RFC 7517) para validar offline el JWT MFA
+      operationId: jwks
+      description: Incluye la clave activa y las que quedaron en `solo_verificacion` tras una rotación.
+      responses:
+        '200':
+          description: Conjunto JWKS (Cache-Control public, max-age=300)
+          headers:
+            Cache-Control:
+              schema: { type: string, example: 'public, max-age=300' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Jwks' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/v1/enrollments:
+    post:
+      tags: [MFA v1]
+      summary: Crea un enrolamiento pendiente (caduca en 10 min) y devuelve URI otpauth:// y QR SVG
+      operationId: enrolar
+      description: |
+        La política por defecto (algoritmo, dígitos, periodo) es la de la app que llama. `SHA1` solo se
+        admite si la app tiene `permitir_sha1 = true` (si no, 400). La semilla se cifra con AES-256-GCM
+        (AAD = enrollment_id + ':' + key_version) y no vuelve a mostrarse.
+      security:
+        - appClientId: []
+          appClientSecret: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EnrollRequest' }
+      responses:
+        '201':
+          description: Enrolamiento pendiente creado (Cache-Control no-store)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EnrollmentCreatedResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '408': { $ref: '#/components/responses/RequestTimeout' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/v1/enrollments/{id}/activate:
+    post:
+      tags: [MFA v1]
+      summary: Valida el primer código, activa el factor y entrega 10 códigos de recuperación (una sola vez)
+      operationId: activar
+      description: |
+        Sin tolerancia de deriva (solo la ventana de la app). `client_ip` opcional (IP del usuario final,
+        ver reglas transversales): solo afecta al límite por origen. Si el usuario ya tenía un enrolamiento
+        activo en la misma app, se revoca en la misma transacción. Enrolamiento inexistente, ajeno,
+        no pendiente o caducado responde igual que un código incorrecto (401 `VERIFICATION_FAILED`).
+        Los fallos cuentan para el bloqueo progresivo (30 s, 2 min, 10 min, 1 h).
+      security:
+        - appClientId: []
+          appClientSecret: []
+      parameters:
+        - $ref: '#/components/parameters/EnrollmentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ActivateRequest' }
+      responses:
+        '200':
+          description: Factor activado (Cache-Control no-store)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActivateResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/VerificationFailed' }
+        '408': { $ref: '#/components/responses/RequestTimeout' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/v1/verify:
+    post:
+      tags: [MFA v1]
+      summary: Verifica un código TOTP (ventana, deriva, anti replay, bloqueo progresivo y detector local)
+      operationId: verificar
+      description: |
+        Orden de evaluación: bloqueo progresivo vigente (429) → detector local de anomalías (429 si la
+        app está en `modo_heuristica = bloqueo`, `HEURISTICS_MODE` no es `monitorizacion` y el detector
+        pide bloqueo o el riesgo alcanza `umbral_riesgo_bloqueo`; 300 s) → RFC 6238 con ventana, deriva
+        acotada y anti replay atómico (`T > last_step`).
+
+        Respuestas indistinguibles (sin oráculos):
+        * Código incorrecto, usuario sin enrolamiento activo y código ya usado (replay) producen
+          exactamente la misma respuesta: 401 `VERIFICATION_FAILED`, mismo cuerpo, sin `Retry-After`.
+          El replay queda registrado internamente (`attempts.resultado = replay`, bitácora
+          `verificacion.replay`, métrica `resultado="replay"`) y cuenta para el bloqueo progresivo.
+        * El bloqueo adaptativo del detector responde el mismo 429 `TOO_MANY_REQUESTS` genérico que el
+          bloqueo progresivo, con `retry_after_seconds` y `Retry-After`; la puntuación, las razones y
+          el umbral solo constan en `attempts`, la bitácora y `GET /admin/api/anomalies`.
+        * Los fallos de un usuario sin enrolamiento se guardan en `attempts` y su bloqueo progresivo se
+          calcula desde ahí (ventana `BLOQUEO_INEXISTENTES_VENTANA_MIN`, 24 h por defecto), igual que
+          el de una cuenta real y también tras un reinicio.
+
+        Deriva: la deriva resultante no puede superar en valor absoluto max(|drift_steps guardado|,
+        ventana de la app); un código de un paso fuera de ese tope se trata como incorrecto. Solo
+        `resync` puede fijar derivas mayores (hasta ±10). Con `last_step` monotónico, en un mismo
+        periodo pueden aceptarse como mucho los 2·ventana+1 pasos de la ventana (en orden creciente) y,
+        sostenido, uno por periodo: la deriva ya no puede arrastrarse paso a paso hacia el futuro.
+
+        `client_ip` (opcional): IP del usuario final; ver reglas transversales.
+        En éxito emite un JWT Ed25519 (EdDSA) con `sub = user_ref_hash`, `aud = client_id` de la app,
+        `amr = ["otp"]`, `jti` único y vida `JWT_TTL_SECONDS` (300 s por defecto). `sub` es un seudónimo
+        (HMAC del user_ref), nunca el user_ref en claro.
+
+        Idempotencia: con `Idempotency-Key` la respuesta se guarda 5 min por (app, clave) y se repite
+        sin volver a evaluar; reutilizar la clave con otro cuerpo produce 400.
+      security:
+        - appClientId: []
+          appClientSecret: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VerifyRequest' }
+      responses:
+        '200':
+          description: Código aceptado; JWT MFA emitido (Cache-Control no-store)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VerifySuccessResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: |
+            Verificación rechazada: `VERIFICATION_FAILED` (código incorrecto, usuario sin enrolamiento o
+            código ya usado, indistinguibles; ver contracts/mocks/verify-failed.json y
+            verify-replay-blocked.json, idénticos) o `UNAUTHORIZED` (credenciales de app inválidas).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
+              example: { error: VERIFICATION_FAILED, message: No se pudo completar la verificación. }
+        '408': { $ref: '#/components/responses/RequestTimeout' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '429':
+          description: |
+            `TOO_MANY_REQUESTS` genérico: límite de tasa, bloqueo progresivo de la cuenta o bloqueo
+            adaptativo del detector local (300 s; ver contracts/mocks/verify-anomaly-blocked.json).
+          headers:
+            Retry-After: { $ref: '#/components/headers/RetryAfter' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
+              example: { error: TOO_MANY_REQUESTS, message: Demasiados intentos. Intente más tarde., retry_after_seconds: 300 }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/v1/tokens/validate:
+    post:
+      tags: [MFA v1]
+      summary: Comprueba firma, emisor, audiencia, vigencia y uso único (jti) de un JWT MFA
+      operationId: validarToken
+      description: |
+        La audiencia exigida es el `client_id` de la app que llama. Con `consume_jti` (por defecto
+        `true`) el jti se marca como consumido y una segunda validación devuelve
+        `{ valid: false, reason: jti_consumido }`. Con `consume_jti: false` solo se consulta.
+        Un token inválido no es un error HTTP: responde 200 con `valid: false`.
+      security:
+        - appClientId: []
+          appClientSecret: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ValidateTokenRequest' }
+      responses:
+        '200':
+          description: Resultado de la validación (Cache-Control no-store)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ValidateTokenValid'
+                  - $ref: '#/components/schemas/ValidateTokenInvalid'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '408': { $ref: '#/components/responses/RequestTimeout' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/v1/enrollments/{id}/resync:
+    post:
+      tags: [MFA v1]
+      summary: Resincroniza la deriva de reloj con 2 códigos consecutivos (búsqueda en ±10 pasos)
+      operationId: resincronizar
+      description: |
+        Solo enrolamientos activos de la app que llama. Guarda paso y deriva de forma atómica. Es la
+        única operación que puede fijar una deriva mayor que la ventana de la app (hasta ±10 pasos);
+        `verify` después la respeta como tope. `client_ip` opcional (ver reglas transversales).
+      security:
+        - appClientId: []
+          appClientSecret: []
+      parameters:
+        - $ref: '#/components/parameters/EnrollmentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResyncRequest' }
+      responses:
+        '200':
+          description: Deriva actualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [resynced, drift_steps]
+                properties:
+                  resynced: { type: boolean, enum: [true] }
+                  drift_steps: { type: integer }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/VerificationFailed' }
+        '408': { $ref: '#/components/responses/RequestTimeout' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/v1/recovery:
+    post:
+      tags: [MFA v1]
+      summary: Consume un código de recuperación de un solo uso y revoca el enrolamiento (obliga a re-enrolar)
+      operationId: recuperar
+      description: |
+        En una sola transacción marca el código como usado y **revoca el enrolamiento activo** del
+        usuario en la app (`estado = revocado`). La respuesta trae `must_reenroll: true`: el integrador
+        debe iniciar un enrolamiento nuevo (`POST /api/v1/enrollments`) antes de volver a verificar.
+        `remaining_codes` informa cuántos códigos quedaban sin usar en el enrolamiento revocado (ya no
+        sirven). Código incorrecto o usuario inexistente → 401 genérico; los fallos cuentan para el
+        bloqueo progresivo (el de usuarios inexistentes se calcula desde `attempts` y se comparte con
+        `verify`). `client_ip` opcional (ver reglas transversales).
+      security:
+        - appClientId: []
+          appClientSecret: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecoveryRequest' }
+      responses:
+        '200':
+          description: Recuperación aceptada (Cache-Control no-store)
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [recovered, must_reenroll, remaining_codes]
+                properties:
+                  recovered: { type: boolean, enum: [true] }
+                  must_reenroll: { type: boolean, enum: [true] }
+                  remaining_codes: { type: integer, minimum: 0, maximum: 9 }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/VerificationFailed' }
+        '408': { $ref: '#/components/responses/RequestTimeout' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/v1/enrollments/{id}:
+    delete:
+      tags: [MFA v1]
+      summary: Revoca el enrolamiento (idempotente; repetir devuelve la fecha original)
+      operationId: revocar
+      description: Sin cuerpo (si llega, se descarta). Un enrolamiento de otra app responde 404.
+      security:
+        - appClientId: []
+          appClientSecret: []
+      parameters:
+        - $ref: '#/components/parameters/EnrollmentId'
+      responses:
+        '200':
+          description: Enrolamiento revocado
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [enrollment_id, estado, revoked_at]
+                properties:
+                  enrollment_id: { type: string, format: uuid }
+                  estado: { type: string, enum: [revocado] }
+                  revoked_at: { type: string, format: date-time }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /admin/api/login:
+    post:
+      tags: [Admin]
+      summary: Inicio de sesión con contraseña (scrypt) y TOTP propio; emite la cookie sst_admin
+      operationId: adminLogin
+      description: |
+        `totp_code` es opcional en el esquema pero obligatorio en la práctica: sin él la respuesta es
+        401. El TOTP del administrador aplica anti replay. Errores genéricos (401) y bloqueo progresivo
+        por usuario (429, 5 intentos). Límite adicional de 10 intentos cada 5 minutos por IP.
+        Si la petición traía una sesión previa, se invalida (evita fijación de sesión).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminLoginRequest' }
+      responses:
+        '200':
+          description: Sesión creada (30 min deslizantes, tope absoluto 8 h)
+          headers:
+            Set-Cookie:
+              description: '`sst_admin=<id>; HttpOnly; Secure; SameSite=Strict; Path=/admin; Max-Age=1800`'
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSession' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '408': { $ref: '#/components/responses/RequestTimeout' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /admin/api/session:
+    get:
+      tags: [Admin]
+      summary: Datos de la sesión vigente (usuario, rol y token CSRF); renueva la expiración
+      operationId: adminSesion
+      security:
+        - adminSession: []
+      responses:
+        '200':
+          description: Sesión vigente
+          headers:
+            Set-Cookie: { $ref: '#/components/headers/SessionCookie' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSession' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /admin/api/logout:
+    post:
+      tags: [Admin]
+      summary: Cierra la sesión y borra la cookie (Max-Age=0)
+      operationId: adminLogout
+      security:
+        - adminSession: []
+          csrfToken: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Sesión cerrada
+          headers:
+            Set-Cookie:
+              description: '`sst_admin=; HttpOnly; Secure; SameSite=Strict; Path=/admin; Max-Age=0`'
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '408': { $ref: '#/components/responses/RequestTimeout' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /admin/api/apps:
+    get:
+      tags: [Admin]
+      summary: Lista las apps integradoras y su política (permiso apps.leer)
+      operationId: adminListarApps
+      security:
+        - adminSession: []
+      responses:
+        '200':
+          description: Apps registradas (sin secret_hash)
+          headers:
+            Set-Cookie: { $ref: '#/components/headers/SessionCookie' }
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [apps]
+                properties:
+                  apps:
+                    type: array
+                    items: { $ref: '#/components/schemas/App' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    post:
+      tags: [Admin]
+      summary: Registra una app (sin id) o actualiza su política (con id) (permiso apps.escribir)
+      operationId: adminActualizarApp
+      description: |
+        Sin `id`: registra una app nueva; `nombre` obligatorio; responde 201 con `client_id` y
+        `client_secret` (este último se muestra una sola vez). Con `id`: actualiza la política; enviar
+        `nombre` en una actualización es 400; id inexistente 404. `SHA1` exige `permitir_sha1 = true`.
+        Tras un cambio correcto se invalida la caché de credenciales de apps del servidor.
+      security:
+        - adminSession: []
+          csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminAppRequest' }
+      responses:
+        '200':
+          description: Política actualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [app]
+                properties:
+                  app: { $ref: '#/components/schemas/App' }
+                  cedula_secreto: { type: string, description: 'Solo al pasar a hmac sin secreto previo ni aportado (una sola vez, no-store).' }
+        '201':
+          description: App registrada (Cache-Control no-store)
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [app, client_id, client_secret]
+                properties:
+                  app: { $ref: '#/components/schemas/App' }
+                  client_id: { type: string, pattern: '^app_[0-9a-f]{32}$' }
+                  client_secret: { type: string, description: Se muestra una sola vez; se guarda con scrypt. }
+                  cedula_secreto: { type: string, description: 'Solo si user_ref_desde_cedula = hmac y el servicio generó el secreto: se muestra una sola vez.' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '408': { $ref: '#/components/responses/RequestTimeout' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /admin/api/enrollments:
+    get:
+      tags: [Admin]
+      summary: Lista enrolamientos sin material cifrado (permiso enrolamientos.leer)
+      operationId: adminListarEnrolamientos
+      description: |
+        Parámetros de consulta cerrados; un parámetro no declarado produce 400.
+        Búsqueda de soporte: `cedula` o `user_ref` (excluyentes) exigen `app_id`. Con `cedula` la app
+        debe declarar `user_ref_desde_cedula = hmac` (si no, 409): el servicio recalcula
+        user_ref = prefijo + HMAC-SHA256(cédula canónica, secreto) y busca por user_ref_hash. Cada
+        búsqueda se audita (`enrolamientos.busqueda`) solo con HMAC de la cédula o el user_ref_hash.
+        App inexistente: 404.
+      security:
+        - adminSession: []
+      parameters:
+        - name: app_id
+          in: query
+          schema: { type: string, minLength: 1, maxLength: 64 }
+        - name: estado
+          in: query
+          schema: { type: string, enum: [pendiente, activo, suspendido, revocado] }
+        - $ref: '#/components/parameters/Limite100'
+        - name: cedula
+          in: query
+          description: 'Cédula venezolana (V o E, 6 a 9 dígitos sin ceros a la izquierda): V-12.345.678, v12345678, E 80.000.003…'
+          schema: { type: string, minLength: 6, maxLength: 24 }
+        - name: user_ref
+          in: query
+          description: user_ref exacto (mismo patrón que en /api/v1/verify).
+          schema: { type: string, minLength: 1, maxLength: 128 }
+      responses:
+        '200':
+          description: Enrolamientos
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [enrollments]
+                properties:
+                  enrollments:
+                    type: array
+                    items: { $ref: '#/components/schemas/EnrollmentAdmin' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /admin/api/keys/rotate:
+    post:
+      tags: [Admin]
+      summary: Rota la clave Ed25519 (nuevo kid); la anterior queda en solo_verificacion (permiso llaves.rotar)
+      operationId: adminRotarLlaves
+      description: Sin cuerpo o con objeto vacío; cualquier campo produce 400. Solo el rol Administrador.
+      security:
+        - adminSession: []
+          csrfToken: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '200':
+          description: Rotación completada
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [new_kid, previous_kid, rotated_at]
+                properties:
+                  new_kid: { type: string }
+                  previous_kid: { type: [string, 'null'] }
+                  rotated_at: { type: string, format: date-time }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '408': { $ref: '#/components/responses/RequestTimeout' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /admin/api/audit:
+    get:
+      tags: [Admin]
+      summary: Consulta paginada de la bitácora encadenada por hashes (permiso auditoria.leer)
+      operationId: adminAuditoria
+      description: |
+        `desde` es un id numérico (cursor exclusivo) o una fecha ISO (inclusive). `siguiente` es el id
+        del último evento si la página está llena, o null. Parámetros cerrados (otro parámetro: 400).
+      security:
+        - adminSession: []
+      parameters:
+        - name: desde
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 40
+            pattern: '^([0-9]{1,12}|[0-9]{4}-[0-9]{2}-[0-9]{2}[0-9T:.Z+-]*)$'
+        - $ref: '#/components/parameters/Limite100'
+      responses:
+        '200':
+          description: Eventos de auditoría
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [eventos, siguiente]
+                properties:
+                  eventos:
+                    type: array
+                    items: { $ref: '#/components/schemas/AuditEvent' }
+                  siguiente: { type: [integer, 'null'] }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /admin/api/audit/verify-chain:
+    get:
+      tags: [Admin]
+      summary: Recalcula la cadena de audit_log, hash = SHA-256(prev_hash + '|' + JSON canónico) (permiso auditoria.verificar)
+      operationId: adminVerificarCadena
+      security:
+        - adminSession: []
+      responses:
+        '200':
+          description: Resultado de integridad
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [intact, checked_records, broken_at_id, last_hash]
+                properties:
+                  intact: { type: boolean }
+                  checked_records: { type: integer }
+                  broken_at_id: { type: [integer, 'null'] }
+                  last_hash: { type: [string, 'null'] }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /admin/api/anomalies:
+    get:
+      tags: [Admin]
+      summary: Resumen y alertas del detector local de anomalías (permiso anomalias.leer)
+      operationId: adminAnomalias
+      description: |
+        Devuelve los intentos con `risk_score >= riesgo_minimo` (60 por defecto), del más reciente al
+        más antiguo, y un resumen tomado de las métricas en memoria (se reinician al reiniciar el
+        proceso). Ejemplo real: contracts/mocks/admin-dashboard.json.
+      security:
+        - adminSession: []
+      parameters:
+        - name: riesgo_minimo
+          in: query
+          schema: { type: string, pattern: '^[0-9]{1,3}$' }
+        - name: limite
+          in: query
+          description: Entero en texto; por defecto 50, máximo efectivo 500.
+          schema: { type: string, pattern: '^[0-9]{1,9}$' }
+      responses:
+        '200':
+          description: Resumen y alertas
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnomaliesResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /admin/api/metrics:
+    get:
+      tags: [Admin]
+      summary: Instantánea JSON de las métricas operativas (permiso metricas.leer)
+      operationId: adminMetricas
+      security:
+        - adminSession: []
+      responses:
+        '200':
+          description: Métricas (ejemplo real en contracts/mocks/admin-metrics.json)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MetricsSnapshot' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  # --- Gestión desde la consola (bloque contiguo; esquemas en línea y cerrados)
+  /admin/api/keys:
+    get:
+      tags: [Admin]
+      summary: Inventario de llaves de firma sin material privado (permiso llaves.leer)
+      operationId: adminListarLlaves
+      description: |
+        Todas las llaves (activa, solo_verificacion y retirada), de la más reciente a la más antigua.
+        Nunca incluye la clave privada (ni cifrada) ni la versión de la llave maestra. Roles:
+        Administrador, Operador y Auditor. Sin parámetros: cualquier parámetro de consulta es 400.
+        Ejemplo: contracts/mocks/admin-keys.json.
+      security:
+        - adminSession: []
+      responses:
+        '200':
+          description: Inventario de llaves
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [active_kid, keys]
+                properties:
+                  active_kid: { type: [string, 'null'] }
+                  keys:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [kid, estado, created_at, rotated_at, alg, crv]
+                      properties:
+                        kid: { type: string }
+                        estado: { type: string, enum: [activa, solo_verificacion, retirada] }
+                        created_at: { type: string, format: date-time }
+                        rotated_at: { type: [string, 'null'], format: date-time }
+                        alg: { type: string, enum: [EdDSA] }
+                        crv: { type: string, enum: [Ed25519] }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /admin/api/enrollments/{id}/suspend:
+    post:
+      tags: [Admin]
+      summary: Suspende un enrolamiento activo (permiso enrolamientos.gestionar)
+      operationId: adminSuspenderEnrolamiento
+      description: |
+        activo → suspendido. Administrador y Operador. Mientras está suspendido, verify responde
+        exactamente igual que con un código incorrecto (401 VERIFICATION_FAILED). Sin cuerpo o `{}`.
+        404 genérico si el id no existe (o no es UUID); 409 si el estado no lo permite o si el factor
+        pertenece a un administrador de la consola.
+      security:
+        - adminSession: []
+          csrfToken: []
+      parameters:
+        - $ref: '#/components/parameters/IdEnrolamientoAdmin'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '200': { $ref: '#/components/responses/EnrolamientoGestionado' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /admin/api/enrollments/{id}/reactivate:
+    post:
+      tags: [Admin]
+      summary: Reactiva un enrolamiento suspendido (permiso enrolamientos.gestionar)
+      operationId: adminReactivarEnrolamiento
+      description: suspendido → activo. 409 si no está suspendido o si el usuario ya tiene otro enrolamiento activo en la app.
+      security:
+        - adminSession: []
+          csrfToken: []
+      parameters:
+        - $ref: '#/components/parameters/IdEnrolamientoAdmin'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '200': { $ref: '#/components/responses/EnrolamientoGestionado' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /admin/api/enrollments/{id}/revoke:
+    post:
+      tags: [Admin]
+      summary: Revoca un enrolamiento activo o suspendido (permiso enrolamientos.gestionar)
+      operationId: adminRevocarEnrolamiento
+      description: activo | suspendido → revocado. Revocado es final (cualquier acción posterior responde 409); un pendiente tampoco se revoca por esta vía.
+      security:
+        - adminSession: []
+          csrfToken: []
+      parameters:
+        - $ref: '#/components/parameters/IdEnrolamientoAdmin'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '200': { $ref: '#/components/responses/EnrolamientoGestionado' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /admin/api/apps/{id}/secret:
+    post:
+      tags: [Admin]
+      summary: Regenera el client_secret de una app (permiso apps.secreto, solo Administrador)
+      operationId: adminRegenerarSecretoApp
+      description: |
+        El secreto anterior deja de valer de inmediato: el servidor vacía su caché de autenticación de
+        apps. El nuevo se muestra una sola vez (Cache-Control no-store). Auditado como app.secreto_regenerado.
+      security:
+        - adminSession: []
+          csrfToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '200':
+          description: Secreto regenerado
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [app, client_id, client_secret]
+                properties:
+                  app: { $ref: '#/components/schemas/App' }
+                  client_id: { type: string }
+                  client_secret: { type: string, description: Se muestra una sola vez; se guarda con scrypt. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /admin/api/admins:
+    get:
+      tags: [Admin]
+      summary: Lista las cuentas de la consola sin hashes (permiso admins.leer, solo Administrador)
+      operationId: adminListarAdministradores
+      description: Sin parámetros (cualquier parámetro de consulta es 400).
+      security:
+        - adminSession: []
+      responses:
+        '200':
+          description: Cuentas
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [admins]
+                properties:
+                  admins:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdminCuenta' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    post:
+      tags: [Admin]
+      summary: Crea una cuenta con contraseña aleatoria y TOTP propio ya activo (permiso admins.escribir, solo Administrador)
+      operationId: adminCrearAdministrador
+      description: |
+        El servicio genera una contraseña aleatoria (144 bits) y un enrolamiento TOTP en la app interna
+        "Consola Administrativa", que activa en el mismo acto (misma lógica que la semilla): no existe
+        ninguna ventana con solo contraseña. La contraseña, la URI otpauth y el QR SVG se devuelven una
+        sola vez (no-store). El código del paso de alta queda consumido: el primer login usa el
+        siguiente. 409 si el usuario ya existe.
+      security:
+        - adminSession: []
+          csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [usuario, rol]
+              properties:
+                usuario: { type: string, minLength: 3, maxLength: 32, pattern: '^[a-z0-9][a-z0-9._-]{2,31}$' }
+                rol: { type: string, enum: [Administrador, Operador, Auditor] }
+      responses:
+        '201':
+          description: Cuenta creada (datos de acceso una sola vez)
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [admin, password, otpauth_uri, qr_svg]
+                properties:
+                  admin: { $ref: '#/components/schemas/AdminCuenta' }
+                  password: { type: string, pattern: '^[A-Za-z0-9_-]{24}$' }
+                  otpauth_uri: { type: string }
+                  qr_svg: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /admin/api/admins/{id}/disable:
+    post:
+      tags: [Admin]
+      summary: Deshabilita una cuenta de la consola (permiso admins.escribir, solo Administrador)
+      operationId: adminDeshabilitarAdministrador
+      description: |
+        409 si es la propia cuenta, si ya está deshabilitada o si es el último Administrador activo.
+        El servidor cierra además las sesiones abiertas de esa cuenta.
+      security:
+        - adminSession: []
+          csrfToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '200':
+          description: Cuenta deshabilitada
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [admin]
+                properties:
+                  admin: { $ref: '#/components/schemas/AdminCuenta' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  # --- fin del bloque de gestión desde la consola
+
+components:
+  securitySchemes:
+    appClientId:
+      type: apiKey
+      in: header
+      name: X-Client-Id
+      description: client_id de la app integradora (`^[A-Za-z0-9_.-]{1,128}$`).
+    appClientSecret:
+      type: apiKey
+      in: header
+      name: X-Client-Secret
+      description: client_secret (ASCII visible, 1 a 256 caracteres); se compara con su hash scrypt.
+    adminSession:
+      type: apiKey
+      in: cookie
+      name: sst_admin
+      description: Cookie de sesión HttpOnly; Secure; SameSite=Strict; Path=/admin, emitida por /admin/api/login.
+    csrfToken:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+      description: Obligatorio en todo POST/PUT/PATCH/DELETE de /admin/api/* (salvo login). Si falta o no coincide, 403.
+
+  parameters:
+    EnrollmentId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: |
+        Clave de idempotencia elegida por el integrador (8 a 128 caracteres `A-Z a-z 0-9 _ . : -`).
+        Formato inválido → 400. La respuesta se guarda 5 minutos por (app, clave) y se devuelve igual
+        sin volver a evaluar; reutilizar la misma clave con un cuerpo distinto → 400 `INVALID_REQUEST`.
+      schema: { type: string, pattern: '^[A-Za-z0-9_.:-]{8,128}$', example: verif-demo-0001 }
+    Limite100:
+      name: limite
+      in: query
+      description: Entero en texto; por defecto 100, máximo efectivo 500.
+      schema: { type: string, pattern: '^[0-9]{1,9}$' }
+    IdEnrolamientoAdmin:
+      name: id
+      in: path
+      required: true
+      description: UUID del enrolamiento (otro valor responde 404 genérico).
+      schema: { type: string, maxLength: 128 }
+  headers:
+    RetryAfter:
+      description: Segundos hasta poder reintentar (igual que retry_after_seconds).
+      schema: { type: integer, minimum: 1 }
+    SessionCookie:
+      description: Renovación deslizante de la cookie sst_admin (Max-Age=1800) en cada respuesta de /admin/api/*.
+      schema: { type: string }
+
+  responses:
+    BadRequest:
+      description: Entrada inválida (esquema cerrado, JSON mal formado, Idempotency-Key inválida o reutilizada con otro cuerpo)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/GenericError' }
+          example: { error: INVALID_REQUEST, message: Solicitud inválida. }
+    Unauthorized:
+      description: Credenciales ausentes o inválidas (app o sesión admin)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/GenericError' }
+          example: { error: UNAUTHORIZED, message: Credenciales inválidas. }
+    VerificationFailed:
+      description: Código incorrecto o recurso no válido para la operación, o credenciales de app inválidas (UNAUTHORIZED)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/GenericError' }
+          example: { error: VERIFICATION_FAILED, message: No se pudo completar la verificación. }
+    Forbidden:
+      description: CORS rechazado, token CSRF ausente o incorrecto, o rol sin permiso (RBAC)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/GenericError' }
+          example: { error: FORBIDDEN, message: Acceso denegado. }
+    NotFound:
+      description: Recurso inexistente o perteneciente a otra app
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/GenericError' }
+          example: { error: NOT_FOUND, message: Recurso no encontrado. }
+    EnrolamientoGestionado:
+      description: Enrolamiento tras la transición (sin material cifrado)
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [enrollment]
+            properties:
+              enrollment: { $ref: '#/components/schemas/EnrollmentAdmin' }
+    Conflict:
+      description: 'La operación no es válida en el estado actual (solo consola): transición de estado no permitida, usuario duplicado, último Administrador, app sin derivación desde la cédula… El mensaje es fijo y nunca contiene datos de la entrada.'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/GenericError' }
+          example: { error: CONFLICT, message: La transición de estado no es válida. }
+    RequestTimeout:
+      description: El cuerpo no llegó completo en 10 s (la conexión se cierra)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/GenericError' }
+          example: { error: REQUEST_TIMEOUT, message: Tiempo de espera agotado. }
+    PayloadTooLarge:
+      description: Cuerpo mayor de 16 KiB (la conexión se cierra)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/GenericError' }
+          example: { error: PAYLOAD_TOO_LARGE, message: Solicitud demasiado grande. }
+    UnsupportedMediaType:
+      description: Content-Type distinto de application/json
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/GenericError' }
+          example: { error: UNSUPPORTED_MEDIA_TYPE, message: Tipo de contenido no admitido. }
+    TooManyRequests:
+      description: Límite de tasa o bloqueo progresivo (30 s, 2 min, 10 min, 1 h)
+      headers:
+        Retry-After: { $ref: '#/components/headers/RetryAfter' }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/GenericError' }
+          example: { error: TOO_MANY_REQUESTS, message: Demasiados intentos. Intente más tarde., retry_after_seconds: 30 }
+    ServiceUnavailable:
+      description: Fallo interno o base de datos no disponible (falla cerrado)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/GenericError' }
+          example: { error: SERVICE_UNAVAILABLE, message: Servicio no disponible temporalmente. }
+
+  schemas:
+    GenericError:
+      type: object
+      description: Formato único de error (backend/src/security/errores.js y ERRORES_HTTP de servidor.js).
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum:
+            - INVALID_REQUEST
+            - UNAUTHORIZED
+            - VERIFICATION_FAILED
+            - FORBIDDEN
+            - NOT_FOUND
+            - METHOD_NOT_ALLOWED
+            - REQUEST_TIMEOUT
+            - PAYLOAD_TOO_LARGE
+            - UNSUPPORTED_MEDIA_TYPE
+            - TOO_MANY_REQUESTS
+            - SERVICE_UNAVAILABLE
+        message: { type: string, example: No se pudo completar la verificación. }
+        retry_after_seconds: { type: integer, minimum: 1, description: Solo en 429 (y en la cabecera Retry-After). }
+
+    HealthResponse:
+      type: object
+      required: [status, timestamp, dbDriver, activeKeyId, heuristicsMode]
+      properties:
+        status: { type: string, enum: [ok] }
+        timestamp: { type: string, format: date-time }
+        dbDriver: { type: string, enum: [sqlite] }
+        activeKeyId: { type: string, description: kid de la clave de firma activa. }
+        heuristicsMode:
+          type: string
+          enum: [local, monitorizacion, mock]
+          description: Valor de HEURISTICS_MODE. `monitorizacion` nunca bloquea por anomalía (solo alerta y audita).
+
+    Jwks:
+      type: object
+      required: [keys]
+      properties:
+        keys:
+          type: array
+          items:
+            type: object
+            required: [kty, crv, x, kid, use, alg]
+            properties:
+              kty: { type: string, enum: [OKP] }
+              crv: { type: string, enum: [Ed25519] }
+              x: { type: string, description: Clave pública en base64url. }
+              kid: { type: string, description: Huella base64url (22 caracteres) de la clave pública. }
+              use: { type: string, enum: [sig] }
+              alg: { type: string, enum: [EdDSA] }
+
+    EnrollRequest:
+      type: object
+      additionalProperties: false
+      required: [user_ref]
+      properties:
+        user_ref: { $ref: '#/components/schemas/UserRef' }
+        account_label: { type: string, maxLength: 120, description: Etiqueta del URI/QR (no se guarda). Por defecto user_ref. }
+        algorithm: { type: string, enum: [SHA256, SHA512, SHA1] }
+        digits: { type: integer, enum: [6, 8] }
+        period: { type: integer, minimum: 15, maximum: 60 }
+
+    ActivateRequest:
+      type: object
+      additionalProperties: false
+      required: [code]
+      properties:
+        code: { type: string, pattern: '^[0-9]{6,8}$' }
+        client_ip: { $ref: '#/components/schemas/ClientIp' }
+
+    UserRef:
+      type: string
+      minLength: 1
+      maxLength: 128
+      pattern: '^(?! )(?!.* $)(?:(?![\u034F\u115F\u1160\u2800\u3164\uFFA0])[\p{L}\p{M}\p{N}\p{P}\p{S} ])+$'
+      description: |
+        Identificador opaco del usuario en el sistema integrador (no use nombres ni documentos); solo
+        se guarda HMAC-SHA256(user_ref, USER_REF_PEPPER). 1 a 128 caracteres imprimibles (letras,
+        marcas, números, puntuación, símbolos y el espacio U+0020 solo en el interior). Se rechazan
+        con 400: NUL y controles C0/C1, caracteres de formato (bidi U+202A–U+202E y U+2066–U+2069,
+        U+200B–U+200F, U+2060–U+2064, BOM), separadores distintos del espacio (U+00A0, U+2028…),
+        privados, sin asignar y rellenos invisibles. El patrón es una expresión regular Unicode (`u`).
+
+    ClientIp:
+      type: string
+      minLength: 2
+      maxLength: 45
+      description: |
+        Opcional. IP del usuario final atendido por la app (IPv4 decimal sin ceros a la izquierda o
+        IPv6 sin zona, sin corchetes ni puerto). Se canonicaliza (minúsculas, compresión RFC 5952;
+        `::ffff:a.b.c.d` = `a.b.c.d`). Inválida → 400. Nunca se guarda en claro: solo
+        HMAC-SHA256(app_id + ':' + client_ip, pepper diario). La IP debe tomarse de la conexión del
+        usuario con la app (dirección del socket), no de `X-Forwarded-For` salvo proxy de confianza.
+      example: 203.0.113.7
+
+    VerifyRequest:
+      type: object
+      additionalProperties: false
+      required: [user_ref, code]
+      properties:
+        user_ref: { $ref: '#/components/schemas/UserRef' }
+        code: { type: string, pattern: '^[0-9]{6,8}$' }
+        client_ip: { $ref: '#/components/schemas/ClientIp' }
+
+    ValidateTokenRequest:
+      type: object
+      additionalProperties: false
+      required: [token]
+      properties:
+        token: { type: string, minLength: 1, maxLength: 8192 }
+        consume_jti: { type: boolean, default: true }
+
+    ResyncRequest:
+      type: object
+      additionalProperties: false
+      required: [code_1, code_2]
+      properties:
+        code_1: { type: string, pattern: '^[0-9]{6,8}$' }
+        code_2: { type: string, pattern: '^[0-9]{6,8}$' }
+        client_ip: { $ref: '#/components/schemas/ClientIp' }
+
+    RecoveryRequest:
+      type: object
+      additionalProperties: false
+      required: [user_ref, recovery_code]
+      properties:
+        user_ref: { $ref: '#/components/schemas/UserRef' }
+        recovery_code: { type: string, minLength: 8, maxLength: 32, description: Formato XXXX-XXXX (se normalizan mayúsculas y guion). }
+        client_ip: { $ref: '#/components/schemas/ClientIp' }
+
+    AdminLoginRequest:
+      type: object
+      additionalProperties: false
+      required: [usuario, password]
+      properties:
+        usuario: { type: string, minLength: 1, maxLength: 64 }
+        password: { type: string, minLength: 1, maxLength: 256 }
+        totp_code: { type: string, pattern: '^[0-9]{6,8}$' }
+
+    AdminAppRequest:
+      type: object
+      additionalProperties: false
+      description: Con `id` actualiza la política; sin `id` registra una app (requiere `nombre`).
+      properties:
+        id: { type: string, minLength: 1, maxLength: 64 }
+        nombre: { type: string, minLength: 2, maxLength: 120 }
+        algoritmo: { type: string, enum: [SHA256, SHA512, SHA1] }
+        digitos: { type: integer, enum: [6, 8] }
+        periodo: { type: integer, minimum: 15, maximum: 60 }
+        ventana: { type: integer, minimum: 0, maximum: 3 }
+        max_intentos: { type: integer, minimum: 3, maximum: 15 }
+        umbral_riesgo_bloqueo: { type: integer, minimum: 40, maximum: 100, description: Entero en la entrada (la columna es REAL). }
+        modo_heuristica: { type: string, enum: [monitorizacion, bloqueo] }
+        permitir_sha1: { type: boolean }
+        estado: { type: string, enum: [activo, suspendido] }
+        user_ref_desde_cedula:
+          type: string
+          enum: [ninguno, hmac]
+          description: |
+            Cómo deriva la app su user_ref desde la cédula (migración 002). `hmac`: user_ref =
+            cedula_prefijo + base64url(HMAC-SHA256(cédula canónica, secreto)); habilita la búsqueda de
+            soporte por cédula. Sin `cedula_secreto`, el servicio genera uno (32 bytes) y lo devuelve una vez.
+        cedula_prefijo: { type: string, maxLength: 32, pattern: '^[A-Za-z0-9_.:-]{0,32}$', description: Solo con hmac. }
+        cedula_secreto: { type: string, pattern: '^[A-Za-z0-9_-]{43,86}$', description: 'Secreto de derivación aportado por la app (base64url, 32 a 64 bytes). Solo con hmac; se guarda cifrado (AES-256-GCM) y nunca se devuelve.' }
+
+    EnrollmentCreatedResponse:
+      type: object
+      additionalProperties: false
+      required: [enrollment_id, estado, algoritmo, digitos, periodo, otpauth_uri, qr_svg, expires_at]
+      properties:
+        enrollment_id: { type: string, format: uuid }
+        estado: { type: string, enum: [pendiente] }
+        algoritmo: { type: string, enum: [SHA256, SHA512, SHA1] }
+        digitos: { type: integer, enum: [6, 8] }
+        periodo: { type: integer, minimum: 15, maximum: 60 }
+        otpauth_uri: { type: string, description: 'otpauth://totp/<TOTP_ISSUER>:<cuenta>?secret=…&issuer=…&algorithm=…&digits=…&period=… (ejemplo con TOTP_ISSUER=ServicioSoberanoTOTP)' }
+        qr_svg: { type: string, description: QR del URI generado por el codificador propio (core/qr). }
+        expires_at: { type: string, format: date-time }
+
+    ActivateResponse:
+      type: object
+      additionalProperties: false
+      required: [enrollment_id, estado, activated_at, recovery_codes]
+      properties:
+        enrollment_id: { type: string, format: uuid }
+        estado: { type: string, enum: [activo] }
+        activated_at: { type: string, format: date-time }
+        recovery_codes:
+          type: array
+          minItems: 10
+          maxItems: 10
+          items: { type: string, pattern: '^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$' }
+
+    RiskLevel:
+      type: object
+      additionalProperties: false
+      required: [level]
+      description: |
+        Solo el nivel de riesgo que el detector local asignó al intento aceptado (el integrador puede,
+        por ejemplo, pedir un paso adicional en HIGH/CRITICAL). La puntuación, las razones, la acción
+        y los umbrales del detector no se exponen: guiarían a un atacante. Constan en `attempts`, la
+        bitácora y `GET /admin/api/anomalies`.
+      properties:
+        level: { type: string, enum: [LOW, MEDIUM, HIGH, CRITICAL] }
+
+    VerifySuccessResponse:
+      type: object
+      additionalProperties: false
+      required: [verified, token, jti, kid, expires_at, drift_steps, risk]
+      properties:
+        verified: { type: boolean, enum: [true] }
+        token:
+          type: string
+          description: |
+            JWT EdDSA (Ed25519), cabecera con `kid`. Claims: `iss` = JWT_ISSUER; `aud` = client_id de la
+            app que llamó a verify (solo esa app puede validarlo en /api/v1/tokens/validate);
+            `sub` = HMAC-SHA256(user_ref, USER_REF_PEPPER) en hexadecimal, un seudónimo estable que no
+            revela el user_ref; `amr` = ["otp"]; `iat`, `nbf`, `exp` (vida JWT_TTL_SECONDS, 300 s por
+            defecto) y `jti` (UUID de un solo uso).
+        jti: { type: string, format: uuid }
+        kid: { type: string }
+        expires_at: { type: string, format: date-time }
+        drift_steps: { type: integer, description: Deriva (en pasos) que el servicio aplicará en la siguiente verificación. }
+        risk: { $ref: '#/components/schemas/RiskLevel' }
+
+    ValidateTokenValid:
+      type: object
+      additionalProperties: false
+      required: [valid, sub, aud, jti, kid, amr, exp]
+      properties:
+        valid: { type: boolean, enum: [true] }
+        sub: { type: string }
+        aud: { type: string }
+        jti: { type: string }
+        kid: { type: string }
+        amr:
+          type: array
+          items: { type: string }
+        exp: { type: integer, description: Epoch en segundos. }
+
+    ValidateTokenInvalid:
+      type: object
+      additionalProperties: false
+      required: [valid, reason]
+      properties:
+        valid: { type: boolean, enum: [false] }
+        reason: { type: string, enum: [formato, alg, kid, firma, iss, aud, exp, nbf, jti_consumido] }
+
+    AdminSession:
+      type: object
+      additionalProperties: false
+      required: [usuario, rol, csrf_token]
+      properties:
+        usuario: { type: string }
+        rol: { type: string, enum: [Administrador, Operador, Auditor] }
+        csrf_token: { type: string, description: Enviar en X-CSRF-Token en cada petición que modifica. }
+
+    App:
+      type: object
+      description: Fila de la tabla apps sin secret_hash ni el secreto de derivación de la cédula (ni cifrado).
+      required: [id, nombre, client_id, algoritmo, digitos, periodo, ventana, max_intentos, umbral_riesgo_bloqueo, modo_heuristica, permitir_sha1, estado, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        nombre: { type: string }
+        client_id: { type: string }
+        algoritmo: { type: string, enum: [SHA256, SHA512, SHA1] }
+        digitos: { type: integer, enum: [6, 8] }
+        periodo: { type: integer }
+        ventana: { type: integer }
+        max_intentos: { type: integer }
+        umbral_riesgo_bloqueo: { type: number }
+        modo_heuristica: { type: string, enum: [monitorizacion, bloqueo] }
+        permitir_sha1: { type: boolean }
+        estado: { type: string, enum: [activo, suspendido] }
+        user_ref_desde_cedula: { type: string, enum: [ninguno, hmac] }
+        cedula_prefijo: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    AdminCuenta:
+      type: object
+      additionalProperties: false
+      description: Cuenta de la consola sin hash de contraseña; totp_estado es el estado de su enrolamiento TOTP.
+      required: [id, usuario, rol, activo, created_at, totp_estado]
+      properties:
+        id: { type: string, format: uuid }
+        usuario: { type: string }
+        rol: { type: string, enum: [Administrador, Operador, Auditor] }
+        activo: { type: boolean }
+        created_at: { type: string, format: date-time }
+        totp_estado: { type: string, enum: [pendiente, activo, suspendido, revocado, sin_totp] }
+
+    EnrollmentAdmin:
+      type: object
+      description: Fila de enrollments sin seed_ct, seed_nonce ni seed_auth_tag.
+      required: [id, app_id, user_ref_hash, estado, algoritmo, digitos, periodo, key_version, drift_steps, last_step, failed_attempts, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        app_id: { type: string, format: uuid }
+        user_ref_hash: { type: string }
+        estado: { type: string, enum: [pendiente, activo, suspendido, revocado] }
+        algoritmo: { type: string, enum: [SHA256, SHA512, SHA1] }
+        digitos: { type: integer }
+        periodo: { type: integer }
+        key_version: { type: string }
+        drift_steps: { type: integer }
+        last_step: { type: integer }
+        failed_attempts: { type: integer }
+        locked_until: { type: [string, 'null'], format: date-time }
+        pending_expires_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: string, format: date-time }
+        activated_at: { type: [string, 'null'], format: date-time }
+        revoked_at: { type: [string, 'null'], format: date-time }
+
+    AuditEvent:
+      type: object
+      required: [id, ts, actor, accion, objetivo, detalle, prev_hash, hash]
+      properties:
+        id: { type: integer }
+        ts: { type: string, format: date-time }
+        actor: { type: string, example: 'app:app_92ac25d65219ee26d26e83847b010007' }
+        accion: { type: string, example: verificacion.exitosa }
+        objetivo: { type: [string, 'null'] }
+        detalle:
+          type: [object, 'null']
+          additionalProperties: true
+          description: |
+            Objeto con el detalle del evento (sin campos sensibles: nunca secretos, códigos ni IP en
+            claro; las IP solo como ip_hash). En la base se guarda como JSON canónico, que es lo que
+            encadena el hash. Ejemplos: `verificacion.replay` { ip_hash, locked_until },
+            `verificacion.anomalia_bloqueada` { app_id, ip_hash, risk_score, reasons, umbral }.
+        prev_hash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        hash: { type: string, pattern: '^[0-9a-f]{64}$' }
+
+    AnomaliesResponse:
+      type: object
+      additionalProperties: false
+      required: [summary, alerts]
+      properties:
+        summary:
+          type: object
+          required: [totalVerifications, blockedReplayCount, blockedAnomalyCount, avgInferenceMs]
+          properties:
+            totalVerifications: { type: integer }
+            blockedReplayCount: { type: integer }
+            blockedAnomalyCount: { type: integer }
+            avgInferenceMs: { type: number }
+        alerts:
+          type: array
+          items:
+            type: object
+            required: [id, userRefHash, ipHash, riskScore, level, action, reasons, resultado, createdAt]
+            properties:
+              id: { type: integer }
+              userRefHash: { type: [string, 'null'] }
+              ipHash: { type: string }
+              riskScore: { type: number }
+              level: { type: string, enum: [LOW, MEDIUM, HIGH, CRITICAL] }
+              action: { type: string, enum: [ALLOW, BLOCK] }
+              reasons:
+                type: array
+                items: { type: string }
+              resultado: { type: string, enum: [ok, invalid_code, replay, locked, anomaly_blocked] }
+              createdAt: { type: string, format: date-time }
+
+    MetricsSnapshot:
+      type: object
+      description: Métricas en memoria (backend/src/audit/metricas.js); se reinician con el proceso.
+      required: [inicio, uptimeSegundos, totales, disponibilidadPct, salud, tasa5xx, ventana, latenciaPorRuta, resultadosVerificacion, inferencia, desfaseRelojMs]
+      properties:
+        inicio: { type: string, format: date-time }
+        uptimeSegundos: { type: integer }
+        totales:
+          type: object
+          properties:
+            peticiones: { type: integer }
+            errores5xx: { type: integer }
+            errores4xx: { type: integer }
+            erroresBaseDatos: { type: integer }
+            reconexiones: { type: integer }
+            limitadas: { type: integer, description: Peticiones rechazadas por cualquier limitador de tasa (= totp_rate_limited_total). }
+            verificaciones: { type: integer }
+        disponibilidadPct: { type: number }
+        salud:
+          type: object
+          properties:
+            total: { type: integer }
+            ok: { type: integer }
+            ultimo: { type: [boolean, 'null'] }
+        tasa5xx: { type: number }
+        ventana:
+          type: object
+          properties:
+            ms: { type: integer }
+            peticiones: { type: integer }
+            errores5xx: { type: integer }
+            tasa5xx: { type: number }
+        latenciaPorRuta:
+          type: object
+          description: Clave = plantilla de ruta (p. ej. /api/v1/verify).
+          additionalProperties:
+            type: object
+            properties:
+              total: { type: integer }
+              errores5xx: { type: integer }
+              p50Ms: { type: number }
+              p95Ms: { type: number }
+              muestras: { type: integer }
+        resultadosVerificacion:
+          type: object
+          properties:
+            ok: { type: integer }
+            invalid_code: { type: integer }
+            replay: { type: integer }
+            locked: { type: integer }
+            anomaly_blocked: { type: integer }
+            rate_limited: { type: integer }
+        inferencia:
+          type: object
+          properties:
+            total: { type: integer }
+            mediaMs: { type: number }
+            p95Ms: { type: number }
+        desfaseRelojMs: { type: number, description: 0 si no se configura CLOCK_REFERENCE_URL. }

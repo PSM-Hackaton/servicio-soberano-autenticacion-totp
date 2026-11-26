@@ -1,0 +1,40 @@
+Tiempo perfilado: 9.0 s
+
+Por categoría:
+ 41.5 %  Repositorios SQLite (JS)
+ 17.9 %  Resto del código del servicio
+ 14.4 %  TLS y escritura de sockets
+  8.4 %  HTTP y flujos de Node
+  5.1 %  Otros (Node)
+  4.3 %  Detector local de anomalías
+  3.5 %  Inactivo (esperando E/S o peticiones)
+  2.2 %  Bitácora y métricas
+  1.4 %  Motor V8 / nativo sin atribuir
+  1.4 %  Recolector de basura
+
+Funciones con más tiempo propio:
+ 13.0 %  transaccion backend/src/infrastructure/persistence/repositorios.js:99
+  8.2 %  insertar backend/src/infrastructure/persistence/repositorios.js:407
+  7.3 %  signOneShot node:internal/crypto/sig:143
+  5.4 %  ultimosPorIp backend/src/infrastructure/persistence/repositorios.js:303
+  4.2 %  writevGeneric node:internal/stream_base_commons:121
+  4.1 %  ultimosPorUsuario backend/src/application/use-cases/consultas.js:40
+  4.0 %  mapearIntento backend/src/infrastructure/persistence/repositorios.js:64
+  3.5 %  (idle) :0
+  3.5 %  buscarActivoPorUsuario backend/src/infrastructure/persistence/repositorios.js:195
+  3.4 %  intento backend/src/application/use-cases/consultas.js:13
+  2.6 %  Hmac node:internal/crypto/hash:161
+  2.2 %  insertar backend/src/infrastructure/persistence/repositorios.js:81
+  1.5 %  manejar backend/src/api/servidor.js:570
+  1.4 %  verificarInterno backend/src/application/use-cases/mfa.js:267
+  1.4 %  mapearEnrolamiento backend/src/infrastructure/persistence/repositorios.js:40
+  1.4 %  (program) :0
+  1.4 %  (garbage collector) :0
+  1.4 %  digest node:internal/crypto/hash:180
+  1.4 %  ultimo backend/src/infrastructure/persistence/repositorios.js:413
+  1.2 %  evaluar backend/src/heuristics/detector.js:163
+  1.2 %  extraerCaracteristicas backend/src/heuristics/caracteristicas.js:109
+  1.1 %  registrarPasoAceptado backend/src/infrastructure/persistence/repositorios.js:211
+  1.1 %  createCipherBase node:internal/crypto/cipher:115
+  1.1 %  plano backend/src/infrastructure/persistence/repositorios.js:70
+  1.0 %  puntuar backend/src/heuristics/isolationForest.js:153

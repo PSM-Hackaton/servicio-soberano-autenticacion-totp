@@ -1,0 +1,27 @@
+12
+Arquitectura:                             x86_64
+modo(s) de operación de las CPUs:         32-bit, 64-bit
+Tamaños de las direcciones:               39 bits physical, 48 bits virtual
+Orden de los bytes:                       Little Endian
+CPU(s):                                   12
+Lista de la(s) CPU(s) en línea:           0-11
+ID de fabricante:                         GenuineIntel
+Nombre del modelo:                        12th Gen Intel(R) Core(TM) i5-12400
+Familia de CPU:                           6
+Modelo:                                   151
+Hilo(s) de procesamiento por núcleo:      2
+Núcleo(s) por «socket»:                   6
+«Socket(s)»:                              1
+Revisión:                                 5
+CPU(s) factor de escala MHz:              27%
+CPU MHz máx.:                             4400,0000
+CPU MHz mín.:                             800,0000
+BogoMIPS:                                 4992,00
+Virtualización:                           VT-x
+               total       usado       libre  compartido   búf/caché  disponible
+Mem:            14Gi        11Gi       861Mi       1,6Gi       4,0Gi       3,0Gi
+Inter:         4,0Gi       1,7Gi       2,3Gi
+v22.22.1
+7.0.0-44-generic
+NAME    ROTA MODEL         SIZE
+nvme0n1    0 JUMPER 512G 476,9G

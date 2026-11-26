@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#00247D" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0B1430" media="(prefers-color-scheme: dark)">
+  <meta name="referrer" content="no-referrer">
+  <meta name="description" content="Autenticador de segundo factor (TOTP) que guarda tus claves cifradas solo en este dispositivo.">
+  <title>Autenticador Soberano</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icono.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icono-192.png">
+  <link rel="stylesheet" href="css/app.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="i-sello" viewBox="0 0 48 48">
+      <circle cx="24" cy="24" r="21" fill="none" stroke="currentColor" stroke-width="2.4" stroke-dasharray="2.2 3.3"/>
+      <circle cx="24" cy="24" r="15.5" fill="none" stroke="currentColor" stroke-width="2.4"/>
+      <circle cx="24" cy="21" r="4.2" fill="currentColor"/>
+      <path d="M21.6 23.5 20.3 31h7.4l-1.3-7.5z" fill="currentColor"/>
+    </symbol>
+    <symbol id="i-mas" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-ajustes" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="17" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-candado" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-volver" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-copiar" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15.5 5.5v-1a1 1 0 0 0-1-1h-9a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h1" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-detalle" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="18.5" cy="12" r="1.7" fill="currentColor"/></symbol>
+    <symbol id="i-buscar" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15 15l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-reloj" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-alerta" viewBox="0 0 24 24"><path d="M12 4 2.8 19.5h18.4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4.2M12 16.8v.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  </svg>
+
+  <a class="saltar" href="#principal">Saltar al contenido</a>
+
+  <!-- Cintillo institucional -->
+  <div class="franja-tricolor" aria-hidden="true"></div>
+  <div class="cintillo">
+    <span class="cintillo-identidad"><img class="cintillo-bandera" src="icons/bandera.svg" alt="" width="27" height="18"><span class="cintillo-pais">República Bolivariana de Venezuela</span></span>
+    <span class="cintillo-servicio">Servicio Soberano de Autenticación</span>
+  </div>
+
+  <div class="marco">
+    <!-- Barra institucional: arriba en móvil, columna lateral en escritorio -->
+    <header class="barra" id="barra" hidden>
+      <div class="marca">
+        <svg class="marca-sello" aria-hidden="true"><use href="#i-sello"/></svg>
+        <div>
+          <p class="marca-nombre">Autenticador Soberano</p>
+          <p class="marca-lema">Tus claves no salen de este dispositivo</p>
+        </div>
+      </div>
+      <nav class="barra-nav" aria-label="Principal">
+        <button type="button" class="nav-boton" data-ir="lista" id="nav-lista">
+          <svg aria-hidden="true"><use href="#i-reloj"/></svg><span>Códigos</span>
+        </button>
+        <button type="button" class="nav-boton" data-ir="agregar" id="nav-agregar">
+          <svg aria-hidden="true"><use href="#i-mas"/></svg><span>Agregar cuenta</span>
+        </button>
+        <button type="button" class="nav-boton" data-ir="ajustes" id="nav-ajustes">
+          <svg aria-hidden="true"><use href="#i-ajustes"/></svg><span>Ajustes</span>
+        </button>
+        <button type="button" class="nav-boton nav-bloquear" id="boton-bloquear">
+          <svg aria-hidden="true"><use href="#i-candado"/></svg><span>Bloquear</span>
+        </button>
+      </nav>
+      <p class="barra-pie">Funciona sin conexión. Sin rastreo.</p>
+    </header>
+
+    <div class="columna">
+    <main id="principal" class="principal" tabindex="-1">
+
+      <!-- Cargando -->
+      <section class="pantalla pantalla-acceso" id="p-cargando" aria-labelledby="t-cargando">
+        <div class="acceso">
+          <svg class="acceso-sello" aria-hidden="true"><use href="#i-sello"/></svg>
+          <h1 id="t-cargando" class="acceso-titulo">Autenticador Soberano</h1>
+          <p class="acceso-texto" id="cargando-texto">Abriendo la bóveda…</p>
+        </div>
+      </section>
+
+      <!-- Crear PIN -->
+      <section class="pantalla pantalla-acceso" id="p-crear-pin" aria-labelledby="t-crear-pin" hidden>
+        <div class="acceso">
+          <svg class="acceso-sello" aria-hidden="true"><use href="#i-sello"/></svg>
+          <h1 id="t-crear-pin" class="acceso-titulo" tabindex="-1">Crea tu PIN</h1>
+          <p class="acceso-texto">El PIN cifra tus cuentas en este dispositivo. Nadie puede recuperarlo por ti, ni siquiera la institución.</p>
+          <p class="pendiente" data-pendiente hidden>Hay una cuenta del Portal esperando. La revisarás al terminar.</p>
+          <form class="formulario" id="f-crear-pin" novalidate>
+            <div class="campo">
+              <label for="pin-nuevo">PIN de 6 a 12 dígitos</label>
+              <input class="entrada-pin" id="pin-nuevo" name="pin" type="password" inputmode="numeric" autocomplete="new-password" maxlength="12" pattern="[0-9]*" required aria-describedby="pin-nuevo-ayuda">
+              <p class="ayuda" id="pin-nuevo-ayuda">Evita fechas, repeticiones y secuencias como 123456.</p>
+            </div>
+            <div class="campo">
+              <label for="pin-repetido">Repite el PIN</label>
+              <input class="entrada-pin" id="pin-repetido" name="pin2" type="password" inputmode="numeric" autocomplete="new-password" maxlength="12" pattern="[0-9]*" required>
+            </div>
+            <p class="error" id="crear-pin-error" role="alert"></p>
+            <button type="submit" class="boton boton-primario boton-ancho">Crear PIN y continuar</button>
+          </form>
+          <ul class="garantias" aria-label="Cómo protegemos tus claves">
+            <li>Cifrado AES-256 con tu PIN</li>
+            <li>Funciona sin conexión</li>
+            <li>Sin cuentas en la nube</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Desbloquear -->
+      <section class="pantalla pantalla-acceso" id="p-desbloquear" aria-labelledby="t-desbloquear" hidden>
+        <div class="acceso">
+          <svg class="acceso-sello" aria-hidden="true"><use href="#i-sello"/></svg>
+          <h1 id="t-desbloquear" class="acceso-titulo" tabindex="-1">Desbloquear</h1>
+          <p class="acceso-texto">Introduce tu PIN para ver tus códigos.</p>
+          <p class="pendiente" data-pendiente hidden>Hay una cuenta del Portal esperando. La revisarás al desbloquear.</p>
+          <form class="formulario" id="f-desbloquear" novalidate>
+            <div class="campo">
+              <label for="pin-acceso">PIN</label>
+              <input class="entrada-pin" id="pin-acceso" name="pin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="12" pattern="[0-9]*" required>
+            </div>
+            <p class="error" id="desbloquear-error" role="alert"></p>
+            <button type="submit" class="boton boton-primario boton-ancho" id="boton-desbloquear">Desbloquear</button>
+          </form>
+          <details class="olvido">
+            <summary>Olvidé mi PIN</summary>
+            <p>El PIN no se puede recuperar: es la única llave de tus cuentas cifradas. Puedes borrar la app y volver a vincular tus cuentas desde cada servicio (por ejemplo, con tus códigos de recuperación del Portal).</p>
+            <button type="button" class="boton boton-peligro-suave" id="boton-borrar-olvido">Borrar todo y empezar de nuevo</button>
+          </details>
+        </div>
+      </section>
+
+      <!-- Lista de cuentas -->
+      <section class="pantalla" id="p-lista" aria-labelledby="t-lista" hidden>
+        <div class="cabecera">
+          <h1 id="t-lista" class="titulo" tabindex="-1">Códigos</h1>
+          <button type="button" class="boton boton-primario boton-agregar" data-ir="agregar">
+            <svg aria-hidden="true"><use href="#i-mas"/></svg><span>Agregar</span>
+          </button>
+        </div>
+
+        <div class="buscador" id="buscador" hidden>
+          <svg aria-hidden="true"><use href="#i-buscar"/></svg>
+          <label class="oculto" for="buscar">Buscar cuenta</label>
+          <input id="buscar" type="search" placeholder="Buscar por emisor o cuenta" autocomplete="off" spellcheck="false">
+        </div>
+
+        <div class="vacio" id="vacio" hidden>
+          <div class="vacio-dial" aria-hidden="true">
+            <svg viewBox="0 0 120 120"><use href="#i-sello" width="120" height="120"/></svg>
+          </div>
+          <h2 class="vacio-titulo">Aún no tienes cuentas</h2>
+          <p class="vacio-texto">Vincula tu primera cuenta en tres pasos:</p>
+          <ol class="pasos">
+            <li><strong>Entra al Portal de Trámites</strong> y elige «Activar segundo factor».</li>
+            <li><strong>Pulsa «Abrir en el autenticador»</strong> o escanea el código QR. Revisa los datos y guarda.</li>
+            <li><strong>Escribe el código de 6 dígitos</strong> que verás aquí para confirmar la activación.</li>
+          </ol>
+          <button type="button" class="boton boton-primario" data-ir="agregar">Agregar mi primera cuenta</button>
+        </div>
+
+        <ul class="cuentas" id="cuentas" aria-label="Cuentas"></ul>
+        <p class="sin-resultados" id="sin-resultados" hidden>Ninguna cuenta coincide con la búsqueda.</p>
+        <p class="nota-lista" id="nota-lista" hidden>Toca un código para copiarlo.</p>
+      </section>
+
+      <!-- Agregar cuenta -->
+      <section class="pantalla" id="p-agregar" aria-labelledby="t-agregar" hidden>
+        <div class="cabecera">
+          <button type="button" class="boton-icono" data-ir="lista" aria-label="Volver a los códigos">
+            <svg aria-hidden="true"><use href="#i-volver"/></svg>
+          </button>
+          <h1 id="t-agregar" class="titulo" tabindex="-1">Agregar cuenta</h1>
+        </div>
+
+        <div class="pestanas" role="tablist" aria-label="Forma de agregar">
+          <button type="button" role="tab" id="tab-enlace" aria-controls="panel-enlace" aria-selected="true">Enlace</button>
+          <button type="button" role="tab" id="tab-pegar" aria-controls="panel-pegar" aria-selected="false" tabindex="-1">Pegar</button>
+          <button type="button" role="tab" id="tab-manual" aria-controls="panel-manual" aria-selected="false" tabindex="-1">Manual</button>
+          <button type="button" role="tab" id="tab-camara" aria-controls="panel-camara" aria-selected="false" tabindex="-1">Cámara</button>
+        </div>
+        <p class="nota-camara" id="nota-camara" hidden>La lectura de QR con cámara no está disponible en este navegador. Usa «Enlace», «Pegar» o «Manual».</p>
+
+        <div class="panel" role="tabpanel" id="panel-enlace" aria-labelledby="tab-enlace" tabindex="0">
+          <p class="panel-intro">La forma más rápida si usas el Portal de Trámites en este mismo dispositivo.</p>
+          <ol class="pasos pasos-compactos">
+            <li>En el Portal, abre «Activar segundo factor».</li>
+            <li>Pulsa «Abrir en el autenticador». Esta app se abrirá con la cuenta lista para revisar.</li>
+          </ol>
+          <form class="formulario" id="f-enlace" novalidate>
+            <div class="campo">
+              <label for="enlace">¿Copiaste el enlace? Pégalo aquí</label>
+              <input id="enlace" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://…/app/#add=…">
+            </div>
+            <p class="error" id="enlace-error" role="alert"></p>
+            <button type="submit" class="boton boton-primario">Revisar cuenta</button>
+          </form>
+        </div>
+
+        <div class="panel" role="tabpanel" id="panel-pegar" aria-labelledby="tab-pegar" tabindex="0" hidden>
+          <p class="panel-intro">Pega la dirección que empieza por <code>otpauth://totp/</code>.</p>
+          <form class="formulario" id="f-pegar" novalidate>
+            <div class="campo">
+              <label for="uri">URI de la cuenta</label>
+              <textarea id="uri" rows="4" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="otpauth://totp/Emisor:cuenta?secret=…"></textarea>
+            </div>
+            <p class="error" id="pegar-error" role="alert"></p>
+            <div class="acciones">
+              <button type="submit" class="boton boton-primario">Revisar cuenta</button>
+              <button type="button" class="boton boton-secundario" id="boton-portapapeles">Pegar del portapapeles</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="panel" role="tabpanel" id="panel-manual" aria-labelledby="tab-manual" tabindex="0" hidden>
+          <p class="panel-intro">Usa los datos que muestra el servicio cuando eliges «No puedo escanear el código».</p>
+          <form class="formulario" id="f-manual" novalidate>
+            <div class="campo">
+              <label for="m-emisor">Emisor</label>
+              <input id="m-emisor" autocomplete="off" maxlength="100" placeholder="Portal de Trámites">
+            </div>
+            <div class="campo">
+              <label for="m-cuenta">Cuenta</label>
+              <input id="m-cuenta" autocomplete="off" maxlength="100" placeholder="maria.perez">
+            </div>
+            <div class="campo">
+              <label for="m-secreto">Clave secreta (Base32)</label>
+              <input id="m-secreto" class="entrada-clave" autocomplete="off" spellcheck="false" autocapitalize="characters" aria-describedby="m-secreto-ayuda">
+              <p class="ayuda" id="m-secreto-ayuda">Letras A–Z y números 2–7. Los espacios no importan.</p>
+            </div>
+            <fieldset class="segmentos">
+              <legend>Algoritmo</legend>
+              <label><input type="radio" name="m-algoritmo" value="SHA1" checked><span>SHA-1</span></label>
+              <label><input type="radio" name="m-algoritmo" value="SHA256"><span>SHA-256</span></label>
+              <label><input type="radio" name="m-algoritmo" value="SHA512"><span>SHA-512</span></label>
+            </fieldset>
+            <div class="fila-campos">
+              <fieldset class="segmentos">
+                <legend>Dígitos</legend>
+                <label><input type="radio" name="m-digitos" value="6" checked><span>6</span></label>
+                <label><input type="radio" name="m-digitos" value="8"><span>8</span></label>
+              </fieldset>
+              <div class="campo campo-corto">
+                <label for="m-periodo">Periodo (s)</label>
+                <input id="m-periodo" type="number" inputmode="numeric" min="15" max="60" step="1" value="30">
+              </div>
+            </div>
+            <p class="error" id="manual-error" role="alert"></p>
+            <button type="submit" class="boton boton-primario">Revisar cuenta</button>
+          </form>
+        </div>
+
+        <div class="panel" role="tabpanel" id="panel-camara" aria-labelledby="tab-camara" tabindex="0" hidden>
+          <p class="panel-intro">Apunta al código QR que muestra el servicio. La imagen se analiza en este dispositivo y no se guarda.</p>
+          <div class="visor" id="visor">
+            <video id="video" playsinline muted></video>
+            <div class="visor-marco" aria-hidden="true"></div>
+          </div>
+          <p class="error" id="camara-error" role="alert"></p>
+          <div class="acciones">
+            <button type="button" class="boton boton-primario" id="boton-camara">Activar cámara</button>
+            <button type="button" class="boton boton-secundario" id="boton-camara-parar" hidden>Detener</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Confirmar antes de guardar -->
+      <section class="pantalla" id="p-confirmar" aria-labelledby="t-confirmar" hidden>
+        <div class="cabecera">
+          <button type="button" class="boton-icono" id="confirmar-volver" aria-label="Cancelar y volver">
+            <svg aria-hidden="true"><use href="#i-volver"/></svg>
+          </button>
+          <h1 id="t-confirmar" class="titulo" tabindex="-1">Revisa la cuenta</h1>
+        </div>
+        <p class="panel-intro">Comprueba que el emisor es el servicio que esperas antes de guardar.</p>
+        <div class="ficha">
+          <div class="ficha-cabeza">
+            <span class="monograma monograma-grande" id="c-monograma" aria-hidden="true"></span>
+            <div>
+              <p class="ficha-emisor" id="c-emisor"></p>
+              <p class="ficha-cuenta" id="c-cuenta"></p>
+            </div>
+          </div>
+          <dl class="datos">
+            <div><dt>Algoritmo</dt><dd id="c-algoritmo"></dd></div>
+            <div><dt>Dígitos</dt><dd id="c-digitos"></dd></div>
+            <div><dt>Periodo</dt><dd id="c-periodo"></dd></div>
+            <div><dt>Origen</dt><dd id="c-origen"></dd></div>
+          </dl>
+          <div class="vista-previa">
+            <p class="vista-previa-titulo">Código actual</p>
+            <p class="vista-previa-codigo" id="c-codigo"></p>
+          </div>
+        </div>
+        <p class="advertencia" id="c-duplicado" hidden>
+          <svg aria-hidden="true"><use href="#i-alerta"/></svg>
+          <span>Ya tienes una cuenta con esta misma clave. Si la guardas, aparecerá dos veces.</span>
+        </p>
+        <div class="acciones">
+          <button type="button" class="boton boton-primario" id="boton-guardar-cuenta">Guardar cuenta</button>
+          <button type="button" class="boton boton-secundario" id="boton-cancelar-cuenta">Cancelar</button>
+        </div>
+      </section>
+
+      <!-- Detalle y edición -->
+      <section class="pantalla" id="p-detalle" aria-labelledby="t-detalle" hidden>
+        <div class="cabecera">
+          <button type="button" class="boton-icono" data-ir="lista" aria-label="Volver a los códigos">
+            <svg aria-hidden="true"><use href="#i-volver"/></svg>
+          </button>
+          <h1 id="t-detalle" class="titulo" tabindex="-1">Cuenta</h1>
+        </div>
+
+        <div class="detalle-codigo">
+          <div class="esfera esfera-grande" id="d-esfera" aria-hidden="true"></div>
+          <p class="detalle-numero" id="d-codigo" aria-live="polite" aria-atomic="true"></p>
+          <p class="siguiente" id="d-siguiente"></p>
+          <button type="button" class="boton boton-primario" id="d-copiar">
+            <svg aria-hidden="true"><use href="#i-copiar"/></svg><span>Copiar código</span>
+          </button>
+        </div>
+
+        <dl class="datos datos-detalle">
+          <div><dt>Algoritmo</dt><dd id="d-algoritmo"></dd></div>
+          <div><dt>Dígitos</dt><dd id="d-digitos"></dd></div>
+          <div><dt>Periodo</dt><dd id="d-periodo"></dd></div>
+          <div><dt>Agregada</dt><dd id="d-creada"></dd></div>
+        </dl>
+
+        <form class="formulario bloque" id="f-renombrar" novalidate>
+          <h2 class="subtitulo">Nombre visible</h2>
+          <div class="campo">
+            <label for="r-emisor">Emisor</label>
+            <input id="r-emisor" autocomplete="off" maxlength="100">
+          </div>
+          <div class="campo">
+            <label for="r-cuenta">Cuenta</label>
+            <input id="r-cuenta" autocomplete="off" maxlength="100">
+          </div>
+          <p class="error" id="renombrar-error" role="alert"></p>
+          <button type="submit" class="boton boton-secundario">Guardar nombre</button>
+        </form>
+
+        <div class="bloque bloque-riesgo">
+          <h2 class="subtitulo">Eliminar cuenta</h2>
+          <p>Si la eliminas sin desactivar antes el segundo factor en el servicio, necesitarás un código de recuperación para volver a entrar.</p>
+          <button type="button" class="boton boton-peligro" id="d-eliminar">Eliminar cuenta</button>
+        </div>
+      </section>
+
+      <!-- Ajustes -->
+      <section class="pantalla" id="p-ajustes" aria-labelledby="t-ajustes" hidden>
+        <div class="cabecera">
+          <button type="button" class="boton-icono" data-ir="lista" aria-label="Volver a los códigos">
+            <svg aria-hidden="true"><use href="#i-volver"/></svg>
+          </button>
+          <h1 id="t-ajustes" class="titulo" tabindex="-1">Ajustes</h1>
+        </div>
+
+        <div class="bloque">
+          <h2 class="subtitulo">Bloqueo</h2>
+          <div class="campo">
+            <label for="a-bloqueo">Bloquear tras un periodo sin uso</label>
+            <select id="a-bloqueo">
+              <option value="1">1 minuto</option>
+              <option value="2">2 minutos</option>
+              <option value="5">5 minutos</option>
+            </select>
+          </div>
+          <p class="ayuda">La app también se bloquea en cuanto la ocultas o cambias de aplicación.</p>
+          <details class="desplegable" id="cambiar-pin">
+            <summary>Cambiar PIN</summary>
+            <form class="formulario" id="f-cambiar-pin" novalidate>
+              <div class="campo">
+                <label for="cp-actual">PIN actual</label>
+                <input class="entrada-pin" id="cp-actual" type="password" inputmode="numeric" autocomplete="current-password" maxlength="12">
+              </div>
+              <div class="campo">
+                <label for="cp-nuevo">PIN nuevo</label>
+                <input class="entrada-pin" id="cp-nuevo" type="password" inputmode="numeric" autocomplete="new-password" maxlength="12">
+              </div>
+              <div class="campo">
+                <label for="cp-repetido">Repite el PIN nuevo</label>
+                <input class="entrada-pin" id="cp-repetido" type="password" inputmode="numeric" autocomplete="new-password" maxlength="12">
+              </div>
+              <p class="error" id="cambiar-pin-error" role="alert"></p>
+              <button type="submit" class="boton boton-secundario">Cambiar PIN</button>
+            </form>
+          </details>
+        </div>
+
+        <div class="bloque">
+          <h2 class="subtitulo">Hora del dispositivo</h2>
+          <p>Los códigos dependen de la hora. Si tu reloj se adelanta o se atrasa, el servicio puede rechazarlos. La comprobación consulta solo la hora del servidor que te envió esta app.</p>
+          <button type="button" class="boton boton-secundario" id="boton-hora">
+            <svg aria-hidden="true"><use href="#i-reloj"/></svg><span>Comprobar hora</span>
+          </button>
+          <div class="resultado" id="resultado-hora" role="status" aria-live="polite" hidden></div>
+        </div>
+
+        <div class="bloque">
+          <h2 class="subtitulo">Respaldo cifrado</h2>
+          <p>Guarda un archivo cifrado con una contraseña para trasladar tus cuentas a otro dispositivo. Guárdalo fuera de este teléfono.</p>
+          <details class="desplegable">
+            <summary>Exportar respaldo</summary>
+            <form class="formulario" id="f-exportar" novalidate>
+              <div class="campo">
+                <label for="e-clave">Contraseña del respaldo</label>
+                <input id="e-clave" type="password" autocomplete="new-password" minlength="10" aria-describedby="e-clave-ayuda">
+                <p class="ayuda" id="e-clave-ayuda">Mínimo 10 caracteres. Sin ella no podrás restaurarlo.</p>
+              </div>
+              <div class="campo">
+                <label for="e-clave2">Repite la contraseña</label>
+                <input id="e-clave2" type="password" autocomplete="new-password">
+              </div>
+              <p class="error" id="exportar-error" role="alert"></p>
+              <button type="submit" class="boton boton-secundario">Descargar respaldo</button>
+            </form>
+          </details>
+          <details class="desplegable">
+            <summary>Importar respaldo</summary>
+            <form class="formulario" id="f-importar" novalidate>
+              <div class="campo">
+                <label for="i-archivo">Archivo de respaldo (.json)</label>
+                <input id="i-archivo" type="file" accept="application/json,.json">
+              </div>
+              <div class="campo">
+                <label for="i-clave">Contraseña del respaldo</label>
+                <input id="i-clave" type="password" autocomplete="off">
+              </div>
+              <p class="error" id="importar-error" role="alert"></p>
+              <button type="submit" class="boton boton-secundario">Importar cuentas</button>
+            </form>
+          </details>
+        </div>
+
+        <div class="bloque bloque-riesgo">
+          <h2 class="subtitulo">Borrar todo</h2>
+          <p>Elimina el PIN y todas las cuentas de este dispositivo. No se puede deshacer.</p>
+          <button type="button" class="boton boton-peligro" id="boton-borrar-todo">Borrar todo</button>
+        </div>
+
+        <div class="bloque acerca">
+          <h2 class="subtitulo">Acerca de</h2>
+          <p class="acerca-lema">100 % local, sin conexión, sin rastreo.</p>
+          <ul class="lista-simple">
+            <li>Las claves se cifran con AES-256-GCM y una llave derivada de tu PIN (PBKDF2-SHA256, 600 000 iteraciones).</li>
+            <li>Los códigos se calculan en este dispositivo según RFC 6238 (SHA-1, SHA-256 y SHA-512).</li>
+            <li>La app no envía datos a ningún servidor ni usa analítica, fuentes o scripts externos.</li>
+          </ul>
+          <p class="version" id="version">Versión 1.0.0</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="pie">
+      <p class="pie-titulo">Servicio Soberano de Autenticación</p>
+      <ul class="pie-sellos">
+        <li>Software libre · AGPL-3.0</li>
+        <li>Infraestructura nacional · Sin dependencias extranjeras</li>
+      </ul>
+    </footer>
+    </div>
+  </div>
+
+  <dialog class="dialogo" id="dialogo" aria-labelledby="dialogo-titulo" aria-describedby="dialogo-texto">
+    <form method="dialog" class="dialogo-cuerpo" id="dialogo-form">
+      <h2 id="dialogo-titulo" class="dialogo-titulo"></h2>
+      <p id="dialogo-texto" class="dialogo-texto"></p>
+      <div class="campo" id="dialogo-campo" hidden>
+        <label for="dialogo-entrada" id="dialogo-etiqueta"></label>
+        <input id="dialogo-entrada" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="dialogo-acciones">
+        <button type="submit" value="cancelar" class="boton boton-secundario" id="dialogo-cancelar">Cancelar</button>
+        <button type="submit" value="aceptar" class="boton boton-peligro" id="dialogo-aceptar"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="aviso" id="aviso" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <noscript><p class="noscript">Esta aplicación necesita JavaScript activado para calcular tus códigos en el dispositivo.</p></noscript>
+</body>
+</html>

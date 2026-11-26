@@ -1,0 +1,11 @@
+{
+  "valid": true,
+  "sub": "fcb71ba1a669e4046741729ff62af0f70f6aa872bdc6f8b548d2e84a22ee9442",
+  "aud": "app_92ac25d65219ee26d26e83847b010007",
+  "jti": "90d50824-6e63-432c-b40c-6cc16c9bba56",
+  "kid": "r0RDlpspVyB6l7jT1pZ0lw",
+  "amr": [
+    "otp"
+  ],
+  "exp": 1795712263
+}

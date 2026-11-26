@@ -1,0 +1,21 @@
+{
+  "active_kid": "KgDPp43v24ajAurNdYMgcQ",
+  "keys": [
+    {
+      "kid": "KgDPp43v24ajAurNdYMgcQ",
+      "estado": "activa",
+      "created_at": "2026-11-26T16:53:01.124Z",
+      "rotated_at": null,
+      "alg": "EdDSA",
+      "crv": "Ed25519"
+    },
+    {
+      "kid": "r0RDlpspVyB6l7jT1pZ0lw",
+      "estado": "solo_verificacion",
+      "created_at": "2026-11-26T09:12:44.501Z",
+      "rotated_at": "2026-11-26T16:53:01.124Z",
+      "alg": "EdDSA",
+      "crv": "Ed25519"
+    }
+  ]
+}

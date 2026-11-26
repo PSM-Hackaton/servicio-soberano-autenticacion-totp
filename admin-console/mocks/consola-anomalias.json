@@ -1,0 +1,123 @@
+{
+  "modo": "local",
+  "umbrales": {
+    "alerta": 60,
+    "bloqueo": 75
+  },
+  "summary": {
+    "evaluations": 1284,
+    "blockedAnomalyCount": 9,
+    "delayedCount": 14,
+    "alertsCount": 7,
+    "avgInferenceMs": 1.8,
+    "p95InferenceMs": 3.1
+  },
+  "alerts": [
+    {
+      "id": "alrt-008",
+      "externalUserId": "usr-reto1-evaluador-01",
+      "ipHash": "hmac_9b34f1e2c8a7",
+      "riskScore": 91.5,
+      "level": "CRITICAL",
+      "action": "BLOCK",
+      "app": "reto1-evaluador",
+      "inferenceMs": 2.3,
+      "reasons": [
+        "Ráfaga de 14 intentos fallidos sobre la misma cuenta en 15 minutos",
+        "Dispersión anómala de 6 hashes de IP sobre la misma cuenta (patrón de fuerza bruta distribuida)",
+        "Ritmo automatizado: 1,3 s de media entre intentos de la misma IP"
+      ],
+      "createdAt": "2026-11-26T16:12:04.000Z"
+    },
+    {
+      "id": "alrt-007",
+      "externalUserId": null,
+      "ipHash": "hmac_51ad07c3e9f2",
+      "riskScore": 84.2,
+      "level": "HIGH",
+      "action": "BLOCK",
+      "app": "portal-tramites",
+      "inferenceMs": 1.9,
+      "reasons": [
+        "Una misma IP probó 11 cuentas distintas en 15 minutos (patrón de password spraying)",
+        "100 % de intentos fallidos desde la misma IP"
+      ],
+      "createdAt": "2026-11-26T15:58:41.000Z"
+    },
+    {
+      "id": "alrt-006",
+      "externalUserId": "hmac_77c1a0e4",
+      "ipHash": "hmac_0c9e44b18d63",
+      "riskScore": 68.7,
+      "level": "MEDIUM",
+      "action": "DELAY",
+      "app": "portal-tramites",
+      "inferenceMs": 1.4,
+      "reasons": [
+        "Ráfaga de 6 intentos fallidos sobre la misma cuenta en 15 minutos",
+        "Hora inusual: unas 9 h fuera del patrón horario de la cuenta"
+      ],
+      "createdAt": "2026-11-26T15:31:17.000Z"
+    },
+    {
+      "id": "alrt-005",
+      "externalUserId": "hmac_3f9e2b71",
+      "ipHash": "hmac_a83f6612c0d4",
+      "riskScore": 63.1,
+      "level": "MEDIUM",
+      "action": "DELAY",
+      "app": "registro-investigadores",
+      "inferenceMs": 1.6,
+      "reasons": [
+        "Isolation Forest: comportamiento atípico frente al patrón aprendido (anomalía 0,71, normal ≤ 0,58)"
+      ],
+      "createdAt": "2026-11-26T14:47:55.000Z"
+    },
+    {
+      "id": "alrt-004",
+      "externalUserId": "hmac_c02d58aa",
+      "ipHash": "hmac_5be2a9017f3c",
+      "riskScore": 88,
+      "level": "HIGH",
+      "action": "BLOCK",
+      "app": "portal-tramites",
+      "inferenceMs": 2.1,
+      "reasons": [
+        "18 intentos fallidos desde la misma IP en 15 minutos",
+        "Ritmo automatizado: 0,8 s de media entre intentos de la misma IP",
+        "95 % de intentos fallidos desde la misma IP"
+      ],
+      "createdAt": "2026-11-26T13:20:09.000Z"
+    },
+    {
+      "id": "alrt-003",
+      "externalUserId": "hmac_8e11f4c9",
+      "ipHash": "hmac_f1c7b3e09a22",
+      "riskScore": 61.4,
+      "level": "MEDIUM",
+      "action": "ALLOW",
+      "app": "registro-investigadores",
+      "inferenceMs": 1.2,
+      "reasons": [
+        "Hora inusual: unas 11 h fuera del patrón horario de la cuenta",
+        "Isolation Forest: comportamiento atípico frente al patrón aprendido (anomalía 0,64, normal ≤ 0,58)"
+      ],
+      "createdAt": "2026-11-26T11:02:36.000Z"
+    },
+    {
+      "id": "alrt-002",
+      "externalUserId": "hmac_19ab6d02",
+      "ipHash": "hmac_77e0d1a4b8c5",
+      "riskScore": 79.3,
+      "level": "HIGH",
+      "action": "BLOCK",
+      "app": "reto1-evaluador",
+      "inferenceMs": 1.8,
+      "reasons": [
+        "Ráfaga de 9 intentos fallidos sobre la misma cuenta en 15 minutos",
+        "Dispersión anómala de 4 hashes de IP sobre la misma cuenta (patrón de fuerza bruta distribuida)"
+      ],
+      "createdAt": "2026-11-26T09:44:12.000Z"
+    }
+  ]
+}

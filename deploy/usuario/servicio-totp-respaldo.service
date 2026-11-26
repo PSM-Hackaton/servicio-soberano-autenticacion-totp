@@ -1,0 +1,17 @@
+# Respaldo cifrado (AES-256-GCM) de la base SQLite y de la configuración, en modo usuario.
+# Lo lanza servicio-totp-respaldo.timer a diario; a mano: systemctl --user start servicio-totp-respaldo
+# Plantilla: deploy/instalar.sh sustituye @PREFIJO@.
+
+[Unit]
+Description=Respaldo cifrado del Servicio Soberano TOTP (modo usuario)
+After=servicio-totp.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh @PREFIJO@/deploy/operar.sh respaldo
+UMask=0077
+Nice=10
+NoNewPrivileges=true
+RestrictAddressFamilies=AF_UNIX
+RestrictRealtime=true
+LockPersonality=true

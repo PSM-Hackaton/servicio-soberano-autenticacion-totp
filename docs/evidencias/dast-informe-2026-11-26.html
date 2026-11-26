@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
+<title>Laboratorio de ataques — informe</title>
+<style>
+  :root { --fondo: #f7f7f5; --texto: #1d1d1b; --tenue: #66665f; --borde: #d9d9d3; --ok: #11733b; --fallo: #b3261e; --info: #8a5a00; --tarjeta: #fff; }
+  @media (prefers-color-scheme: dark) { :root { --fondo: #161615; --texto: #ececea; --tenue: #a3a39b; --borde: #3a3a36; --ok: #5cd08a; --fallo: #ff8a80; --info: #f0c060; --tarjeta: #1f1f1d; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px 16px 64px; background: var(--fondo); color: var(--texto); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  h2 { font-size: 1.15rem; margin: 0 0 4px; display: flex; gap: 10px; align-items: center; }
+  .sub, .demuestra { color: var(--tenue); margin: 0 0 12px; }
+  .cifras { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0 24px; }
+  .cifra { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 8px; padding: 10px 16px; min-width: 140px; }
+  .cifra b { display: block; font-size: 1.5rem; }
+  section { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 8px; padding: 16px; margin: 0 0 18px; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--borde); vertical-align: top; }
+  th { color: var(--tenue); font-weight: 600; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  code { font: 0.86rem/1.4 ui-monospace, "SFMono-Regular", Menlo, monospace; word-break: break-word; }
+  .ok, .fallo, .info { font-weight: 700; font-size: 0.8rem; padding: 1px 8px; border-radius: 10px; border: 1px solid currentColor; white-space: nowrap; }
+  .ok { color: var(--ok); } .fallo { color: var(--fallo); } .info { color: var(--info); }
+  tr.fila-fallo td { background: color-mix(in srgb, var(--fallo) 8%, transparent); }
+  .notas li { color: var(--info); } .hallazgos li { color: var(--fallo); font-weight: 600; }
+  a { color: inherit; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Laboratorio de ataques simulados y caos</h1>
+  <p class="sub">Servicio soberano TOTP · destino https://127.0.0.1:18443 · generado 2026-11-26T17:57:02.990Z · Node v22.22.1</p>
+  <div class="cifras">
+    <div class="cifra"><b>1/1</b>escenarios OK</div>
+    <div class="cifra"><b>9/9</b>verificaciones OK</div>
+    <div class="cifra"><b>0</b>hallazgos</div>
+    <div class="cifra"><b>0 s</b>duración total</div>
+  </div>
+  <section>
+    <h2>Resumen</h2>
+    <table>
+      <thead><tr><th>Escenario</th><th>Qué demuestra</th><th>Verificaciones</th><th>Duración</th><th>Resultado</th></tr></thead>
+      <tbody>
+      <tr><td><a href="#dast">Escaneo dinámico de seguridad (DAST propio)</a></td><td>TLS 1.3 estricto, cabeceras OWASP en todas las rutas, métodos 405, CORS cerrado, cookies seguras y respuestas de error sin filtraciones.</td>
+      <td class="num">9/9</td>
+      <td class="num">0.0 s</td><td><span class="ok">OK</span></td></tr></tbody>
+    </table>
+  </section>
+  
+  <section id="dast">
+    <h2>Escaneo dinámico de seguridad (DAST propio) <span class="ok">OK</span></h2>
+    <p class="demuestra">TLS 1.3 estricto, cabeceras OWASP en todas las rutas, métodos 405, CORS cerrado, cookies seguras y respuestas de error sin filtraciones.</p>
+    <table>
+      <thead><tr><th>Verificación</th><th>Esperado</th><th>Obtenido</th><th>Resultado</th></tr></thead>
+      <tbody>
+        <tr class=""><td>TLS 1.3 negociado con cifrado AEAD moderno</td><td>TLSv1.3 + cifrado AEAD</td><td><code>TLSv1.3 · TLS_AES_256_GCM_SHA384</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>TLS 1.2 y versiones antiguas rechazados</td><td>conexión rechazada</td><td><code>rechazado (ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION)</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Certificado TLS vigente</td><td>no expirado</td><td><code>Dec  3 17:57:02 2026 GMT</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Cabeceras OWASP en todas las rutas (24 rutas)</td><td>24/24 sin faltantes ni huellas</td><td><code>24/24 OK</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Política Permissions-Policy en PWA (/app/)</td><td>camera=(self) para escáner QR</td><td><code>Permissions-Policy en /app/ bloquea camera=() (impide escáner QR por cámara; ver Issue #20 C2)</code></td><td><span class="info">INFO</span></td></tr>
+        <tr class=""><td>Rutas administrativas protegidas sin sesión</td><td>401 en todas las rutas /admin/api/* privadas</td><td><code>todas devolvieron 401</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Errores genéricos y cero fugas internas / 5xx</td><td>0 errores 5xx, 0 fugas, formato { error, message }</td><td><code>5xx=0, fugas=0, formatoInvalido=0</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Métodos HTTP peligrosos / no permitidos (TRACE, PUT, PATCH, DELETE)</td><td>7/7 rechazados sin reflejo</td><td><code>7/7 OK</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>CORS cerrado ante orígenes maliciosos y preflight OPTIONS</td><td>sin comodín * ni reflejo de orígenes externos</td><td><code>9 sondas CORS seguras</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Aislamiento de /metrics fuera de 127.0.0.1</td><td>403</td><td><code>403</code></td><td><span class="ok">OK</span></td></tr>
+      </tbody>
+    </table>
+    
+    <table class="metricas">
+      <thead><tr><th>Métrica</th><th>Valor</th></tr></thead>
+      <tbody><tr><td>tlsProtocolo</td><td><code>TLSv1.3</code></td></tr><tr><td>tlsCifrado</td><td><code>TLS_AES_256_GCM_SHA384</code></td></tr><tr><td>rutasAuditadas</td><td><code>24</code></td></tr><tr><td>cabecerasOk</td><td><code>24</code></td></tr><tr><td>metodosRechazadosOk</td><td><code>7</code></td></tr><tr><td>corsOk</td><td><code>9</code></td></tr><tr><td>errores5xx</td><td><code>0</code></td></tr><tr><td>fugasDetectadas</td><td><code>0</code></td></tr></tbody>
+    </table>
+    <ul class="notas"><li>Permissions-Policy en /app/ bloquea camera=() (impide escáner QR por cámara; ver Issue #20 C2)</li><li>Auditoría de Set-Cookie admin en vivo disponible pasando --admin-user, --admin-pass y --admin-totp.</li></ul>
+    
+  </section>
+</main>
+</body>
+</html>

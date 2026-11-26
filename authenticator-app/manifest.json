@@ -1,0 +1,21 @@
+{
+  "name": "Autenticador Soberano",
+  "short_name": "Autenticador",
+  "description": "Códigos de segundo factor (TOTP) cifrados y guardados solo en este dispositivo.",
+  "lang": "es",
+  "dir": "ltr",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eef1f6",
+  "theme_color": "#00247D",
+  "categories": ["security", "utilities"],
+  "icons": [
+    { "src": "icons/icono.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icono-mascara.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" },
+    { "src": "icons/icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

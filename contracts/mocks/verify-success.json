@@ -1,0 +1,11 @@
+{
+  "verified": true,
+  "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InIwUkRscHNwVnlCNmw3alQxcFowbHcifQ.eyJpc3MiOiJodHRwczovL3RvdHAuc29iZXJhbm8ubG9jYWwiLCJzdWIiOiJmY2I3MWJhMWE2NjllNDA0Njc0MTcyOWZmNjJhZjBmNzBmNmFhODcyYmRjNmY4YjU0OGQyZTg0YTIyZWU5NDQyIiwiYXVkIjoiYXBwXzkyYWMyNWQ2NTIxOWVlMjZkMjZlODM4NDdiMDEwMDA3IiwiYW1yIjpbIm90cCJdLCJpYXQiOjE3OTU3MTE5NjMsIm5iZiI6MTc5NTcxMTk2MywiZXhwIjoxNzk1NzEyMjYzLCJqdGkiOiI5MGQ1MDgyNC02ZTYzLTQzMmMtYjQwYy02Y2MxNmM5YmJhNTYifQ.FIRMA_DE_EJEMPLO_NO_VALIDA",
+  "jti": "90d50824-6e63-432c-b40c-6cc16c9bba56",
+  "kid": "r0RDlpspVyB6l7jT1pZ0lw",
+  "expires_at": "2026-11-26T16:57:43.000Z",
+  "drift_steps": 1,
+  "risk": {
+    "level": "LOW"
+  }
+}

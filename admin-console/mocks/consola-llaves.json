@@ -1,0 +1,29 @@
+{
+  "active_kid": "key-20261126-01",
+  "keys": [
+    {
+      "kid": "key-20261126-01",
+      "estado": "activa",
+      "alg": "EdDSA",
+      "crv": "Ed25519",
+      "created_at": "2026-11-26T07:00:00.000Z",
+      "rotated_at": null
+    },
+    {
+      "kid": "key-20261124-01",
+      "estado": "solo_verificacion",
+      "alg": "EdDSA",
+      "crv": "Ed25519",
+      "created_at": "2026-11-24T07:00:00.000Z",
+      "rotated_at": "2026-11-26T07:00:00.000Z"
+    },
+    {
+      "kid": "key-20261121-01",
+      "estado": "retirada",
+      "alg": "EdDSA",
+      "crv": "Ed25519",
+      "created_at": "2026-11-21T07:00:00.000Z",
+      "rotated_at": "2026-11-24T07:00:00.000Z"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "summary": {
+    "totalVerifications": 8,
+    "blockedReplayCount": 1,
+    "blockedAnomalyCount": 2,
+    "avgInferenceMs": 0.667
+  },
+  "alerts": [
+    {
+      "id": 10,
+      "userRefHash": "61731fb06d71644241358aa2d570b465c4be7856298e4975be8260231719fafe",
+      "ipHash": "9bbdd5dd081172cd1156b525b7d9d1b3ec0b7be6aec4596dbbe5a63466ef4d04",
+      "riskScore": 85.2,
+      "level": "HIGH",
+      "action": "BLOCK",
+      "reasons": [
+        "Una misma IP probó 7 cuentas distintas en 15 minutos (patrón de password spraying)",
+        "Ritmo automatizado: 0 s de media entre intentos de la misma IP",
+        "Isolation Forest: comportamiento atípico frente al patrón aprendido (anomalía 0,71, normal ≤ 0,66)"
+      ],
+      "resultado": "anomaly_blocked",
+      "createdAt": "2026-11-26T16:52:44.365Z"
+    },
+    {
+      "id": 9,
+      "userRefHash": "3c613ec5c70771d1ab4b85362414ea2d678f4b7e208f91bfe4145e7e35496ee9",
+      "ipHash": "9bbdd5dd081172cd1156b525b7d9d1b3ec0b7be6aec4596dbbe5a63466ef4d04",
+      "riskScore": 84.2,
+      "level": "HIGH",
+      "action": "BLOCK",
+      "reasons": [
+        "Una misma IP probó 6 cuentas distintas en 15 minutos (patrón de password spraying)",
+        "Ritmo automatizado: 0 s de media entre intentos de la misma IP",
+        "Isolation Forest: comportamiento atípico frente al patrón aprendido (anomalía 0,72, normal ≤ 0,66)"
+      ],
+      "resultado": "anomaly_blocked",
+      "createdAt": "2026-11-26T16:52:44.361Z"
+    },
+    {
+      "id": 8,
+      "userRefHash": "ba17bffb7f6ca6e4e061e00983f15b5c6a0c55e44c5142b25d9369e4332e0a0c",
+      "ipHash": "9bbdd5dd081172cd1156b525b7d9d1b3ec0b7be6aec4596dbbe5a63466ef4d04",
+      "riskScore": 64.8,
+      "level": "MEDIUM",
+      "action": "ALLOW",
+      "reasons": [
+        "Ritmo automatizado: 0,1 s de media entre intentos de la misma IP",
+        "Isolation Forest: comportamiento atípico frente al patrón aprendido (anomalía 0,72, normal ≤ 0,66)"
+      ],
+      "resultado": "invalid_code",
+      "createdAt": "2026-11-26T16:52:44.359Z"
+    }
+  ]
+}
