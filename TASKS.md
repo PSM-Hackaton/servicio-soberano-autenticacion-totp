@@ -5,12 +5,12 @@
 
 ---
 
-## FASE 0 & FASE 1: Sincronización con `main`, Estructura y Contratos Congelados (`feat/lead-arquitectura-totp`)
+## FASE 0 & FASE 1: Sincronización con `main`, Estructura y Contratos Congelados (rama `laya`)
 - [x] `[LEAD]` Lectura de `docs/reto/`, `docs/analisis/analisis-tecnico.html` (`origin/main`) e `instructivo_gitlab.pdf`.
 - [x] `[LEAD]` Alineación de estructura oficial de `main` + Puertos Hexagonales (`backend/`, `authenticator-app/`, `admin-console/`, `sdk/`, `demo-portal-tramites/`, `attack-lab/`, `deploy/`, `contracts/`).
 - [x] `[LEAD]` Creación de guías al unísono (`AGENTS.md`, `ARCHITECTURE.md`, `ANALISIS_FASE0.md`, `SYSTEM_GRAPH.md`, `CONTRIBUTING.md`, `TASKS.md`, `.env.example`, `.gitignore`).
 - [x] `[LEAD]` Contratos congelados (`contracts/openapi.yaml`, `contracts/schema.sql` PostgreSQL 16, `contracts/schema.sqlite.sql` fallback sin Docker, `contracts/mocks/*.json`).
-- [ ] `[LEAD]` Subir rama `feat/lead-arquitectura-totp` a GitHub (`origin`) tras habilitación de permiso *Write* para `lya0509` en `PSM-Hackaton`.
+- [x] `[LEAD]` Rama `laya` comparada contra `origin/main`, `origin/staging` y `origin/diego`, y publicada en GitHub (`origin/laya`).
 - [ ] `[LEAD]` Emitir prompts oficiales de 8 secciones para cada compañero y guía de integración para el sub-equipo de Reto 1.
 
 ---

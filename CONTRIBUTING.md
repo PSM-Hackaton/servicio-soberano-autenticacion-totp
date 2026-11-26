@@ -6,17 +6,18 @@
 
 ## 2. Reglas de Ramas (Cero cambios directos en `main`)
 1. **PROHIBIDO** hacer `commit` o `push` directo a `main`.
-2. Cada integrante trabaja en su propia rama con el prefijo de su rol:
-   - Lead / Arquitectura / QA / SDK: `feat/lead-<modulo>`
-   - Backend / Criptografía / IA Local: `feat/backend-<modulo>`
-   - Frontend / Consola / PWA / Demo: `feat/frontend-<modulo>`
-3. Antes de subir cambios a GitHub:
+2. Cada integrante trabaja en su propia rama en GitHub:
+   - J Laya (Lead / Arquitectura / Contratos / SDK): **`laya`** (o `feat/lead-*`)
+   - Diego Landaeta (Backend / Criptografía): **`diego`** (o `feat/backend-*`)
+   - Otros módulos: `feat/<rol>-<modulo>`
+3. Integración: abrir Pull Request en GitHub hacia **`staging`** (y de `staging` a `main` solo tras validación conjunta).
+4. Antes de subir cambios a GitHub:
    ```bash
    git fetch origin
    git status
    git branch
    ```
-4. Toda integración hacia `avance` pasa por Pull Request en GitHub y revisión del Tech Lead contra:
+5. Toda integración hacia `staging` pasa por Pull Request en GitHub y revisión contra:
    - Respeto de propiedad de carpetas (`ARCHITECTURE.md`).
    - Cumplimiento exacto de `contracts/openapi.yaml` y `contracts/schema.sql`.
    - Cero secretos, `.env`, llaves `.pem`/`.key` ni bases `.db`.

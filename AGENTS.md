@@ -21,8 +21,9 @@
    - **GitHub (`origin`):** **EXCLUSIVO para todas las subidas, PRs y trabajo diario del equipo.**
    - **GitLab (`gitlab`):** **BLOQUEADO.** Prohibido ejecutar `git push` hacia GitLab hasta que J Laya dé la orden literal **`/push gitlab final`**.
 3. **Flujo de ramas en GitHub:**
-   - Trabajo en ramas aisladas por módulo: `feat/<rol>-<modulo>` (ej. `feat/lead-arquitectura-totp`, `feat/backend-totp-core`, `feat/frontend-pwa`, `feat/security-heuristics`).
-   - Integración en GitHub mediante Pull Request revisado antes de fusionar.
+   - Ramas activas del equipo en GitHub: **`laya`** (J Laya), **`diego`** (Diego Landaeta), más ramas `feat/<rol>-<modulo>` si se requiere subdividir.
+   - Integración en GitHub: Pull Request hacia **`staging`** (revisado antes de pasar a `main`). Prohibido commit/push directo a `main`.
+   - Solo al recibir `/push gitlab final`, se sincroniza la entrega oficial en GitLab (`avance` y `terminado`) con el `README.md` obligatorio de 6 apartados.
 4. **Contratos congelados (`contracts/`):** Fuente única de verdad alineada a la Sección 6 y 7 de `docs/analisis/analisis-tecnico.html`. Prohibido inventar campos o renombrar rutas sin actualizar `contracts/openapi.yaml` y `SYSTEM_GRAPH.md`.
 5. **Cero secretos en Git:** Nunca commitear `.env`, llaves maestras, `*.pem`, `*.key`, `*.crt`, `*.db` ni secretos reales.
 6. **Protocolo Graphy (`SYSTEM_GRAPH.md`):** Leer antes de escribir código; agregar nodos nuevos y podar nodos obsoletos en cada avance.
