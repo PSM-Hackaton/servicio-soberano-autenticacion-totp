@@ -1,6 +1,8 @@
 # Hallazgos aceptados a conciencia en la verificación de la entrega (--permitidos).
 # Formato: categoría (marcas|rutas|secretos) y ruta del archivo en la entrega. Este archivo no se publica.
 
-# El instalador rechaza un Node.js instalado bajo /root o /home en modo sistema: es un patrón de
-# comprobación (case "$NODE" in /root/*|/home/*), no una ruta local de la máquina del equipo.
+# La versión actual de deploy/instalar.sh ya no contiene rutas /home/ (compara la ruta de Node.js con las
+# carpetas personales reales de root y de quien ejecuta sudo), así que preparar-entrega.sh pasa sin esta
+# lista. Se conserva SOLO para sincronizar-gitlab.sh, que vuelve a verificar uno por uno los commits
+# anteriores a ese cambio, cuyo instalador tenía el patrón `case "$NODE" in /root/*|/home/*)`.
 rutas        deploy/instalar.sh

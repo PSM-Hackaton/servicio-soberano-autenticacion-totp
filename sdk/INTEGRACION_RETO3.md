@@ -1,14 +1,14 @@
-# Guía de Integración para el Sub-Equipo del Reto 1 (Agente Evaluador de Propuestas)
+# Guía de Integración para el Sub-Equipo del Reto 3 (Agente Evaluador de Propuestas)
 
-El **Servicio Soberano de Autenticación TOTP** se integra con el **Reto 1** como una aplicación cliente más en la tabla `apps` (cero acoplamiento de bases de datos, cero dependencias npm, 100 % Node.js 22 nativo).
+El **Servicio Soberano de Autenticación TOTP** se integra con el **Reto 3** como una aplicación cliente más en la tabla `apps` (cero acoplamiento de bases de datos, cero dependencias npm, 100 % Node.js 22 nativo).
 
 ---
 
 ## 1. Requisitos previos y credenciales
 
 - **Node.js 22.5+** (sin `npm install`: `sdk/src/index.js` usa solo `node:https`, `node:http` y `node:crypto`).
-- Al ejecutar `cd backend && npm run seed`, el servicio crea automáticamente la aplicación **`Reto 1`** e imprime **una sola vez** su `client_id` y `client_secret`.
-- Variables recomendadas en el proyecto del Reto 1:
+- Al ejecutar `cd backend && npm run seed`, el servicio crea automáticamente la aplicación **`Agente Evaluador (Reto 3)`** e imprime **una sola vez** su `client_id` y `client_secret`.
+- Variables recomendadas en el proyecto del Reto 3:
   - `TOTP_BASE_URL=https://localhost:8443`
   - `TOTP_CLIENT_ID=<client_id impreso por npm run seed>`
   - `TOTP_CLIENT_SECRET=<client_secret impreso por npm run seed>`
@@ -89,9 +89,9 @@ try {
 
 ## 4. Pruebas locales sin levantar el backend completo
 
-El SDK incluye un servicio falso con TOTP y JWT Ed25519 reales para que el equipo del Reto 1 pruebe su integración de inmediato:
+El SDK incluye un servicio falso con TOTP y JWT Ed25519 reales para que el equipo del Reto 3 pruebe su integración de inmediato:
 
 ```bash
 node sdk/testing/servicio-falso.js --puerto 8099
-# Apuntar TOTP_BASE_URL=http://127.0.0.1:8099 y ejecutar las pruebas del Reto 1
+# Apuntar TOTP_BASE_URL=http://127.0.0.1:8099 y ejecutar las pruebas del Reto 3
 ```

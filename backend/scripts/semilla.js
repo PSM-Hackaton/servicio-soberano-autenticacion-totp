@@ -1,4 +1,4 @@
-// Datos semilla: apps "Portal de Trámites" y "Reto 1" (client_id + client_secret mostrados UNA vez)
+// Datos semilla: apps "Portal de Trámites" y "Agente Evaluador (Reto 3)" (client_id + client_secret mostrados UNA vez)
 // y administrador inicial con contraseña aleatoria y enrolamiento TOTP activo (URI otpauth + QR SVG
 // en ADMIN_QR_PATH o, por defecto, admin-qr.svg junto a SQLITE_DB_PATH). Idempotente: lo que ya existe no se toca ni se vuelve a mostrar.
 // Uso: node scripts/semilla.js   (lee backend/.env o ENV_FILE)
@@ -15,7 +15,7 @@ import { crearBitacora, crearMetricas } from '../src/audit/index.js';
 import { crearCasosDeUso } from '../src/application/use-cases/index.js';
 import { provisionarAdministrador } from '../src/application/use-cases/administradores.js';
 
-const APPS_INTEGRADORAS = ['Portal de Trámites', 'Reto 1'];
+const APPS_INTEGRADORAS = ['Portal de Trámites', 'Agente Evaluador (Reto 3)'];
 const ACTOR_SEMILLA = Object.freeze({ id: 'semilla', usuario: 'semilla', rol: 'Administrador' });
 
 const config = cargarConfig();

@@ -19,7 +19,7 @@ anomalías** reacciona a patrones de ataque. Cumple las secciones 5.5 a 5.7 de
 ```bash
 # 1. Backend (en otra terminal)
 cd backend && npm run env && npm run certs && npm run seed && npm start
-#    La semilla imprime client_id y client_secret de "Portal de Trámites" y "Reto 1" UNA sola vez.
+#    La semilla imprime client_id y client_secret de "Portal de Trámites" y "Agente Evaluador (Reto 3)" UNA sola vez.
 
 # 2. Credenciales de las apps de prueba (argumentos, variables o archivo)
 export ATTACK_CLIENT_ID=app_...            ATTACK_CLIENT_SECRET=...
@@ -77,7 +77,7 @@ Cada verificación registra **esperado / obtenido / OK·FALLO**; las observacion
 | `escenarios/deriva.js` | Envía en ráfaga los códigos de T+1 a T+12; resincroniza otro usuario con T+8/T+9 y prueba T+10 y una resincronización a ±11. | La deriva ya no se arrastra: solo entra T+1; solo `resync` fija derivas mayores (hasta ±10) y `verify` respeta ese tope. |
 | `escenarios/jwt.js` | Obtiene un JWT legítimo y prueba: payload alterado, firma rota, `alg: none`, confusión HS256, `kid` desconocido, caducado, clave ajena, otra audiencia (app 2 real), reutilización del `jti`. Valida además offline con `/.well-known/jwks.json`. | Todos rechazados; el legítimo vale una sola vez. `--esperar-caducidad` prueba la caducidad real (≈5,5 min). |
 | `escenarios/entradas.js` | 37 peticiones malformadas: JSON roto, campos extra, tipos incorrectos, `__proto__`, 5 000 niveles, 2 MiB con y sin `Content-Length`, `Content-Type` incorrecto, rutas raras, métodos no permitidos, credenciales ausentes… | Siempre 4xx con error genérico, sin 5xx ni rastros internos; cabeceras de seguridad presentes; `/health` sano al final. |
-| `escenarios/dast.js` | Escaneo dinámico OWASP propio sobre las 24 rutas del contrato: handshake TLS 1.3 (y rechazo TLS 1.2), cabeceras de seguridad, métodos peligrosos (`TRACE`, `PUT`, `PATCH`, `DELETE`), CORS con orígenes maliciosos, cookies/CSRF admin, aislamiento de `/metrics` y respuestas de error. | Cobertura DAST sin herramientas externas; detecta cualquier cabecera faltante, política CORS abierta, TLS obsoleto o fuga interna y genera informe JSON/HTML. |
+| `escenarios/dast.js` | Escaneo dinámico OWASP propio sobre las 31 rutas del contrato más los estáticos `/app/` y `/consola/` y una ruta inexistente (34 sondas): handshake TLS 1.3 (y rechazo TLS 1.2), cabeceras de seguridad, métodos peligrosos (`TRACE`, `PUT`, `PATCH`, `DELETE`), CORS con orígenes maliciosos, cookies/CSRF admin, aislamiento de `/metrics` y respuestas de error. | Cobertura DAST sin herramientas externas; comprueba que solo `/app/` permite la cámara (`camera=(self)`, lector de QR); detecta cualquier cabecera faltante, política CORS abierta, TLS obsoleto o fuga interna y genera informe JSON/HTML. |
 | `escenarios/fuerza-bruta.js` | Códigos incorrectos secuenciales contra una cuenta; insiste durante el bloqueo, prueba el código **correcto** bloqueado y, tras vencer el primer escalón, vuelve a fallar. | 429 en el 6.º intento con `Retry-After: 30`; ni el código correcto pasa; al vencer, el siguiente fallo vuelve a bloquear (30 s → 2 min → 10 min → 1 h, o 5 min si el detector se adelanta), siempre con el mismo `TOO_MANY_REQUESTS` genérico. |
 | `escenarios/fuerza-bruta-distribuida.js` | 40 IP distintas, un intento cada una, contra la misma cuenta. | Rotar de IP no sirve: el bloqueo es por cuenta; el titular legítimo también queda protegido (falla cerrado). |
 | `escenarios/spraying.js` | Un origen prueba 2 códigos en 20 cuentas (6 reales + 14 inexistentes) y luego intenta una verificación legítima desde ese origen. | Ninguna cuenta comprometida; respuestas y tiempos idénticos para cuentas reales e inexistentes (sin enumeración); el **detector de anomalías** bloquea el origen (Δ `anomaly_blocked` en `/metrics`) con un 429 `TOO_MANY_REQUESTS` genérico que no revela puntuación, razones ni umbrales (solo constan en `attempts`, la bitácora y `/admin/api/anomalies`). |
@@ -116,7 +116,7 @@ con `--detallado`, y la consola admin abierta en «Anomalías».
 5. **2:40 – 3:00 · Informe.** Abrir `attack-lab/resultados/informe-<fecha>.html` de la última ejecución de
    `ejecutar-todo.js` (preparada antes): «11 escenarios, todas las verificaciones con esperado y obtenido.»
 
-Plan B sin backend: `npm test` en `attack-lab/` (26 pruebas, incluido el proxy contra un servidor eco).
+Plan B sin backend: `npm test` en `attack-lab/` (28 pruebas, incluido el proxy contra un servidor eco).
 
 ## Estructura
 

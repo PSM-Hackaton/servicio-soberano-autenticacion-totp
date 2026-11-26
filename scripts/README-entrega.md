@@ -33,7 +33,7 @@ Merge Request. Los commits llevan siempre la hora real.
 1. Configurar la persona que ejecuta en el repositorio de GitHub: `git config user.name "Nombre Apellido"` y
    `git config user.email "correo"` (los scripts fallan si falta o si parece una cuenta automática).
 2. Tener la URL del proyecto en GitLab (botón *Clone*) y comprobar qué ramas existen ya (`avance`, `terminado`).
-3. Probar sin subir nada: `sh scripts/preparar-entrega.sh --salida /tmp/revision --permitidos scripts/permitidos-entrega.txt`.
+3. Probar sin subir nada: `sh scripts/preparar-entrega.sh --salida /tmp/revision` (ya no necesita `--permitidos`).
 
 ### Día 1: poner al día lo ya hecho, por etapas
 
@@ -77,7 +77,7 @@ historia, ningún push necesita forzarse y la rama más adelantada contiene todo
 | 5 `servidor` | Diego Landaeta | `diego` | Casos de uso, servidor HTTPS, arranque, scripts y resto de respuestas de ejemplo |
 | 6 `aplicaciones` | Diego Landaeta | `diego` | App autenticadora, consola, SDK, Portal de Trámites, guía de integración y manual |
 | 7 `laboratorio-despliegue` | Diego Landaeta | `diego` | Laboratorio de ataques y caos, su informe, despliegue como servicio y respaldos |
-| 8 `verificacion` | Juan Laya | `laya` | Escaneo dinámico (DAST), verificación del despliegue, sus evidencias, SBOM, guion de demo, guía del Reto 1 |
+| 8 `verificacion` | Juan Laya | `laya` | Escaneo dinámico (DAST), verificación del despliegue, sus evidencias, SBOM, guion de demo, guía del Reto 3 |
 | 9 `documentacion` | Diego Landaeta | `diego` | README de 6 apartados, licencia, matriz de cumplimiento, escalabilidad y presentación |
 
 El reparto sigue la autoría real (`git log --format=%an -- <ruta>`): cuando una parte mezcla autores, cada
@@ -133,8 +133,7 @@ Cierre de cada día: Merge Request de la rama más adelantada hacia `avance`, co
 ### Entrega final
 
 1. Tras el code freeze, última sincronización y Merge Request diario hacia `avance`.
-2. Comprobar la versión final con `sh scripts/preparar-entrega.sh --ref <rama-final> --final --salida /tmp/final
-   --permitidos scripts/permitidos-entrega.txt`: debe terminar sin errores y su árbol debe coincidir con el de
+2. Comprobar la versión final con `sh scripts/preparar-entrega.sh --ref <rama-final> --final --salida /tmp/final`: debe terminar sin errores y su árbol debe coincidir con el de
    la copia de entrega (`git -C ../entrega-gitlab rev-parse integracion^{tree}` frente a
    `git -C /tmp/final rev-parse avance^{tree}`).
 3. En GitLab: Merge Request de `avance` hacia `terminado` (si `terminado` no existe, crearla desde `avance`
@@ -231,8 +230,11 @@ rutas        deploy/instalar.sh
 ```
 
 Categorías: `marcas` (nombres de herramientas o coautoría), `rutas` (`/home/`), `secretos`. Los hallazgos
-aceptados se listan igualmente en la salida. Hoy la lista contiene solo `deploy/instalar.sh`, cuyo
-`case "$NODE" in /root/*|/home/*)` es una comprobación del instalador, no una ruta local.
+aceptados se listan igualmente en la salida. La versión actual del repositorio pasa **sin** `--permitidos`:
+`deploy/instalar.sh` ya compara la ruta de Node.js con las carpetas personales reales (de root y de quien
+ejecuta `sudo`) en lugar de un patrón literal. La lista conserva esa única línea para `sincronizar-gitlab.sh`
+cuando recorre commits anteriores a ese cambio, cuyo instalador tenía el patrón
+`case "$NODE" in /root/*|/home/*)`.
 
 ## Ganchos de git (`scripts/hooks/`)
 

@@ -63,7 +63,12 @@ if [ "$MODO" = usuario ]; then
   systemctl --user show-environment >/dev/null 2>&1 || fallo "No hay gestor «systemctl --user» en esta sesión (inicie sesión gráfica o por SSH con el mismo usuario)."
   ok "systemd de usuario disponible"
 else
-  case "$NODE" in /root/*|/home/*) fallo "Node.js está en $NODE, fuera del alcance del usuario del servicio. Instálelo en /usr o /usr/local." ;; esac
+  # El usuario del servicio no puede entrar en carpetas personales: un Node.js instalado en la carpeta de
+  # root o en la de quien ejecuta sudo (nvm, asdf…) no arrancaría. Se compara con esas carpetas reales.
+  for CASA in "$HOME" "$(getent passwd root | cut -d: -f6)" ${SUDO_USER:+"$(getent passwd "$SUDO_USER" | cut -d: -f6)"}; do
+    [ -n "$CASA" ] && [ "$CASA" != / ] || continue
+    case "$NODE" in "$CASA"/*) fallo "Node.js está en $NODE, dentro de $CASA y fuera del alcance del usuario del servicio. Instálelo en /usr o /usr/local." ;; esac
+  done
   ok "systemd del sistema disponible"
 fi
 IP=${IP_FORZADA:-$(ip_principal)}
@@ -311,9 +316,9 @@ if [ "$DATOS_DEMO" = 1 ]; then
   if [ -f "$DATOS/.datos-demo-cargados" ]; then
     ok "Ya se cargaron en esta instalación ($(cat "$DATOS/.datos-demo-cargados")): no se repiten"
   else
-    ID_DEMO=$(credencial_app "Reto 1" client_id)
-    SECRETO_DEMO=$(credencial_app "Reto 1" client_secret)
-    case "$SECRETO_DEMO" in ''|'(ya') aviso "No hay client_secret de «Reto 1» en $CREDENCIALES: se omiten los datos de demostración." ;;
+    ID_DEMO=$(credencial_app "Agente Evaluador (Reto 3)" client_id)
+    SECRETO_DEMO=$(credencial_app "Agente Evaluador (Reto 3)" client_secret)
+    case "$SECRETO_DEMO" in ''|'(ya') aviso "No hay client_secret de «Agente Evaluador (Reto 3)» en $CREDENCIALES: se omiten los datos de demostración." ;;
       *)
         info "Enrolando ciudadanos ficticios y simulando tráfico y ataques (≈ 40 s)…"
         "$NODE" --disable-warning=ExperimentalWarning "$PREFIJO/backend/scripts/datos-demo.js" \

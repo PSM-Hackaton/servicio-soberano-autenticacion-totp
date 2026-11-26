@@ -56,8 +56,9 @@ npm run usuarios &amp;&amp; npm start
 
 # Terminal 3 — laboratorio (letra grande)
 export ATTACK_CLIENT_ID=app_...   ATTACK_CLIENT_SECRET=...     # "Portal de Trámites"
-export ATTACK_CLIENT_ID_2=app_... ATTACK_CLIENT_SECRET_2=...   # "Reto 1"
-node attack-lab/ejecutar-todo.js --rapido          # ensayo completo: debe terminar en 8/8 OK
+export ATTACK_CLIENT_ID_2=app_... ATTACK_CLIENT_SECRET_2=...   # "Agente Evaluador (Reto 3)"
+node attack-lab/ejecutar-todo.js --rapido          # ensayo completo: debe terminar sin fallos
+#   (con --comando-arranque "node src/main.js" --pid-backend &lt;PID&gt; incluye el reinicio: 11/11 y 116/116)
 </pre>
 <ul>
   <li>CA local (<code>backend/certs/ca.crt</code>) importada en el navegador de la demo (README §6.5).</li>
@@ -94,7 +95,7 @@ node attack-lab/escenarios/replay.js --detallado
 node attack-lab/escenarios/jwt.js
 node attack-lab/escenarios/spraying.js
 </pre>
-<div class="di">«Robamos un código válido y lo reenviamos: <code>REPLAY_DETECTED</code>. Diez envíos simultáneos del mismo código: exactamente uno entra.» «Alteramos el token, le ponemos <code>alg: none</code>, lo firmamos con HS256 o con otra clave, lo usamos en otra app o lo reutilizamos: todo rechazado.» «Ahora un atacante prueba pocas veces muchas cuentas para esquivar el bloqueo por cuenta: el detector local, un Isolation Forest programado por nosotros, marca el origen con riesgo 100 y explica por qué. Todo se calcula en esta máquina.»</div>
+<div class="di">«Robamos un código válido y lo reenviamos: rechazado, y con la misma respuesta que un código cualquiera; el atacante ni siquiera sabe que el código era bueno. Diez envíos simultáneos del mismo código: exactamente uno entra.» «Alteramos el token, le ponemos <code>alg: none</code>, lo firmamos con HS256 o con otra clave, lo usamos en otra app o lo reutilizamos: todo rechazado.» «Ahora un atacante prueba pocas veces muchas cuentas para esquivar el bloqueo por cuenta: el detector local, un Isolation Forest programado por nosotros, bloquea el origen; al atacante solo le llega un 429 genérico y las razones las ve el equipo de seguridad en la consola. Todo se calcula en esta máquina.»</div>
 <p>Cambiar a la consola → <b>Detector de anomalías</b> → leer en voz alta una razón (por ejemplo, «Una misma IP probó 20 cuentas distintas en 15 minutos»).</p>
 
 <h3><span class="t">4:30–5:20</span> Caos y sin Internet</h3>
@@ -112,23 +113,24 @@ node attack-lab/escenarios/spraying.js
   <li><b>Panel</b>: verificaciones, bloqueos, disponibilidad, latencias y desfase de reloj, sin IP ni nombres.</li>
   <li><b>Aplicaciones</b> → <b>Editar</b> la política del Portal (por ejemplo, SHA-512 u 8 dígitos) y cancelar o guardar.</li>
   <li><b>Llaves de firma</b> → <b>Rotar llave de firma</b>: aparece un <code>kid</code> nuevo y el anterior pasa a <code>solo_verificacion</code> y sigue publicado en <code>/.well-known/jwks.json</code>: «los tokens ya emitidos siguen validando».</li>
+  <li><b>Enrolamientos</b> → filtrar por la app «Portal de Trámites» → en el enrolamiento recién creado, <b>Suspender</b> y <b>Reactivar</b>: «un suspendido responde como un código incorrecto; revocar es definitivo». Mencionar que las apps que derivan el <code>user_ref</code> de la cédula con el SDK permiten buscar por cédula sin guardarla, y que desde <b>Administradores</b> se crean cuentas de Operador y Auditor con su propio TOTP.</li>
   <li><b>Auditoría</b> → <b>Verificar integridad de la cadena</b>: «cada evento lleva el hash del anterior; si alguien borra o altera un registro, la cadena se rompe en ese punto».</li>
 </ol>
 
 <h3><span class="t">6:20–7:00</span> Impacto y viabilidad</h3>
-<div class="di">«Se despliega en cualquier servidor de la institución con Node.js y <code>systemd</code>, sin contenedores ni Internet, con su propio NTP y su propia CA. Cualquier sistema se integra con nuestro SDK o con cuatro llamadas HTTPS: lo hicimos con el Portal de Trámites y lo ofrecemos al equipo del Reto 1. 256 pruebas automatizadas, 85 verificaciones de ataque en verde, cero costo de licencias y cero dependencia extranjera.»</div>
+<div class="di">«Se despliega en cualquier servidor de la institución con Node.js y <code>systemd</code>, sin contenedores ni Internet, con su propio NTP y su propia CA. Cualquier sistema se integra con nuestro SDK o con cuatro llamadas HTTPS: lo hicimos con el Portal de Trámites y lo ofrecemos al equipo del Reto 3. 309 pruebas automatizadas, 116 verificaciones de ataque y 12 del escaneo dinámico en verde, cero costo de licencias y cero dependencia extranjera.»</div>
 <p>Mostrar el informe autocontenido de <code>attack-lab/ejecutar-todo.js</code> y la unidad <code>deploy/servicio-totp.service</code>. Cerrar con la matriz de cumplimiento (<code>docs/cumplimiento/matriz-cumplimiento.pdf</code>) y la escalabilidad (<code>docs/escalabilidad/</code>).</p>
 
 <h2 class="pb">2. Plan B</h2>
 <table>
   <tr><th style="width:30%">Si falla…</th><th>Hacer</th></tr>
-  <tr><td>El backend no arranca</td><td>Mostrar <code>cd backend &amp;&amp; npm test</code> (171 pruebas en ~5 s) y el informe HTML de <code>docs/evidencias/</code>. Revisar que <code>backend/.env</code> no conserve <code>CHANGE_ME</code> (el servicio lo indica al arrancar).</td></tr>
+  <tr><td>El backend no arranca</td><td>Mostrar <code>cd backend &amp;&amp; npm test</code> (211 pruebas en ~7 s) y el informe HTML de <code>docs/evidencias/</code>. Revisar que <code>backend/.env</code> no conserve <code>CHANGE_ME</code> (el servicio lo indica al arrancar).</td></tr>
   <tr><td>El portal no conecta con el servicio</td><td>Revisar <code>TOTP_CLIENT_ID</code>/<code>TOTP_CLIENT_SECRET</code> en <code>demo-portal-tramites/.env</code>. Alternativa sin backend: <code>node ../sdk/testing/servicio-falso.js --puerto 8099 &amp;</code> y <code>TOTP_BASE_URL=http://127.0.0.1:8099 TOTP_CLIENT_SECRET=secreto-de-prueba-no-usar-en-produccion node server.js</code>.</td></tr>
   <tr><td>Aviso de certificado en el navegador</td><td>Importar <code>backend/certs/ca.crt</code> (README §6.5). No usar la opción de ignorar el aviso delante del jurado.</td></tr>
-  <tr><td>La cámara no lee el QR</td><td>Usar <b>Abrir en el Autenticador Soberano</b> o la clave manual (la cámara depende del navegador).</td></tr>
+  <tr><td>La cámara no lee el QR</td><td>Usar <b>Abrir en el Autenticador Soberano</b> o la clave manual (la cámara está permitida en <code>/app/</code>, pero la lectura depende de <code>BarcodeDetector</code> en el navegador).</td></tr>
   <tr><td>«Código incorrecto» con el código correcto</td><td>Esperar al siguiente código (el usado al activar ya no vale); revisar <b>Ajustes → Comprobar hora</b> en la app.</td></tr>
   <tr><td>El usuario de la demo quedó bloqueado</td><td>Los bloqueos persisten en la base de datos: continuar con <code>E-80.000.003</code> (Carla).</td></tr>
-  <tr><td>Un escenario de attack-lab no responde</td><td>Comprobar <code>ATTACK_CLIENT_ID</code>/<code>SECRET</code>; mostrar la ejecución preparada en el informe HTML; plan B sin backend: <code>cd attack-lab &amp;&amp; npm test</code> (25 pruebas, incluido el proxy de caos).</td></tr>
+  <tr><td>Un escenario de attack-lab no responde</td><td>Comprobar <code>ATTACK_CLIENT_ID</code>/<code>SECRET</code>; mostrar la ejecución preparada en el informe HTML; plan B sin backend: <code>cd attack-lab &amp;&amp; npm test</code> (28 pruebas, incluido el proxy de caos).</td></tr>
   <tr><td>No se puede desconectar la red</td><td>Mostrar solo <code>escenario-caos.js</code> y explicar que el servicio, la app y el portal no hacen ninguna llamada externa (SBOM: 0 recursos externos).</td></tr>
   <tr><td>Falta tiempo</td><td>Saltar la sección de consola y cerrar con la diapositiva de impacto (30 s).</td></tr>
 </table>

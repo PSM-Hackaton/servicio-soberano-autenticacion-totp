@@ -18,7 +18,7 @@
     },
     {
       "id": "1d32551b-e8e0-4251-af70-034e4ea06a43",
-      "nombre": "Reto 1",
+      "nombre": "Agente Evaluador (Reto 3)",
       "client_id": "app_a4a7ef37fab67c4200fe2e75830fbeb5",
       "algoritmo": "SHA256",
       "digitos": 6,

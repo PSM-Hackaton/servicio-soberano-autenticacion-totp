@@ -82,7 +82,7 @@ rama     diego
 ruta     authenticator-app/
 ruta     admin-console/
 ruta     sdk/
-ruta     !sdk/INTEGRACION_RETO1.md
+ruta     !sdk/INTEGRACION_RETO3.md
 ruta     demo-portal-tramites/
 ruta     docs/api/
 ruta     docs/manual/
@@ -99,7 +99,7 @@ ruta     deploy/
 ruta     !deploy/verificar-despliegue.js
 
 etapa    verificacion
-mensaje  Escaneo dinámico de seguridad, verificación del despliegue, SBOM CycloneDX, guion de demostración y guía de integración del Reto 1
+mensaje  Escaneo dinámico de seguridad, verificación del despliegue, SBOM CycloneDX, guion de demostración y guía de integración del Reto 3
 autor    AUTOR_LAYA
 rama     laya
 ruta     attack-lab/escenarios/dast.js
@@ -109,7 +109,7 @@ ruta     docs/evidencias/dast-informe-*
 ruta     docs/evidencias/prueba-despliegue-systemd.md
 ruta     docs/sbom/
 ruta     docs/GUION_DEMO.md
-ruta     sdk/INTEGRACION_RETO1.md
+ruta     sdk/INTEGRACION_RETO3.md
 
 etapa    documentacion
 mensaje  Documentación de entrega: README de 6 apartados, licencia, matriz de cumplimiento, escalabilidad y presentación
@@ -120,3 +120,4 @@ ruta     /LICENSE
 ruta     docs/cumplimiento/
 ruta     docs/escalabilidad/
 ruta     docs/presentacion/
+ruta     docs/entrega/

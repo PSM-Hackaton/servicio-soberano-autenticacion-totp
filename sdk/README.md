@@ -73,4 +73,4 @@ node sdk/testing/servicio-falso.js --puerto 8099   # servicio TOTP falso para in
 ## Guías relacionadas
 
 - **Integración HTTP paso a paso:** [`docs/api/README.md`](../docs/api/README.md) ([PDF](../docs/api/guia-integracion.pdf))
-- **Integración rápida con el SDK para el Reto 1:** [`sdk/INTEGRACION_RETO1.md`](./INTEGRACION_RETO1.md)
+- **Integración rápida con el SDK para el Reto 3:** [`sdk/INTEGRACION_RETO3.md`](./INTEGRACION_RETO3.md)
