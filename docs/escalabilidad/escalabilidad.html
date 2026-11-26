@@ -50,12 +50,12 @@
 
 <h1>Escalabilidad y crecimiento</h1>
 <div class="sub">Servicio Soberano de Autenticación Multifactorial basado en Tiempo (TOTP) · De una institución a un servicio nacional, paso a paso y con mediciones reales</div>
-<div class="meta">Equipo PSM-Hackaton · Hackatón 2026 · 26 de noviembre de 2026 · Versión 1.0 · Mediciones propias reproducibles (anexo H) · Datos crudos en <code>docs/escalabilidad/datos/</code></div>
+<div class="meta">Equipo PSM-Hackaton · Hackatón 2026 · 26 de noviembre de 2026 · Versión 1.1 (mejoras G.2 aplicadas y medidas, §G.3) · Mediciones propias reproducibles (anexo H) · Datos crudos en <code>docs/escalabilidad/datos/</code></div>
 
 <h2>A. Resumen ejecutivo</h2>
 <div class="box">
 <ol style="margin-bottom:0">
-  <li><b>Medimos, no suponemos.</b> Una sola instancia del servicio, con su configuración actual, en un equipo de escritorio de 6 núcleos, sostuvo <b>≈ 350 verificaciones de código por segundo</b> y <b>≈ 800 validaciones de token por segundo</b> con usuarios distintos y legítimos, siempre por HTTPS con TLS 1.3, cifrado AES-256 y bitácora encadenada activos.</li>
+  <li><b>Medimos, no suponemos.</b> Una sola instancia del servicio, con la configuración de la versión 1.0 (<code>synchronous=FULL</code>, dos confirmaciones por verificación), en un equipo de escritorio de 6 núcleos, sostuvo <b>≈ 350 verificaciones de código por segundo</b> y <b>≈ 800 validaciones de token por segundo</b> con usuarios distintos y legítimos, siempre por HTTPS con TLS 1.3, cifrado AES-256 y bitácora encadenada activos.</li>
   <li><b>Eso equivale a ≈ 245 inicios de sesión completos por segundo</b> y, con supuestos explícitos (4 inicios por usuario al día, 20 % en la hora pico, ráfagas del doble y servidor al 50 % de su capacidad), a <b>≈ 275 000 usuarios</b> o <b>≈ 27 instituciones de 10 000 personas</b> con un solo servidor.</li>
   <li><b>El cuello de botella no es la criptografía sino la escritura a disco:</b> cada verificación hace dos confirmaciones (<i>fsync</i>) de SQLite de ≈ 1 ms cada una; el procesador está ocupado menos de la mitad del tiempo. Un ajuste de una línea (modo <code>synchronous=NORMAL</code>, medido) multiplica la capacidad por <b>3 a 4</b> en verificación y por <b>5</b> en validación: <b>≈ 900 000 usuarios por servidor</b>.</li>
   <li><b>Crecer es una escalera de 6 etapas</b> con disparadores medibles: afinado (1 servidor), alta disponibilidad (2 servidores), varios nodos sin estado con PostgreSQL autoalojado, servicio nacional multiinstitución con HSM, y continuidad (copias cifradas, RPO/RTO). El código ya separa núcleo, casos de uso y persistencia, y la anti repetición ya es atómica en base de datos.</li>
@@ -63,10 +63,12 @@
 </ol>
 </div>
 
+<div class="box"><b>Actualización 1.1 — mejoras G.2 aplicadas y medidas de nuevo (§G.3).</b> El producto ya trae <code>SQLITE_SYNCHRONOUS</code> (NORMAL por defecto en WAL, FULL configurable), <b>una sola transacción por verificación</b> (paso aceptado + intento + evento de bitácora, con el JWT firmado antes), bitácora que lee el último hash dentro de la transacción (<code>BEGIN IMMEDIATE</code>: la cadena no se bifurca con varios procesos) e historial del detector con solo las columnas necesarias e índices de cobertura (migración <code>003</code>). Medido en el mismo equipo y con el mismo método: la verificación pasa de <b>≈ 360–530/s</b> (versión 1.0, FULL) a <b>≈ 1 710–1 990/s</b> con los valores por defecto (<b>×3,6 a ×5,0</b>), y a <b>≈ 830–940/s</b> si se mantiene FULL (<b>×1,7 a ×2,4</b>, solo por la transacción única). Con los supuestos de B.5 equivale a <b>≈ 1,46 millones de usuarios por servidor</b> (NORMAL) o ≈ 550 000 (FULL).</div>
+
 <div class="kpi">
-  <div><b>≈ 350/s</b><span>verificaciones TOTP (hoy)</span></div>
-  <div><b>≈ 800/s</b><span>validaciones de token (hoy)</span></div>
-  <div><b>×3–×5</b><span>con un ajuste de disco medido</span></div>
+  <div><b>≈ 1 750/s</b><span>verificaciones TOTP (v1.1, por defecto)</span></div>
+  <div><b>≈ 4 700/s</b><span>validaciones de token (v1.1, por defecto)</span></div>
+  <div><b>×3,6–×5,0</b><span>frente a la v1.0 medida (≈ 350/s)</span></div>
   <div><b>4,0 MB</b><span>por cada 1 000 usuarios enrolados</span></div>
 </div>
 
@@ -161,7 +163,11 @@
 Tasa pico por usuario  = L × 0,20 × 2 / 3600 s = 4 × 0,4 / 3600 ≈ 0,000444 inicios/s
 Usuarios por servidor  U = (C × 0,50) / 0,000444
   Actual:   (245 × 0,5) / 0,000444 ≈ 275 000 usuarios   ≈ 27 instituciones de 10 000 personas
-  Afinado:  (815 × 0,5) / 0,000444 ≈ 917 000 usuarios   ≈ 90 instituciones de 10 000 personas</pre>
+  Afinado:  (815 × 0,5) / 0,000444 ≈ 917 000 usuarios   ≈ 90 instituciones de 10 000 personas
+
+Versión 1.1 (G.2 aplicada, §G.3; valores medidos con 100 clientes)
+  FULL:     1 / (1/873 + 1/1113)   ≈ 489 inicios/s   → (489 × 0,5) / 0,000444   ≈ 551 000 usuarios
+  NORMAL:   1 / (1/1785 + 1/4759)  ≈ 1 298 inicios/s → (1 298 × 0,5) / 0,000444 ≈ 1 460 000 usuarios</pre>
 
 <h3>B.6 Crecimiento de la base de datos (medido y extrapolado)</h3>
 <table>
@@ -198,8 +204,8 @@ Usuarios por servidor  U = (C × 0,50) / 0,000444
   <tr><td>Qué es</td><td>Aprovechar mejor el mismo servidor con ajustes de configuración, casi sin código.</td></tr>
   <tr><td>Por qué</td><td>La medición muestra que el proceso espera al disco. Quitar esa espera multiplica la capacidad antes de comprar un segundo servidor.</td></tr>
   <tr><td>Cómo</td><td><ol>
-    <li><b>SQLite <code>synchronous=NORMAL</code></b> en modo WAL (hoy FULL por defecto): medido <b>×2,8 a ×4</b> en verify y <b>×4,2 a ×5,4</b> en validate. Una línea en <code>backend/src/infrastructure/persistence/db.js</code>, idealmente configurable.</li>
-    <li><b>Una confirmación por verificación en vez de dos:</b> escribir el evento de bitácora dentro de la misma transacción del intento (<code>application/use-cases/mfa.js</code>). Reduce a la mitad los <i>fsync</i> si se mantiene FULL.</li>
+    <li><b>Aplicado en 1.1 (§G.3).</b> <b>SQLite <code>synchronous=NORMAL</code></b> en modo WAL (era FULL por defecto; ahora <code>SQLITE_SYNCHRONOUS</code>, NORMAL por defecto): medido <b>×2,8 a ×4</b> en verify y <b>×4,2 a ×5,4</b> en validate. Una línea en <code>backend/src/infrastructure/persistence/db.js</code>, idealmente configurable.</li>
+    <li><b>Aplicado en 1.1.</b> <b>Una confirmación por verificación en vez de dos:</b> escribir el evento de bitácora dentro de la misma transacción del intento (<code>application/use-cases/mfa.js</code>). Reduce a la mitad los <i>fsync</i> si se mantiene FULL.</li>
     <li><b>Validación local del JWT</b> con el JWKS (ya soportada por <code>sdk/src/local.js</code>, con caché de 300 s): el integrador deja de llamar a <code>/tokens/validate</code>; la capacidad pasa de 245 a 355 inicios/s sin tocar el servidor (el integrador asume el control de un solo uso del <code>jti</code>).</li>
     <li><b><code>UV_THREADPOOL_SIZE</code></b> igual al número de núcleos en la unidad <code>systemd</code>: enrolamiento de 12,5 a 18,4 usuarios/s (medido con 10 hilos).</li>
     <li><b>Archivado de la bitácora</b> por tramos mensuales sellados (hash final del tramo firmado y guardado en la cadena nueva) y <b>lecturas más ligeras</b> del historial del detector (solo 4 columnas, sin interpretar JSON).</li>
@@ -348,7 +354,7 @@ Enrolamiento       horas de campaña = usuarios / (12,5 × 3600)  (≈ 18,4 con 
 <h2>G. Riesgos de escalado y mitigaciones</h2>
 <table>
   <tr><th style="width:30%">Riesgo</th><th>Mitigación</th></tr>
-  <tr><td>El disco limita (medido: 2 <i>fsync</i> por verificación)</td><td><code>synchronous=NORMAL</code>, una sola confirmación por verificación, SSD de servidor; volver a medir.</td></tr>
+  <tr><td>El disco limita (medido en 1.0: 2 <i>fsync</i> por verificación)</td><td>Aplicado en 1.1: <code>SQLITE_SYNCHRONOUS=NORMAL</code> por defecto y una sola confirmación por verificación (medido ×3,6–×5,0, §G.3). Queda: SSD de servidor con protección de energía y volver a medir en el equipo destino.</td></tr>
   <tr><td>Un hilo por proceso: una operación lenta frena a todos</td><td>Etapa 4 (varios procesos o nodos); evitar trabajo síncrono pesado en la ruta de verificación.</td></tr>
   <tr><td>La bitácora crece sin límite (≈ 191 GB/año para 275 000 usuarios)</td><td>Archivado mensual sellado: se exporta el tramo cifrado, se conserva su hash final firmado como primer eslabón del tramo siguiente.</td></tr>
   <tr><td>Estado en memoria al pasar a varios nodos (límites, idempotencia, sesiones, caché de apps, cadena de auditoría)</td><td>Cambios por archivo de la etapa 4; la caché de apps (30 s) implica que suspender una app tarda hasta 30 s en verse en todos los nodos: documentarlo.</td></tr>
@@ -360,16 +366,32 @@ Enrolamiento       horas de campaña = usuarios / (12,5 × 3600)  (≈ 18,4 con 
   <tr><td>Inundación (DDoS) contra el servicio central</td><td>Límites en el balanceador y en el servicio (global, por app, por origen), capacidad con margen del 50 %, servicio solo en la red del Estado cuando sea posible.</td></tr>
 </table>
 
-<h3>G.2 Mejoras de código recomendadas (detectadas al medir; no aplicadas)</h3>
+<h3>G.2 Mejoras de código detectadas al medir (aplicadas en la versión 1.1)</h3>
 <table>
-  <tr><th style="width:30%">Archivo</th><th>Mejora y motivo</th></tr>
-  <tr><td><code>backend/src/infrastructure/persistence/db.js</code></td><td><code>PRAGMA synchronous</code> configurable (p. ej., <code>SQLITE_SYNCHRONOUS=NORMAL</code>): ×2,8–×4 en verify y ×4,2–×5,4 en validate medidos.</td></tr>
-  <tr><td><code>backend/src/application/use-cases/mfa.js</code></td><td>Registrar el evento de bitácora de la verificación exitosa dentro de la misma transacción que el intento (firmar el JWT antes): una confirmación a disco por verificación en vez de dos.</td></tr>
-  <tr><td><code>backend/src/infrastructure/persistence/repositorios.js</code> y <code>application/use-cases/consultas.js</code></td><td>Historial del detector con solo las 4 columnas que usa (<code>user_ref_hash, ip_hash, resultado, ts</code>), sin interpretar <code>reasons_json</code> en 100 filas por petición: ≈ 17 % de la CPU en saturación.</td></tr>
-  <tr><td><code>backend/src/audit/cadena.js</code> y <code>main.js</code></td><td>Archivado periódico y sellado de <code>audit_log</code> (único dato sin purga: 47,6 MB por 100 000 verificaciones); y leer el último hash e insertar en una sola transacción antes de cualquier despliegue con varios procesos.</td></tr>
-  <tr><td><code>deploy/servicio-totp.service</code></td><td><code>Environment=UV_THREADPOOL_SIZE=&lt;núcleos&gt;</code> para campañas de enrolamiento (12,5 → 18,4 usuarios/s medido).</td></tr>
-  <tr><td><code>deploy/README.md</code></td><td>Explicar cómo dimensionar <code>RATE_LIMIT_APP_POR_MIN</code> (por defecto 3 000/min = 50/s por app, por debajo de la capacidad) y actualizar la fila de rotación de la llave maestra: el script <code>npm run rotar-llave-maestra</code> ya existe.</td></tr>
+  <tr><th style="width:30%">Archivo</th><th>Mejora y motivo</th><th style="width:16%">Estado</th></tr>
+  <tr><td><code>backend/src/infrastructure/persistence/db.js</code></td><td><code>PRAGMA synchronous</code> configurable con <code>SQLITE_SYNCHRONOUS</code> (FULL | NORMAL; NORMAL por defecto en WAL). Compromiso documentado en el código y en <code>.env.example</code>: la base nunca se corrompe y una caída del proceso no pierde nada; un corte de energía puede deshacer las últimas transacciones de ese instante (como mucho, reaceptar un código dentro de sus 30 s). FULL lo evita a cambio de rendimiento.</td><td>Aplicada</td></tr>
+  <tr><td><code>backend/src/application/use-cases/mfa.js</code></td><td>Una sola transacción por verificación: paso aceptado (anti replay atómico) + intento + evento de bitácora; el JWT se firma antes de abrirla. También en fallos, replay, bloqueo y usuarios inexistentes. Si la bitácora falla, se deshace todo (sin token).</td><td>Aplicada</td></tr>
+  <tr><td><code>backend/src/infrastructure/persistence/repositorios.js</code>, <code>application/use-cases/consultas.js</code> y migración <code>003_indices_detector.sql</code></td><td>Historial del detector con solo <code>id, user_ref_hash, ip_hash, resultado, ts</code> (sin <code>reasons_json</code> ni su JSON.parse) e índices de cobertura <code>(columna, ts DESC, id DESC, resultado, otra)</code> que sustituyen a los anteriores: consulta resuelta solo con el índice y sin ordenamiento temporal.</td><td>Aplicada</td></tr>
+  <tr><td><code>backend/src/audit/cadena.js</code> y <code>main.js</code></td><td>Leer el último hash e insertar en una sola transacción (<code>crearBitacoraSqlite</code>: <code>BEGIN IMMEDIATE</code>, o SAVEPOINT dentro de la verificación). Probado con 4 procesos × 150 eventos sobre el mismo archivo: 600/600 <code>prev_hash</code> distintos y cadena íntegra (la versión 1.0 dejaba 568/600 y la cadena rota). <b>Pendiente:</b> archivado periódico y sellado de <code>audit_log</code>.</td><td>Aplicada (archivado pendiente)</td></tr>
+  <tr><td><code>deploy/servicio-totp.service</code></td><td><code>Environment=UV_THREADPOOL_SIZE=&lt;núcleos&gt;</code> para campañas de enrolamiento (12,5 → 18,4 usuarios/s medido).</td><td>Pendiente</td></tr>
+  <tr><td><code>deploy/README.md</code></td><td>Explicar cómo dimensionar <code>RATE_LIMIT_APP_POR_MIN</code> (por defecto 3 000/min = 50/s por app, por debajo de la capacidad).</td><td>Pendiente</td></tr>
 </table>
+
+<h3>G.3 Medición antes y después de G.2</h3>
+<p>Mismo equipo (Intel Core i5-12400, 12 hilos, NVMe ext4, Node.js 22.22.1), mismo método (<code>medir.sh</code>: 1 000 usuarios, 8 s por concurrencia, reloj ×100, detector local, TLS 1.3), base en disco real (no en <code>tmpfs</code>, donde <i>fsync</i> no cuesta nada) y escenarios ejecutados uno tras otro. «Antes» = código de la versión 1.0 (rama <code>staging</code> previa); «después» = versión 1.1. El equipo era compartido con otros procesos (carga media ≈ 4): las cifras son conservadoras y una primera ejecución de «después NORMAL» con un valle aislado en c = 50 (200/s, p99 871 ms) se repitió y se guarda como descartada. Datos crudos en <code>docs/escalabilidad/datos/g2/</code>.</p>
+<table>
+  <tr><th>Escenario</th><th class="n">verify c=1</th><th class="n">c=10</th><th class="n">c=50</th><th class="n">c=100</th><th class="n">p99 c=100 (ms)</th><th class="n">validate c=100</th><th class="n">CPU verify c=100</th></tr>
+  <tr><td>Antes · FULL (por defecto en 1.0)</td><td class="n">498</td><td class="n">528</td><td class="n">447</td><td class="n">360</td><td class="n">817</td><td class="n">869</td><td class="n">0,95</td></tr>
+  <tr><td>Antes · NORMAL (forzado en el banco)</td><td class="n">1 438</td><td class="n">1 448</td><td class="n">1 313</td><td class="n">1 084</td><td class="n">215</td><td class="n">4 175</td><td class="n">1,38</td></tr>
+  <tr><td>Después · FULL (<code>SQLITE_SYNCHRONOUS=FULL</code>)</td><td class="n">832</td><td class="n">938</td><td class="n">898</td><td class="n">873</td><td class="n">665</td><td class="n">1 113</td><td class="n">0,53</td></tr>
+  <tr><td><b>Después · NORMAL (por defecto en 1.1)</b></td><td class="n"><b>1 822</b></td><td class="n"><b>1 985</b></td><td class="n"><b>1 709</b></td><td class="n"><b>1 785</b></td><td class="n"><b>75</b></td><td class="n"><b>4 759</b></td><td class="n">0,92</td></tr>
+</table>
+<ul>
+  <li><b>Valores por defecto, antes → después:</b> verify ×3,7 / ×3,8 / ×3,8 / ×5,0 (c = 1 / 10 / 50 / 100); p99 con 100 clientes de 817 a 75 ms; validate ×5,5 con 100 clientes.</li>
+  <li><b>Solo la transacción única</b> (FULL en ambos): verify ×1,7 a ×2,4, porque cada verificación confirma a disco una vez en lugar de dos.</li>
+  <li><b>Con NORMAL en ambos</b> (efecto de transacción única + historial ligero + índices de cobertura): verify ×1,3 a ×1,6 y menos CPU por petición (0,92 núcleos para 1 785/s frente a 1,38 para 1 084/s).</li>
+  <li>Las respuestas 401 en c = 100 (64 de 14 403) son códigos que ya no valen tras el salto del reloj acelerado, igual que en la versión 1.0; ninguna respuesta 5xx en ningún escenario.</li>
+</ul>
 
 <h2 class="pb">H. Anexo: método reproducible y datos crudos</h2>
 <h3>H.1 Archivos</h3>
@@ -391,6 +413,9 @@ node partes.js $T                                   # costo por pieza
 PERFIL=1 FASES=verify ./medir.sh $T perfil NORMAL 1000 10 10
 node perfil.js $T/perfil/CPU*.cpuprofile 25 9       # últimos 9 s = fase verify
 UV_THREADPOOL_SIZE=10 FASES=jwks ./medir.sh $T hilos10 NORMAL 500 1 1   # enrolamiento
+# G.3 (antes/después): T en un disco real (no tmpfs); «antes» desde una copia del código 1.0
+./medir.sh $T despues-full   FULL   1000 8 1,10,50,100
+./medir.sh $T despues-normal NORMAL 1000 8 1,10,50,100
 # Conteo de fdatasync (FULL): arrancar banco.js bajo  strace -f -w -c -e trace=fdatasync,pwrite64
 # y lanzar  node carga.js $T/strace --usuarios 200 --duracion 5 --concurrencias 10 --fases verify
 rm -rf $T                                           # limpieza</pre>
