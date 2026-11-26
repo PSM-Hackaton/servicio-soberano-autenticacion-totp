@@ -87,7 +87,12 @@ const entero = (texto, porDefecto, maximo) => Math.min(maximo, Math.max(1, texto
  *   reloj: () => number, consultas: any, bloqueos: any }} d
  */
 export function crearCasosAdmin(d) {
-  const { repos, vault, firmas, bitacora, metricas, config, reloj, consultas, bloqueos, mfa } = d;
+  const { repos, vault, firmas, bitacora, metricas, config, reloj, consultas, bloqueos, mfa, dispositivos = null } = d;
+  /** Enrolamiento para la consola con su dispositivo vinculado (issue #47) y su último uso. */
+  const enrolamientoConsola = (e) => {
+    const device = dispositivos ? dispositivos.deEnrolamiento(e) : null;
+    return { ...enrolamientoPublico(e), device, last_used_at: device?.last_used_at ?? null };
+  };
   /** Usuarios en alta ahora mismo: evita que dos altas simultáneas del mismo nombre se pisen el factor. */
   const altasEnCurso = new Set();
   const auditar = (actor, accion, objetivo, detalle) => bitacora.registrar({ actor, accion, objetivo, detalle });
@@ -341,7 +346,7 @@ export function crearCasosAdmin(d) {
     if (!q) return errorEntrada();
     if (q.cedula !== undefined || q.user_ref !== undefined) return buscarEnrolamientos(q, ctx);
     const filas = consultas.listarEnrolamientos({ appId: q.app_id, estado: q.estado, limite: entero(q.limite, 100, 500) });
-    const enrollments = filas.map(enrolamientoPublico);
+    const enrollments = filas.map(enrolamientoConsola);
     return { status: 200, cuerpo: { enrollments }, cabeceras: {} };
   }
 
@@ -378,7 +383,7 @@ export function crearCasosAdmin(d) {
     auditar(actorAdmin(ctx.admin), 'enrolamientos.busqueda', app.id, cedula
       ? { criterio: 'cedula', cedula_hmac: hashPepper(`cedula:${cedula.canonica}`, config.userRefPepper), resultados: filas.length }
       : { criterio: 'user_ref', user_ref_hash: urh, resultados: filas.length });
-    return { status: 200, cuerpo: { enrollments: filas.map(enrolamientoPublico) }, cabeceras: { 'Cache-Control': 'no-store' } };
+    return { status: 200, cuerpo: { enrollments: filas.map(enrolamientoConsola) }, cabeceras: { 'Cache-Control': 'no-store' } };
   }
 
   /**
@@ -417,7 +422,7 @@ export function crearCasosAdmin(d) {
       if (r.status === 404) return noEncontrado();
       if (r.status === 409) return conflicto(r.mensaje);
       auditar(actorAdmin(ctx.admin), t.evento, r.enrol.id, { app_id: r.enrol.app_id, estado_previo: r.previo, motivo: 'consola' });
-      return { status: 200, cuerpo: { enrollment: enrolamientoPublico(r.enrol) }, cabeceras: {} };
+      return { status: 200, cuerpo: { enrollment: enrolamientoConsola(r.enrol) }, cabeceras: {} };
     };
   }
 

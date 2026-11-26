@@ -29,6 +29,15 @@ export const ESQUEMA_ENROLAR = {
     algorithm: { type: 'string', enum: ['SHA256', 'SHA512', 'SHA1'] },
     digits: { type: 'integer', enum: [6, 8] },
     period: { type: 'integer', minimum: 15, maximum: 60 },
+    // Vinculación de dispositivo (issue #47): el nombre se sanea después en dispositivos.js.
+    device: {
+      type: 'object',
+      required: ['name'],
+      properties: {
+        name: { type: 'string', minLength: 1, maxLength: 64 },
+        platform: { type: 'string', enum: ['android', 'pwa', 'otro'] },
+      },
+    },
   },
 };
 

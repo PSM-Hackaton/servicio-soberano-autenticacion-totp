@@ -67,7 +67,7 @@ const respuestaBloqueo = (segundos) => errorGenerico('limite', { reintentarEnSeg
  *   bloqueos: ReturnType<typeof import('./bloqueos.js').crearControlBloqueos> }} d
  */
 export function crearCasosMfa(d) {
-  const { repos, vault, firmas, detector, bitacora, metricas, config, reloj, consultas, bloqueos } = d;
+  const { repos, vault, firmas, detector, bitacora, metricas, config, reloj, consultas, bloqueos, dispositivos = null } = d;
   /** @type {ReturnType<typeof crearMapaAcotado<{ huella: string, respuesta: Promise<Respuesta> }>>} */
   const idempotencia = crearMapaAcotado({ maxEntradas: MAX_IDEMPOTENCIA, ttlMs: TTL_IDEMPOTENCIA_MS, reloj });
 
@@ -152,8 +152,8 @@ export function crearCasosMfa(d) {
 
   // ------------------------------------------------------------------ enrolar
   /**
-   * POST /api/v1/enrollments — esquema ESQUEMA_ENROLAR { user_ref, account_label?, algorithm?, digits?, period? }.
-   * 201 EnrollmentCreatedResponse | 400 GenericError.
+   * POST /api/v1/enrollments — esquema ESQUEMA_ENROLAR { user_ref, account_label?, algorithm?, digits?, period?, device? }.
+   * 201 EnrollmentCreatedResponse | 400 GenericError. Con `device` añade device_id y provisioning.
    * La política por defecto es la de la app; SHA1 solo si app.permitir_sha1.
    * @param {unknown} entrada @param {{ app: any, ip?: string }} ctx @returns {Promise<Respuesta>}
    */
@@ -164,6 +164,8 @@ export function crearCasosMfa(d) {
     if (!v) return errorEntrada();
     const politica = { algoritmo: v.algorithm ?? app.algoritmo, digitos: v.digits ?? app.digitos, periodo: v.period ?? app.periodo };
     if (politica.algoritmo === 'SHA1' && !app.permitir_sha1) return errorEntrada();
+    const vinculo = dispositivos ? dispositivos.prepararVinculo(v.device) : { ok: v.device === undefined, datos: null };
+    if (!vinculo.ok) return errorEntrada();
 
     const ahora = reloj();
     const id = randomUUID(); // primero el id: forma parte del AAD del cifrado
@@ -182,9 +184,13 @@ export function crearCasosMfa(d) {
         key_version: cifrado.keyVersion,
         pending_expires_at: expiresAt,
       });
+      // Si la vinculación fallara, el pendiente queda huérfano y caduca solo (pending_expires_at).
+      const dispositivo = vinculo.datos ? dispositivos.vincular(id, vinculo.datos, ahora) : null;
       const otpauthUri = buildOtpauthUri({ semilla, emisor: config.emisorTotp, cuenta: v.account_label ?? v.user_ref, ...politica });
       const qrSvg = qrToSvg(encodeQr(otpauthUri));
-      auditar(actorApp(app), 'enrolamiento.creado', id, { ...politica, expires_at: expiresAt });
+      auditar(actorApp(app), 'enrolamiento.creado', id, {
+        ...politica, expires_at: expiresAt, ...(dispositivo ? { device_id: dispositivo.id, plataforma: dispositivo.plataforma } : {}),
+      });
       return {
         status: 201,
         cuerpo: {
@@ -196,6 +202,11 @@ export function crearCasosMfa(d) {
           otpauth_uri: otpauthUri,
           qr_svg: qrSvg,
           expires_at: expiresAt,
+          // Solo si se pidió vincular un dispositivo (issue #47): misma semilla que el QR, una sola vez.
+          ...(dispositivo ? {
+            device_id: dispositivo.id,
+            provisioning: dispositivos.provisioning({ otpauthUri, expiresAt, deviceId: dispositivo.id }),
+          } : {}),
         },
         cabeceras: { 'Cache-Control': 'no-store' },
       };
@@ -250,6 +261,7 @@ export function crearCasosMfa(d) {
       }
       if (previo && previo.id !== enrol.id && repos.enrollments.revocar(previo.id, activadoEn)) revocadoPrevio = previo.id;
       repos.recoveryCodes.insertarLote(enrol.id, hashes);
+      dispositivos?.registrarUso(enrol.id, activadoEn);
       return true;
     });
     if (!ok) return errorGenerico('codigo');
@@ -331,6 +343,7 @@ export function crearCasosMfa(d) {
         resultado = 'replay'; // otra petición ganó la carrera con el mismo paso
       }
       if (resultado !== 'ok') hasta = bloqueos.falloEnrolamiento(enrol.id, app.max_intentos, ahora);
+      else dispositivos?.registrarUso(enrol.id, iso(ahora));
       registrarIntento({ ...base, resultado, evaluacion });
     });
     metrica(resultado);

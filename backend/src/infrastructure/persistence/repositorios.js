@@ -8,6 +8,7 @@
 //   - Booleanos (permitir_sha1, activo): INTEGER 0/1 en disco, boolean hacia fuera.
 
 import { randomUUID } from 'node:crypto';
+import { crearRepositorioDispositivos } from './dispositivos.js';
 
 /** @typedef {import('node:sqlite').DatabaseSync} DatabaseSync */
 /** @typedef {Record<string, any>} Fila */
@@ -490,5 +491,8 @@ export function crearRepositorios(db) {
     },
   };
 
-  return { transaccion, apps, enrollments, recoveryCodes, attempts, consumedJti, signingKeys, admins, auditLog };
+  // Dispositivos vinculados a enrolamientos (migración 003, issue #47).
+  const dispositivos = crearRepositorioDispositivos(db);
+
+  return { transaccion, apps, enrollments, recoveryCodes, attempts, consumedJti, signingKeys, admins, auditLog, dispositivos };
 }

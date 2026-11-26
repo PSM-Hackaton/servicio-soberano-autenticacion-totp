@@ -407,6 +407,9 @@ export function crearServidor({
   api('POST', '/api/v1/enrollments/:id/activate', 'activar', (p) => ({ id: p.params.id, cuerpo: p.cuerpo }), { cuerpo: true, porOrigen: true });
   api('POST', '/api/v1/enrollments/:id/resync', 'resincronizar', (p) => ({ id: p.params.id, cuerpo: p.cuerpo }), { cuerpo: true, porOrigen: true });
   api('DELETE', '/api/v1/enrollments/:id', 'revocar', (p) => ({ id: p.params.id, cuerpo: {} }));
+  // Vinculación de dispositivos (issue #47): consultar y desvincular (revoca el enrolamiento).
+  api('GET', '/api/v1/enrollments/:id/device', 'dispositivo', (p) => ({ id: p.params.id }));
+  api('DELETE', '/api/v1/enrollments/:id/device', 'desvincularDispositivo', (p) => ({ id: p.params.id, cuerpo: {} }));
   api('POST', '/api/v1/verify', 'verificar', (p) => p.cuerpo, { cuerpo: true, porOrigen: true });
   api('POST', '/api/v1/tokens/validate', 'validarToken', (p) => p.cuerpo, { cuerpo: true });
   api('POST', '/api/v1/recovery', 'recuperar', (p) => p.cuerpo, { cuerpo: true, porOrigen: true });

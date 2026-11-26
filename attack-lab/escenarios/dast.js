@@ -40,6 +40,8 @@ export const RUTAS_CONTRATO = Object.freeze([
   { metodo: 'POST', ruta: `/api/v1/enrollments/${UUID_PRUEBA}/resync`, tipo: 'api', auth: 'app' },
   { metodo: 'POST', ruta: '/api/v1/recovery', tipo: 'api', auth: 'app' },
   { metodo: 'DELETE', ruta: `/api/v1/enrollments/${UUID_PRUEBA}`, tipo: 'api', auth: 'app' },
+  { metodo: 'GET', ruta: `/api/v1/enrollments/${UUID_PRUEBA}/device`, tipo: 'api', auth: 'app' },
+  { metodo: 'DELETE', ruta: `/api/v1/enrollments/${UUID_PRUEBA}/device`, tipo: 'api', auth: 'app' },
   { metodo: 'POST', ruta: '/admin/api/login', tipo: 'api', auth: 'publica' },
   { metodo: 'GET', ruta: '/admin/api/session', tipo: 'api', auth: 'admin' },
   { metodo: 'POST', ruta: '/admin/api/logout', tipo: 'api', auth: 'admin' },

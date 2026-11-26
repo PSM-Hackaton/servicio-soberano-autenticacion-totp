@@ -3,6 +3,7 @@
 // → casos de uso → servidor HTTPS. Tareas periódicas y apagado ordenado (SIGINT/SIGTERM).
 // Los registros nunca incluyen secretos ni direcciones IP.
 
+import { X509Certificate } from 'node:crypto';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -71,11 +72,32 @@ export async function iniciar({ config = cargarConfig(), registro = crearRegistr
     : entrenarDetectorPorDefecto(42, { modo: config.heuristicas === 'monitorizacion' ? 'monitorizacion' : 'bloqueo' });
   registro.info(`Detector de anomalías listo (modo ${detector.modo}, ${Math.round(performance.now() - inicioDetector)} ms)`);
 
+  // Certificado público de la CA (opcional) para GET /ca.crt. Nunca se sirve algo que contenga una llave.
+  let certificadoCa = null;
+  let huellaCa = null;
+  if (config.tls.caPublica) {
+    try {
+      const pem = readFileSync(config.tls.caPublica, 'utf8');
+      if (/PRIVATE KEY/.test(pem) || !/-----BEGIN CERTIFICATE-----/.test(pem)) throw new Error('no es un certificado PEM sin llave');
+      certificadoCa = pem;
+    } catch (e) {
+      registro.warn(`No se ofrecerá /ca.crt (${config.tls.caPublica}): ${e?.message ?? e}`);
+    }
+  }
+  // Huella SHA-256 (AA:BB:…) del certificado para fijarlo en la app móvil (issue #47, `provisioning`).
+  if (certificadoCa) {
+    try {
+      huellaCa = new X509Certificate(certificadoCa).fingerprint256;
+    } catch (e) {
+      registro.warn(`No se pudo calcular la huella SHA-256 de la CA: ${e?.message ?? e}`);
+    }
+  }
+
   // Auditoría, métricas y casos de uso
   const bitacora = crearBitacora({ ultimo: () => repos.auditLog.ultimo(), insertar: (fila) => repos.auditLog.insertar(fila).id });
   const metricas = crearMetricas();
   const casos = crearCasosDeUso({
-    repos, vault, firmas, detector, bitacora, metricas, config: configCasosDeUso(config), reloj: () => Date.now(), db,
+    repos, vault, firmas, detector, bitacora, metricas, config: { ...configCasosDeUso(config), caHuellaSha256: huellaCa }, reloj: () => Date.now(), db,
   });
 
   const salud = () => {
@@ -91,18 +113,6 @@ export async function iniciar({ config = cargarConfig(), registro = crearRegistr
     } catch {
       db.close();
       throw new Error(`No se pudieron leer el certificado o la llave TLS (${config.tls.cert}). Ejecute "npm run certs".`);
-    }
-  }
-
-  // Certificado público de la CA (opcional) para GET /ca.crt. Nunca se sirve algo que contenga una llave.
-  let certificadoCa = null;
-  if (config.tls.caPublica) {
-    try {
-      const pem = readFileSync(config.tls.caPublica, 'utf8');
-      if (/PRIVATE KEY/.test(pem) || !/-----BEGIN CERTIFICATE-----/.test(pem)) throw new Error('no es un certificado PEM sin llave');
-      certificadoCa = pem;
-    } catch (e) {
-      registro.warn(`No se ofrecerá /ca.crt (${config.tls.caPublica}): ${e?.message ?? e}`);
     }
   }
 
