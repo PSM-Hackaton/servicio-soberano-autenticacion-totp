@@ -3,7 +3,8 @@
 
 const ALFABETO = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
-export function base32Encode(bytes: Uint8Array): string {
+/** @param {Uint8Array} bytes @returns {string} */
+export function base32Encode(bytes) {
   let salida = '';
   let buffer = 0;
   let bits = 0;
@@ -19,9 +20,10 @@ export function base32Encode(bytes: Uint8Array): string {
   return salida;
 }
 
-export function base32Decode(texto: string): Buffer {
+/** @param {string} texto @returns {Buffer} */
+export function base32Decode(texto) {
   const limpio = texto.toUpperCase().replace(/[\s=-]/g, '');
-  const bytes: number[] = [];
+  const bytes = [];
   let buffer = 0;
   let bits = 0;
   for (const caracter of limpio) {
