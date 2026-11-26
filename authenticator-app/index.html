@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
-  <meta name="theme-color" content="#0b5c4a" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0a2e26" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#00247D" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0B1430" media="(prefers-color-scheme: dark)">
   <meta name="referrer" content="no-referrer">
   <meta name="description" content="Autenticador de segundo factor (TOTP) que guarda tus claves cifradas solo en este dispositivo.">
   <title>Autenticador Soberano</title>
@@ -37,6 +37,13 @@
 
   <a class="saltar" href="#principal">Saltar al contenido</a>
 
+  <!-- Cintillo institucional -->
+  <div class="franja-tricolor" aria-hidden="true"></div>
+  <div class="cintillo">
+    <span class="cintillo-pais">República Bolivariana de Venezuela</span>
+    <span class="cintillo-servicio">Servicio Soberano de Autenticación</span>
+  </div>
+
   <div class="marco">
     <!-- Barra institucional: arriba en móvil, columna lateral en escritorio -->
     <header class="barra" id="barra" hidden>
@@ -64,6 +71,7 @@
       <p class="barra-pie">Funciona sin conexión. Sin rastreo.</p>
     </header>
 
+    <div class="columna">
     <main id="principal" class="principal" tabindex="-1">
 
       <!-- Cargando -->
@@ -448,6 +456,15 @@
         </div>
       </section>
     </main>
+
+    <footer class="pie">
+      <p class="pie-titulo">Servicio Soberano de Autenticación</p>
+      <ul class="pie-sellos">
+        <li>Software libre · AGPL-3.0</li>
+        <li>Infraestructura nacional · Sin dependencias extranjeras</li>
+      </ul>
+    </footer>
+    </div>
   </div>
 
   <dialog class="dialogo" id="dialogo" aria-labelledby="dialogo-titulo" aria-describedby="dialogo-texto">
