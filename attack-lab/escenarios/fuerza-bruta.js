@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // Escenario: fuerza bruta secuencial contra UNA cuenta desde un origen.
 // Esperado: tras max_intentos fallos (5) → 429 con bloqueo de 30 s; durante el bloqueo ni siquiera
-// el código correcto pasa; al vencer, otros 5 fallos escalan el bloqueo a 2 min (30 s → 2 min → 10 min → 1 h).
+// el código correcto pasa; al vencer, el contador NO se reinicia: el siguiente fallo vuelve a bloquear
+// de inmediato (fallos 5–9 → 30 s, 10–14 → 2 min, 15–19 → 10 min, 20+ → 1 h), salvo que antes actúe
+// el detector local de anomalías (bloqueo de 300 s). Ambos responden el mismo 429 genérico.
 // Opciones: --rapido (no espera los 30 s del primer escalón), --intentos-bloqueados N.
 
 import { crearUsuarioPrueba, esPrincipal, exigirCredenciales, principal } from '../lib/escenario.js';
@@ -13,7 +15,7 @@ import { verificar } from '../lib/servicio.js';
 
 export const id = 'fuerza-bruta';
 export const nombre = 'Fuerza bruta secuencial';
-export const demuestra = 'Tras 5 fallos la cuenta se bloquea (429, 30 s) y el bloqueo escala (2 min…); un código correcto tampoco pasa durante el bloqueo.';
+export const demuestra = 'Tras 5 fallos la cuenta se bloquea (429, 30 s); al vencer, el siguiente fallo vuelve a bloquear (escala 30 s → 2 min → 10 min → 1 h); un código correcto tampoco pasa durante el bloqueo.';
 
 export async function ejecutar(ctx, res) {
   exigirCredenciales(ctx);
@@ -69,13 +71,12 @@ export async function ejecutar(ctx, res) {
       todas.push(r);
       if (r.status === 429) { segundo = { intento: i, segundos: reintentarEn(r), codigo: codigoError(r) }; break; }
     }
-    // Lo esperado es el escalón de 2 min; si el detector local de anomalías se adelanta (el atacante
-    // siguió insistiendo durante el bloqueo) responde ANOMALY_BLOCKED con un bloqueo aún mayor.
-    const porDetector = segundo?.codigo === 'ANOMALY_BLOCKED';
-    res.verificar('Segundo escalón (tras vencer el primero)', '≈120 s o bloqueo del detector (más largo)',
+    // El 6.º fallo ya vuelve a bloquear (≥ 30 s): en el intento 1 si el detector se adelanta (300 s)
+    // o en el 2 si actúa el bloqueo progresivo. Ambos con el mismo TOO_MANY_REQUESTS genérico.
+    res.verificar('Tras vencer el primer escalón, el siguiente fallo vuelve a bloquear', '429 TOO_MANY_REQUESTS (≥ 30 s) en ≤ 2 intentos',
       segundo ? `${segundo.segundos} s en el intento ${segundo.intento} (${segundo.codigo})` : 'sin 429',
-      segundo !== null && ((segundo.segundos >= 90 && segundo.segundos <= 121) || (porDetector && segundo.segundos >= 120)));
-    res.metrica('escalones observados', `${primer429.segundos} s → ${segundo?.segundos ?? '—'} s${porDetector ? ' (detector de anomalías)' : ''}`);
+      segundo !== null && segundo.intento <= 2 && segundo.segundos >= 30 && segundo.codigo === 'TOO_MANY_REQUESTS');
+    res.metrica('escalones observados', `${primer429.segundos} s → ${segundo?.segundos ?? '—'} s${segundo?.segundos === 300 ? ' (detector de anomalías)' : ''}`);
   }
 
   const aceptadas = todas.filter((r) => r.status === 200).length;

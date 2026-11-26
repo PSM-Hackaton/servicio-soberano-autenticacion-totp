@@ -4,7 +4,7 @@ import {
   hashSecreto, verificarSecreto, hashSecretoAsync, verificarSecretoAsync, generarSecretoCliente, generarClientId,
   generarCodigosRecuperacion, normalizarCodigoRecuperacion, ALFABETO_RECUPERACION,
   calcularBloqueo, bloqueadoHasta, estaBloqueado,
-  crearLimitador, validarCuerpo, cabecerasSeguridad, errorGenerico,
+  crearLimitador, validarCuerpo, cabecerasSeguridad, errorGenerico, normalizarIp, esIpValida,
 } from './index.js';
 
 // ── Secretos ────────────────────────────────────────────────────────────────
@@ -229,4 +229,24 @@ test('errorGenerico sigue GenericError y no enumera usuarios', () => {
   assert.equal(l.cuerpo.retry_after_seconds, 30);
   assert.equal(l.cabeceras['Retry-After'], '30');
   assert.equal(errorGenerico(/** @type {any} */ ('raro')).status, 503);
+});
+
+// ── IP del usuario final (client_ip) ────────────────────────────────────────
+
+test('normalizarIp: IPv4/IPv6 estrictas y en forma canónica', () => {
+  const validas = {
+    '203.0.113.7': '203.0.113.7', '0.0.0.0': '0.0.0.0', '255.255.255.255': '255.255.255.255',
+    '2001:DB8:0:0:0:0:0:1': '2001:db8::1', '2001:db8::1': '2001:db8::1', '::1': '::1',
+    '::ffff:198.51.100.4': '198.51.100.4', '::FFFF:c633:6404': '198.51.100.4', 'fe80::1': 'fe80::1',
+  };
+  for (const [entrada, canonica] of Object.entries(validas)) {
+    assert.equal(normalizarIp(entrada), canonica, entrada);
+    assert.equal(esIpValida(entrada), true);
+  }
+  const invalidas = [
+    '', '1', '1.2.3', '1.2.3.4.5', '256.0.0.1', '01.2.3.4', '1.2.3.04', ' 1.2.3.4', '1.2.3.4 ', '1.2.3.4:443',
+    '[::1]', 'fe80::1%eth0', '::1/128', 'localhost', '1.2.3.4\u0000', 'g::1', ':::', '1:2:3:4:5:6:7:8:9',
+    'x'.repeat(46), 7, null, undefined, {}, ['1.2.3.4'],
+  ];
+  for (const entrada of invalidas) assert.equal(normalizarIp(entrada), null, JSON.stringify(entrada));
 });

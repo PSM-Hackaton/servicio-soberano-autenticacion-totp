@@ -266,6 +266,9 @@ export function crearRepositorios(db) {
     fallosUsuario: db.prepare(`SELECT COUNT(*) AS n FROM attempts WHERE user_ref_hash = ? AND resultado <> 'ok' AND ts >= ?`),
     fallosIp: db.prepare(`SELECT COUNT(*) AS n FROM attempts WHERE ip_hash = ? AND resultado <> 'ok' AND ts >= ?`),
     ultimosIp: db.prepare('SELECT * FROM attempts WHERE ip_hash = ? ORDER BY ts DESC, id DESC LIMIT ?'),
+    // Fallos de un usuario SIN enrolamiento activo (filas sin enrollment_id) de una app: usa idx_attempts_user_ts.
+    fallosSinEnrol: db.prepare(`SELECT COUNT(*) AS n, MAX(ts) AS ultimo FROM attempts
+      WHERE user_ref_hash = ? AND ts >= ? AND app_id = ? AND enrollment_id IS NULL AND resultado IN ('invalid_code', 'replay')`),
     purgar: db.prepare('DELETE FROM attempts WHERE ts < ?'),
   };
   const attempts = {
@@ -286,6 +289,15 @@ export function crearRepositorios(db) {
       if (userRefHash != null) return sInt.fallosUsuario.get(userRefHash, desde).n;
       if (ipHash != null) return sInt.fallosIp.get(ipHash, desde).n;
       throw new Error('Indica userRefHash o ipHash');
+    },
+    /**
+     * Fallos recientes de un usuario sin enrolamiento en una app (para su bloqueo progresivo persistente).
+     * @param {{ appId: string, userRefHash: string, desde: string }} filtro
+     * @returns {{ n: number, ultimo: string | null }}
+     */
+    fallosSinEnrolamiento({ appId, userRefHash, desde }) {
+      const f = sInt.fallosSinEnrol.get(userRefHash, desde, appId);
+      return { n: Number(f?.n ?? 0), ultimo: f?.ultimo ?? null };
     },
     /** @param {string} ipHash @param {number} [limite] */
     ultimosPorIp: (ipHash, limite = 50) => sInt.ultimosIp.all(ipHash, limite).map(mapearIntento),

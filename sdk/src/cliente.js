@@ -3,6 +3,7 @@
 // que cumple el contrato; cualquier otra cosa lanza ErrorTotp.
 
 import { randomUUID } from 'node:crypto';
+import { isIPv4, isIPv6 } from 'node:net';
 import { ErrorTotp, CODIGOS_LOCALES } from './errores.js';
 import { validarBaseUrl, crearAgente, peticion } from './http.js';
 import { crearCacheJwks } from './jwks.js';
@@ -11,7 +12,11 @@ import { verificarTokenLocal } from './local.js';
 const CODIGO = /^[0-9]{6,8}$/;
 // Mismo patrón que acepta el servicio (backend/src/api/servidor.js).
 const CLAVE_IDEMPOTENCIA = /^[A-Za-z0-9_.:-]{8,128}$/;
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
+// Mismo patrón de user_ref que el servicio (contracts/openapi.yaml, UserRef): 1–128 imprimibles,
+// sin espacios en los extremos, sin controles C0/C1, NUL, bidi ni caracteres invisibles.
+const USER_REF = /^(?! )(?!.* $)(?:(?![\u034F\u115F\u1160\u2800\u3164\uFFA0])[\p{L}\p{M}\p{N}\p{P}\p{S} ])+$/u;
+const IPV4 = /^(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}$/;
 
 /**
  * @typedef {object} OpcionesCliente
@@ -153,12 +158,13 @@ export function crearClienteTotp(opciones) {
     /**
      * POST /api/v1/enrollments/{id}/activate — valida el primer código y entrega 10 códigos de recuperación.
      * @param {string} enrollmentId @param {string} codigo
+     * @param {{ idempotencyKey?: string, clientIp?: string }} [o] clientIp: IP del usuario final (ver verificar)
      */
-    async activar(enrollmentId, codigo, { idempotencyKey } = {}) {
+    async activar(enrollmentId, codigo, { idempotencyKey, clientIp } = {}) {
       exigirId(enrollmentId, 'activar');
       exigirCodigo(codigo, 'activar');
       const r = await llamar('activar', 'POST', `/api/v1/enrollments/${encodeURIComponent(enrollmentId)}/activate`, {
-        cuerpo: { code: codigo }, idempotencyKey: idempotencyKey ?? randomUUID(),
+        cuerpo: conOrigen({ code: codigo }, clientIp, 'activar'), idempotencyKey: idempotencyKey ?? randomUUID(),
       });
       exigir(r, ['enrollment_id', 'recovery_codes'], 'activar');
       if (r.estado !== 'activo' || !Array.isArray(r.recovery_codes)) invalida('activar');
@@ -170,13 +176,19 @@ export function crearClienteTotp(opciones) {
     /**
      * POST /api/v1/verify — verifica un código TOTP. Si no se pasa idempotencyKey se genera una
      * y se reutiliza en el reintento. Devuelve { aprobado: true, token, … } o lanza ErrorTotp.
-     * @param {string} userRef @param {string} codigo @param {{ idempotencyKey?: string }} [o]
+     * `clientIp` (muy recomendado): IP del usuario final tal como la ve su sistema (dirección del
+     * socket del navegador, no X-Forwarded-For salvo proxy propio de confianza). Sin ella, el
+     * servicio trata a todos sus usuarios como un único origen para el detector y los límites.
+     * Un código incorrecto, un usuario sin factor y un código ya usado lanzan el mismo
+     * VERIFICATION_FAILED (401); el bloqueo progresivo y el del detector, TOO_MANY_REQUESTS (429).
+     * @param {string} userRef @param {string} codigo @param {{ idempotencyKey?: string, clientIp?: string }} [o]
      */
-    async verificar(userRef, codigo, { idempotencyKey } = {}) {
+    async verificar(userRef, codigo, { idempotencyKey, clientIp } = {}) {
       exigirUserRef(userRef, 'verificar');
       exigirCodigo(codigo, 'verificar');
+      const cuerpo = conOrigen({ user_ref: userRef, code: codigo }, clientIp, 'verificar');
       const clave = idempotencyKey ?? randomUUID();
-      const r = await llamar('verificar', 'POST', '/api/v1/verify', { cuerpo: { user_ref: userRef, code: codigo }, idempotencyKey: clave });
+      const r = await llamar('verificar', 'POST', '/api/v1/verify', { cuerpo, idempotencyKey: clave });
       // Falla cerrado: solo verified === true estricto y un token con forma de JWT aprueban.
       if (!r || r.verified !== true || typeof r.token !== 'string' || r.token.split('.').length !== 3) invalida('verificar');
       return {
@@ -186,7 +198,8 @@ export function crearClienteTotp(opciones) {
         kid: r.kid,
         expiraEn: r.expires_at,
         derivaPasos: r.drift_steps,
-        riesgo: r.risk ?? null,
+        // Solo { level: LOW | MEDIUM | HIGH | CRITICAL }: el servicio no expone puntuación ni razones.
+        riesgo: r.risk && typeof r.risk.level === 'string' ? { nivel: r.risk.level } : null,
         idempotencyKey: clave,
       };
     },
@@ -209,13 +222,14 @@ export function crearClienteTotp(opciones) {
     /**
      * POST /api/v1/enrollments/{id}/resync — corrige la deriva con dos códigos consecutivos.
      * @param {string} enrollmentId @param {string} codigo1 @param {string} codigo2
+     * @param {{ clientIp?: string }} [o] clientIp: IP del usuario final (ver verificar)
      */
-    async resincronizar(enrollmentId, codigo1, codigo2) {
+    async resincronizar(enrollmentId, codigo1, codigo2, { clientIp } = {}) {
       exigirId(enrollmentId, 'resincronizar');
       exigirCodigo(codigo1, 'resincronizar');
       exigirCodigo(codigo2, 'resincronizar');
       const r = await llamar('resincronizar', 'POST', `/api/v1/enrollments/${encodeURIComponent(enrollmentId)}/resync`, {
-        cuerpo: { code_1: codigo1, code_2: codigo2 }, idempotencyKey: randomUUID(),
+        cuerpo: conOrigen({ code_1: codigo1, code_2: codigo2 }, clientIp, 'resincronizar'), idempotencyKey: randomUUID(),
       });
       if (!r || r.resynced !== true) invalida('resincronizar');
       return { resincronizado: true, derivaPasos: r.drift_steps };
@@ -224,14 +238,15 @@ export function crearClienteTotp(opciones) {
     /**
      * POST /api/v1/recovery — consume un código de recuperación; obliga a re-enrolar.
      * @param {string} userRef @param {string} codigoRecuperacion
+     * @param {{ clientIp?: string }} [o] clientIp: IP del usuario final (ver verificar)
      */
-    async recuperar(userRef, codigoRecuperacion) {
+    async recuperar(userRef, codigoRecuperacion, { clientIp } = {}) {
       exigirUserRef(userRef, 'recuperar');
       if (typeof codigoRecuperacion !== 'string' || codigoRecuperacion.length < 8 || codigoRecuperacion.length > 32) {
         throw new ErrorTotp('Código de recuperación con formato inválido', { codigo: CODIGOS_LOCALES.ENTRADA_INVALIDA, operacion: 'recuperar' });
       }
       const r = await llamar('recuperar', 'POST', '/api/v1/recovery', {
-        cuerpo: { user_ref: userRef, recovery_code: codigoRecuperacion }, idempotencyKey: randomUUID(),
+        cuerpo: conOrigen({ user_ref: userRef, recovery_code: codigoRecuperacion }, clientIp, 'recuperar'), idempotencyKey: randomUUID(),
       });
       if (!r || r.recovered !== true) invalida('recuperar');
       return { recuperado: true, debeReenrolar: r.must_reenroll === true, codigosRestantes: r.remaining_codes };
@@ -329,9 +344,33 @@ function exigirCodigo(codigo, operacion) {
 }
 
 function exigirUserRef(userRef, operacion) {
-  if (typeof userRef !== 'string' || userRef.length < 2 || userRef.length > 160) {
-    throw new ErrorTotp('userRef debe tener entre 2 y 160 caracteres', { codigo: CODIGOS_LOCALES.ENTRADA_INVALIDA, operacion });
+  const largo = typeof userRef === 'string' ? [...userRef].length : 0;
+  if (largo < 1 || largo > 128 || !USER_REF.test(userRef)) {
+    throw new ErrorTotp('userRef debe tener 1 a 128 caracteres imprimibles, sin espacios en los extremos ni caracteres de control',
+      { codigo: CODIGOS_LOCALES.ENTRADA_INVALIDA, operacion });
   }
+}
+
+/**
+ * IP del usuario final válida para `client_ip` (IPv4 decimal sin ceros a la izquierda o IPv6 sin
+ * zona, corchetes ni puerto). @param {unknown} ip
+ */
+export function esClientIpValida(ip) {
+  if (typeof ip !== 'string' || ip.length < 2 || ip.length > 45) return false;
+  if (IPV4.test(ip)) return isIPv4(ip);
+  return /^[0-9A-Fa-f:.]+$/.test(ip) && ip.includes(':') && isIPv6(ip);
+}
+
+/** Añade client_ip al cuerpo si se indicó (validada antes de llamar al servicio). */
+function conOrigen(cuerpo, clientIp, operacion) {
+  if (clientIp === undefined || clientIp === null) return cuerpo;
+  let ip = clientIp;
+  // Dirección de socket de Node con IPv4 mapeada en IPv6 (::ffff:a.b.c.d): se envía la IPv4.
+  if (typeof ip === 'string' && /^::ffff:\d+\.\d+\.\d+\.\d+$/i.test(ip)) ip = ip.slice(7);
+  if (!esClientIpValida(ip)) {
+    throw new ErrorTotp('clientIp debe ser una IPv4 o IPv6 válida', { codigo: CODIGOS_LOCALES.ENTRADA_INVALIDA, operacion });
+  }
+  return { ...cuerpo, client_ip: ip };
 }
 
 function exigirId(id, operacion) {

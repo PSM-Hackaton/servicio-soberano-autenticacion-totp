@@ -15,7 +15,7 @@
 import { spawn } from 'node:child_process';
 import { mkdirSync, openSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { crearUsuarioPrueba, esPrincipal, exigirCredenciales, principal, sondearSalud } from '../lib/escenario.js';
+import { crearUsuarioPrueba, esPrincipal, exigirCredenciales, nuevoUserRef, principal, sondearSalud } from '../lib/escenario.js';
 import { codigoError, etiquetaEstado } from '../lib/http.js';
 import { codigoIncorrecto } from '../lib/totp.js';
 import { dormir, redondear } from '../lib/metricas.js';
@@ -24,7 +24,7 @@ import { verificar } from '../lib/servicio.js';
 
 export const id = 'reinicio';
 export const nombre = 'Caída y reinicio del backend';
-export const demuestra = 'Tras matar el proceso, el servicio vuelve a estar listo en segundos y los bloqueos por cuenta sobreviven al reinicio.';
+export const demuestra = 'Tras matar el proceso, el servicio vuelve a estar listo en segundos y los bloqueos por cuenta sobreviven al reinicio, también los de usuarios inexistentes (idénticos a los reales).';
 
 /** Espera hasta que la ruta de salud responda 200 (o se agote el tiempo). Devuelve ms o null. */
 async function esperarListo(cliente, ruta, maxMs) {
@@ -91,6 +91,7 @@ export async function ejecutar(ctx, res) {
 
   // 1. Bloquear una cuenta antes de la caída (si hay credenciales).
   let bloqueada = null;
+  let inexistente = null;
   const op = await ctx.opOrigen(ctx.ip(51));
   if (config.apps.length) {
     exigirCredenciales(ctx);
@@ -98,6 +99,11 @@ export async function ejecutar(ctx, res) {
     let r;
     for (let i = 0; i <= config.maxIntentos; i++) r = await verificar(cliente, bloqueada.userRef, codigoIncorrecto(bloqueada.datos), op);
     res.verificar('Cuenta bloqueada antes de la caída', '429', `${etiquetaEstado(r)} ${codigoError(r) ?? ''}`.trim(), r.status === 429);
+    // Un usuario SIN enrolamiento con los mismos fallos: misma respuesta (sin enumeración).
+    inexistente = nuevoUserRef('inexistente');
+    let f;
+    for (let i = 0; i <= config.maxIntentos; i++) f = await verificar(cliente, inexistente, codigoIncorrecto(null), op);
+    res.verificar('Usuario inexistente bloqueado antes de la caída', '429 (igual que la cuenta real)', `${etiquetaEstado(f)} ${codigoError(f) ?? ''}`.trim(), f.status === 429);
   }
 
   // 2. Matar.
@@ -126,6 +132,9 @@ export async function ejecutar(ctx, res) {
     const r = await verificar(cliente, bloqueada.userRef, codigoIncorrecto(bloqueada.datos), op);
     res.verificar('Bloqueo vigente tras el reinicio', '429 (persistido en BD)', `${etiquetaEstado(r)} ${codigoError(r) ?? ''}`.trim(), r.status === 429);
     if (r.status !== 429) res.hallazgo('El bloqueo progresivo de una cuenta se pierde al reiniciar el backend.');
+    const f = await verificar(cliente, inexistente, codigoIncorrecto(null), op);
+    res.verificar('Bloqueo de usuario inexistente tras el reinicio', '429 (calculado desde attempts en BD)', `${etiquetaEstado(f)} ${codigoError(f) ?? ''}`.trim(), f.status === 429);
+    if (f.status !== 429) res.hallazgo('El bloqueo de un usuario inexistente se pierde al reiniciar: permite distinguirlo de una cuenta real.');
   }
 
   if (config.opciones['detener-al-final'] && hijo.pid) {

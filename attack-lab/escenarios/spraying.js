@@ -4,11 +4,11 @@
 // el servicio no permite enumerar usuarios (mismas respuestas para ambas).
 //
 // Esperado: ninguna cuenta comprometida, respuestas indistinguibles, y el detector local de anomalías
-// eleva el riesgo del origen (se ve en la evaluación `risk` de una verificación posterior desde la
-// misma IP, en /metrics o, en apps con modo "bloqueo", con 429 ANOMALY_BLOCKED).
+// bloquea el origen (se ve en /metrics como resultado anomaly_blocked). Hacia fuera, el bloqueo es
+// un 429 TOO_MANY_REQUESTS genérico: sin puntuación, razones ni umbrales que guíen al atacante.
 
 import { crearUsuarioPrueba, esPrincipal, exigirCredenciales, nuevoUserRef, principal } from '../lib/escenario.js';
-import { codigoError } from '../lib/http.js';
+import { codigoError, etiquetaEstado } from '../lib/http.js';
 import { codigoIncorrecto, codigoNuevo } from '../lib/totp.js';
 import { distribucionEstados, resumenLatencias, redondear } from '../lib/metricas.js';
 import { opcionNumero } from '../lib/config.js';
@@ -16,7 +16,7 @@ import { deltaMetrica, leerMetricas, verificar, verificarUsuario } from '../lib/
 
 export const id = 'spraying';
 export const nombre = 'Spraying: un origen contra muchas cuentas';
-export const demuestra = 'Pocos intentos por cuenta no comprometen ninguna; no hay enumeración de usuarios y el detector eleva el riesgo del origen.';
+export const demuestra = 'Pocos intentos por cuenta no comprometen ninguna; no hay enumeración de usuarios y el detector bloquea el origen con un 429 genérico que no revela su puntuación ni sus razones.';
 
 export async function ejecutar(ctx, res) {
   exigirCredenciales(ctx);
@@ -63,24 +63,32 @@ export async function ejecutar(ctx, res) {
   res.verificar('Sin enumeración por tiempo de respuesta', 'diferencia p50 < 15 ms', `${redondear(diferencia)} ms`, diferencia < 15);
 
   // Detector: verificación LEGÍTIMA de una cuenta real desde el mismo origen atacante.
-  const metricasDespues = await leerMetricas(cliente);
-  const anomalias = todas.filter((r) => codigoError(r) === 'ANOMALY_BLOCKED').length;
-  const limitados = todas.filter((r) => r.status === 429).length;
   const testigo = reales[0];
   const c = await codigoNuevo(testigo, { ventana: config.ventana });
   const legit = await verificarUsuario(cliente, testigo, c.codigo, op);
-  const riesgo = legit.cuerpo?.risk ?? legit.cuerpo?.riskAssessment ?? null;
-  const nivel = riesgo?.level ?? (codigoError(legit) === 'ANOMALY_BLOCKED' ? 'BLOCK' : null);
+  const metricasDespues = await leerMetricas(cliente);
+  const anomalias = deltaMetrica(metricasAntes, metricasDespues, 'totp_verifications_total', 'anomaly');
+  const limitados = todas.filter((r) => r.status === 429);
   res.metrica('verificación legítima posterior desde el origen atacante', `${legit.status} ${codigoError(legit) ?? ''}`.trim());
-  res.metrica('riesgo asignado al origen', riesgo ? `${riesgo.score ?? riesgo.riskScore} (${riesgo.level}) · ${(riesgo.reasons ?? []).join('; ')}` : '—');
-  res.metrica('429 durante el spraying (limitador o detector)', limitados);
-  res.metrica('Δ bloqueos del detector (métrica anomaly_blocked)', deltaMetrica(metricasAntes, metricasDespues, 'totp_verifications_total', 'anomaly') ?? '—');
-  const detectado = anomalias > 0 || ['MEDIUM', 'HIGH', 'CRITICAL', 'BLOCK'].includes(String(nivel));
-  res.verificar('Detector local de anomalías marca el origen', 'riesgo ≥ MEDIUM o ANOMALY_BLOCKED',
-    anomalias > 0 ? `${anomalias} ANOMALY_BLOCKED` : `nivel ${nivel ?? 'desconocido'}`, detectado);
-  if (!detectado) {
-    res.hallazgo(`Tras ${todas.length} fallos desde una sola IP contra ${objetivos.length} cuentas, el detector asigna riesgo ${nivel ?? 'desconocido'} a una verificación desde ese mismo origen.`);
-  }
+  res.metrica('429 durante el spraying (bloqueo del detector)', limitados.length);
+  res.metrica('Δ bloqueos del detector (métrica anomaly_blocked)', anomalias ?? '—');
+  const detectado = (anomalias ?? 0) > 0;
+  res.verificar('Detector local de anomalías bloquea el origen', 'Δ anomaly_blocked > 0 (en /metrics, solo loopback)',
+    anomalias === null ? 'métricas no disponibles' : `${anomalias} bloqueos del detector`, detectado);
+  if (!detectado) res.hallazgo(`Tras ${todas.length} fallos desde una sola IP contra ${objetivos.length} cuentas, el detector no bloqueó el origen.`);
+  res.verificar('El titular tampoco entra desde el origen bloqueado', '429', etiquetaEstado(legit), legit.status === 429);
+
+  // Sin detalles del detector hacia fuera: el 429 es el genérico del contrato.
+  const bloqueos = [...limitados, ...(legit.status === 429 ? [legit] : [])];
+  const genericos = bloqueos.every((r) => {
+    const claves = Object.keys(r.cuerpo ?? {}).sort().join(',');
+    return codigoError(r) === 'TOO_MANY_REQUESTS' && claves === 'error,message,retry_after_seconds' && r.cabeceras['retry-after'] === String(r.cuerpo.retry_after_seconds);
+  });
+  const filtra = bloqueos.some((r) => /risk|reason|score|umbral|anomal|riesgo|detector/i.test(r.texto));
+  res.verificar('El 429 del detector no expone riesgo, razones ni umbrales', '{ error: TOO_MANY_REQUESTS, message, retry_after_seconds } + Retry-After',
+    bloqueos.length ? (genericos && !filtra ? `genérico (${JSON.stringify(bloqueos[0].cuerpo)})` : `con detalles: ${bloqueos.find((r) => !genericos || filtra)?.texto.slice(0, 160)}`) : 'sin 429',
+    bloqueos.length > 0 && genericos && !filtra);
+  if (filtra) res.hallazgo('La respuesta del bloqueo adaptativo expone detalles del detector.');
   res.metrica('estados', distribucionEstados(todas));
   res.metrica('latencia', resumenLatencias(todas.map((r) => r.ms)));
 }

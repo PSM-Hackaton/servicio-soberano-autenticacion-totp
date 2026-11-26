@@ -6,7 +6,13 @@
 import { configuracion } from './src/config.js';
 import { crearPortal } from './src/portal.js';
 
-const config = configuracion();
+let config;
+try {
+  config = configuracion();
+} catch (e) {
+  process.stderr.write(`${e.message}\n`);
+  process.exit(1);
+}
 const esLocal = ['127.0.0.1', 'localhost', '::1'].includes(config.host);
 if (!config.tls && !esLocal) {
   process.stderr.write('Sin certificados TLS el portal solo puede escuchar en localhost (PORTAL_HOST=127.0.0.1).\n');

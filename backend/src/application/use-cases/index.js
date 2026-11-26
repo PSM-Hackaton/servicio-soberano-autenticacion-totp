@@ -45,6 +45,8 @@ export { puede, MATRIZ_RBAC, ACCIONES } from './rbac.js';
  * @property {number} minutosPendiente Caducidad del enrolamiento pendiente (10).
  * @property {number} [segundosBloqueoAnomalia] Retry-After del bloqueo adaptativo (300).
  * @property {number} [esperaExtraMs] Retardo ante 'espera_extra' en modo bloqueo (0 = sin retardo).
+ * @property {number} [ventanaInexistentesMin] Ventana (min) de fallos de usuarios sin enrolamiento
+ *   contados desde attempts para su bloqueo progresivo (BLOQUEO_INEXISTENTES_VENTANA_MIN, 1440).
  * @property {'local' | 'monitorizacion' | 'mock'} [modoHeuristica] HEURISTICS_MODE. 'monitorizacion'
  *   prevalece sobre modo_heuristica de cada app: nunca se bloquea por anomalía, solo se alerta y audita.
  */
@@ -78,7 +80,7 @@ export function crearCasosDeUso(deps) {
   }
 
   const consultas = crearConsultas({ repos, db });
-  const bloqueos = crearControlBloqueos({ repos, reloj });
+  const bloqueos = crearControlBloqueos({ repos, reloj, ventanaInexistentesMin: config.ventanaInexistentesMin });
   const comunes = { repos, vault, firmas, detector, bitacora, metricas, config, reloj, consultas, bloqueos };
 
   return Object.freeze({ ...crearCasosMfa(comunes), ...crearCasosAdmin(comunes) });

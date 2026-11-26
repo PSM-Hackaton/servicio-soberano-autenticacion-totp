@@ -16,6 +16,7 @@ import { crearBitacora, crearMetricas } from './audit/index.js';
 import { entrenarDetectorPorDefecto } from './heuristics/index.js';
 import { crearCasosDeUso, puede } from './application/use-cases/index.js';
 import { crearServidor } from './api/servidor.js';
+import { crearLimitador } from './security/index.js';
 
 const CARPETA_REPO = resolve(CARPETA_BACKEND, '..');
 const INTERVALO_SALUD_MS = 30_000;
@@ -98,6 +99,11 @@ export async function iniciar({ config = cargarConfig(), registro = crearRegistr
     metricas,
     puede,
     cors: { origenes: [...config.corsOrigenes] },
+    limitadores: {
+      global: crearLimitador({ capacidad: config.limites.globalPorMin, ventanaMs: 60_000 }),
+      porApp: crearLimitador({ capacidad: config.limites.appPorMin, ventanaMs: 60_000 }),
+      porOrigen: crearLimitador({ capacidad: config.limites.origenPorMin, ventanaMs: 60_000 }),
+    },
     salud,
     info: () => ({
       dbDriver: 'sqlite',

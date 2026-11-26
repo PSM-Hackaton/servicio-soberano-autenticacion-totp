@@ -1,34 +1,32 @@
 {
-  "generado": "2026-11-26T17:22:56.283Z",
-  "destino": "https://localhost:8443",
+  "generado": "2026-11-26T17:47:42.931Z",
+  "destino": "https://localhost:18443",
   "entorno": {
     "node": "v22.22.1",
     "plataforma": "linux",
     "salud": {
       "status": "ok",
-      "timestamp": "2026-11-26T17:21:38.734Z",
+      "timestamp": "2026-11-26T17:45:40.299Z",
       "dbDriver": "sqlite",
-      "activeKeyId": "H8atP26YJcioiY_mxCednA",
+      "activeKeyId": "JrgHgyWQnX_sZgobtZrDBw",
       "heuristicsMode": "local"
     }
   },
   "resumen": {
-    "evaluados": 8,
-    "correctos": 8,
+    "evaluados": 11,
+    "correctos": 11,
     "fallidos": [],
-    "omitidos": [
-      "reinicio"
-    ],
-    "verificaciones": 85,
-    "verificacionesOk": 85,
+    "omitidos": [],
+    "verificaciones": 116,
+    "verificacionesOk": 116,
     "hallazgos": 0,
-    "duracionMs": 77546
+    "duracionMs": 122627
   },
   "resultados": [
     {
       "id": "replay",
       "nombre": "Replay de código TOTP",
-      "demuestra": "Un código ya aceptado se rechaza al reenviarlo (anti-replay atómico: last_step < T), también en carrera concurrente.",
+      "demuestra": "Un código ya aceptado se rechaza al reenviarlo (anti-replay atómico: last_step < T), también en carrera concurrente; el rechazo es idéntico al de un código incorrecto (sin oráculo) y queda registrado internamente.",
       "ok": true,
       "verificaciones": [
         {
@@ -39,8 +37,20 @@
         },
         {
           "descripcion": "Reenvío del mismo código",
-          "esperado": "401 (REPLAY_DETECTED)",
-          "obtenido": "401 REPLAY_DETECTED",
+          "esperado": "401 VERIFICATION_FAILED",
+          "obtenido": "401 VERIFICATION_FAILED",
+          "ok": true
+        },
+        {
+          "descripcion": "Replay indistinguible de un código incorrecto",
+          "esperado": "mismo status, cuerpo y cabeceras (sin Retry-After)",
+          "obtenido": "idénticos: 401 {\"error\":\"VERIFICATION_FAILED\",\"message\":\"No se pudo completar la verificación.\"}",
+          "ok": true
+        },
+        {
+          "descripcion": "El replay queda registrado internamente",
+          "esperado": "Δ totp_verifications_total{resultado=\"replay\"} = 1",
+          "obtenido": "1",
           "ok": true
         },
         {
@@ -57,21 +67,21 @@
         }
       ],
       "metricas": {
-        "respuesta del replay": "REPLAY_DETECTED",
+        "respuesta del replay": "{\"error\":\"VERIFICATION_FAILED\",\"message\":\"No se pudo completar la verificación.\"}",
         "latencia verificación": {
           "n": 12,
-          "min": 4.7,
-          "p50": 24.6,
-          "p95": 42.8,
-          "p99": 44.5,
-          "max": 44.9,
-          "media": 25.4
+          "min": 2.5,
+          "p50": 70.3,
+          "p95": 100.9,
+          "p99": 101.4,
+          "max": 101.5,
+          "media": 62.8
         }
       },
       "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T17:21:38.736Z",
-      "duracionMs": 21388
+      "inicio": "2026-11-26T17:45:40.303Z",
+      "duracionMs": 19882
     },
     {
       "id": "jwt",
@@ -159,14 +169,14 @@
         }
       ],
       "metricas": {
-        "JWT legítimo": "alg=EdDSA kid=H8atP26YJcioiY_mxCednA aud=app_3b57117f4df708b7cf7d40388b79892a ttl=300 s amr=[\"otp\"]"
+        "JWT legítimo": "alg=EdDSA kid=JrgHgyWQnX_sZgobtZrDBw aud=app_b98b35d6d6e15479c7e0780690dd15d6 ttl=300 s amr=[\"otp\"]"
       },
       "notas": [
         "La caducidad real se prueba con --esperar-caducidad (espera TTL + 30 s de tolerancia)."
       ],
       "hallazgos": [],
-      "inicio": "2026-11-26T17:22:03.129Z",
-      "duracionMs": 180
+      "inicio": "2026-11-26T17:46:03.190Z",
+      "duracionMs": 207
     },
     {
       "id": "entradas",
@@ -248,8 +258,50 @@
         },
         {
           "descripcion": "Caracteres de control / NUL en user_ref",
-          "esperado": "400/401",
-          "obtenido": "401",
+          "esperado": "400",
+          "obtenido": "400",
+          "ok": true
+        },
+        {
+          "descripcion": "user_ref con control bidi (U+202E)",
+          "esperado": "400",
+          "obtenido": "400",
+          "ok": true
+        },
+        {
+          "descripcion": "user_ref con carácter invisible (U+200B)",
+          "esperado": "400",
+          "obtenido": "400",
+          "ok": true
+        },
+        {
+          "descripcion": "user_ref con espacio final",
+          "esperado": "400",
+          "obtenido": "400",
+          "ok": true
+        },
+        {
+          "descripcion": "user_ref de 129 caracteres",
+          "esperado": "400",
+          "obtenido": "400",
+          "ok": true
+        },
+        {
+          "descripcion": "client_ip inválida (octeto 999)",
+          "esperado": "400",
+          "obtenido": "400",
+          "ok": true
+        },
+        {
+          "descripcion": "client_ip con zona IPv6",
+          "esperado": "400",
+          "obtenido": "400",
+          "ok": true
+        },
+        {
+          "descripcion": "client_ip no textual",
+          "esperado": "400",
+          "obtenido": "400",
           "ok": true
         },
         {
@@ -416,34 +468,85 @@
         }
       ],
       "metricas": {
-        "casos": 37,
+        "casos": 44,
         "estados": {
-          "400": 21,
-          "401": 7,
+          "400": 29,
+          "401": 6,
           "404": 3,
           "405": 1,
           "413": 3,
           "415": 2
         },
         "latencia": {
-          "n": 37,
-          "min": 0.4,
-          "p50": 0.6,
-          "p95": 5.3,
-          "p99": 22.7,
-          "max": 32.4,
-          "media": 1.9
+          "n": 44,
+          "min": 0.3,
+          "p50": 1.1,
+          "p95": 4.9,
+          "p99": 18.7,
+          "max": 28.7,
+          "media": 2
         }
       },
       "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T17:22:06.309Z",
-      "duracionMs": 84
+      "inicio": "2026-11-26T17:46:06.399Z",
+      "duracionMs": 106
+    },
+    {
+      "id": "deriva",
+      "nombre": "Deriva acotada (ráfaga T+1…T+12)",
+      "demuestra": "Códigos futuros enviados en ráfaga no arrastran la deriva: de T+1…T+12 solo entra T+1; solo resync fija derivas mayores y verify respeta ese tope.",
+      "ok": true,
+      "verificaciones": [
+        {
+          "descripcion": "Ráfaga T+1…T+12 en el mismo periodo",
+          "esperado": "solo T+1 aceptado",
+          "obtenido": "T+1",
+          "ok": true
+        },
+        {
+          "descripcion": "Deriva devuelta tras T+1",
+          "esperado": "drift_steps = 1",
+          "obtenido": "1",
+          "ok": true
+        },
+        {
+          "descripcion": "Rechazos de la ráfaga",
+          "esperado": "401 VERIFICATION_FAILED o 429 (bloqueo progresivo), nunca 200 ni 5xx",
+          "obtenido": "{\"401\":5,\"429\":6}",
+          "ok": true
+        },
+        {
+          "descripcion": "Resincronización con T+8, T+9",
+          "esperado": "200 drift_steps = 9",
+          "obtenido": "200 drift_steps = 9",
+          "ok": true
+        },
+        {
+          "descripcion": "Tras resync, T+10 supera el tope (|10| > 9)",
+          "esperado": "401, idéntico a un código incorrecto",
+          "obtenido": "401 VERIFICATION_FAILED",
+          "ok": true
+        },
+        {
+          "descripcion": "Resync más allá de ±10 pasos",
+          "esperado": "rechazado (401)",
+          "obtenido": "401",
+          "ok": true
+        }
+      ],
+      "metricas": {
+        "ráfaga T+1…T+12": "T+1:200 T+2:401 T+3:401 T+4:401 T+5:401 T+6:401 T+7:429 T+8:429 T+9:429 T+10:429 T+11:429 T+12:429"
+      },
+      "notas": [],
+      "hallazgos": [],
+      "inicio": "2026-11-26T17:46:09.505Z",
+      "duracionMs": 281
     },
     {
       "id": "fuerza-bruta",
       "nombre": "Fuerza bruta secuencial",
-      "demuestra": "Tras 5 fallos la cuenta se bloquea (429, 30 s) y el bloqueo escala (2 min…); un código correcto tampoco pasa durante el bloqueo.",
+      "demuestra": "Tras 5 fallos la cuenta se bloquea (429, 30 s); al vencer, el siguiente fallo vuelve a bloquear (escala 30 s → 2 min → 10 min → 1 h); un código correcto tampoco pasa durante el bloqueo.",
       "ok": true,
       "verificaciones": [
         {
@@ -471,6 +574,12 @@
           "ok": true
         },
         {
+          "descripcion": "Tras vencer el primer escalón, el siguiente fallo vuelve a bloquear",
+          "esperado": "429 TOO_MANY_REQUESTS (≥ 30 s) en ≤ 2 intentos",
+          "obtenido": "300 s en el intento 1 (TOO_MANY_REQUESTS)",
+          "ok": true
+        },
+        {
           "descripcion": "Códigos incorrectos aceptados",
           "esperado": "0",
           "obtenido": "0",
@@ -485,27 +594,26 @@
       ],
       "metricas": {
         "secuencia de respuestas": "401 → 401 → 401 → 401 → 401 → 429",
-        "peticiones": 22,
+        "escalones observados": "30 s → 300 s (detector de anomalías)",
+        "peticiones": 23,
         "estados": {
           "401": 5,
-          "429": 17
+          "429": 18
         },
         "latencia": {
-          "n": 22,
-          "min": 1.7,
-          "p50": 2,
-          "p95": 2.8,
-          "p99": 3,
-          "max": 3.1,
-          "media": 2.1
+          "n": 23,
+          "min": 1.1,
+          "p50": 1.4,
+          "p95": 2.3,
+          "p99": 26.5,
+          "max": 33.3,
+          "media": 2.9
         }
       },
-      "notas": [
-        "Escalada no medida (--rapido o sin bloqueo inicial). Sin --rapido se espera el primer escalón y se comprueba 30 s → 2 min."
-      ],
+      "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T17:22:09.393Z",
-      "duracionMs": 201
+      "inicio": "2026-11-26T17:46:12.787Z",
+      "duracionMs": 31721
     },
     {
       "id": "fuerza-bruta-distribuida",
@@ -538,15 +646,20 @@
           "ok": true
         },
         {
+          "descripcion": "Los 429 son genéricos",
+          "esperado": "TOO_MANY_REQUESTS (sin detalles del detector)",
+          "obtenido": "sí",
+          "ok": true
+        },
+        {
           "descripcion": "Detector local de anomalías",
           "esperado": "bloqueo adaptativo o registro del patrón",
-          "obtenido": "sin ANOMALY_BLOCKED (actuó antes el bloqueo por cuenta)",
+          "obtenido": "sin bloqueos del detector (actuó antes el bloqueo por cuenta)",
           "ok": null
         }
       ],
       "metricas": {
-        "orígenes simulados": "40 IP de loopback reales (127.79.5.10 … 127.79.5.49)",
-        "429 ANOMALY_BLOCKED recibidos": 0,
+        "orígenes simulados": "40 IP de loopback reales (127.211.6.10 … 127.211.6.49)",
         "Δ verificaciones bloqueadas (métrica locked)": 36,
         "Δ bloqueos del detector (métrica anomaly_blocked)": 0,
         "estados": {
@@ -555,25 +668,25 @@
         },
         "latencia": {
           "n": 40,
-          "min": 3.3,
-          "p50": 3.5,
-          "p95": 4.4,
-          "p99": 6.8,
-          "max": 8,
-          "media": 3.7
+          "min": 2.6,
+          "p50": 2.9,
+          "p95": 5.1,
+          "p99": 9,
+          "max": 11.3,
+          "media": 3.3
         }
       },
       "notas": [
         "El bloqueo vigente de la cuenta se comprueba antes que el detector, así que con 1 intento por IP la defensa que actúa es el bloqueo por cuenta; el detector registra cada intento (bitácora y /admin/api/anomalies)."
       ],
       "hallazgos": [],
-      "inicio": "2026-11-26T17:22:12.595Z",
+      "inicio": "2026-11-26T17:46:47.512Z",
       "duracionMs": 268
     },
     {
       "id": "spraying",
       "nombre": "Spraying: un origen contra muchas cuentas",
-      "demuestra": "Pocos intentos por cuenta no comprometen ninguna; no hay enumeración de usuarios y el detector eleva el riesgo del origen.",
+      "demuestra": "Pocos intentos por cuenta no comprometen ninguna; no hay enumeración de usuarios y el detector bloquea el origen con un 429 genérico que no revela su puntuación ni sus razones.",
       "ok": true,
       "verificaciones": [
         {
@@ -591,51 +704,125 @@
         {
           "descripcion": "Sin enumeración de usuarios",
           "esperado": "misma respuesta para cuentas reales e inexistentes",
-          "obtenido": "idénticas (401 VERIFICATION_FAILED, 429 ANOMALY_BLOCKED)",
+          "obtenido": "idénticas (401 VERIFICATION_FAILED, 429 TOO_MANY_REQUESTS)",
           "ok": true
         },
         {
           "descripcion": "Sin enumeración por tiempo de respuesta",
           "esperado": "diferencia p50 < 15 ms",
-          "obtenido": "0.4 ms",
+          "obtenido": "0 ms",
           "ok": true
         },
         {
-          "descripcion": "Detector local de anomalías marca el origen",
-          "esperado": "riesgo ≥ MEDIUM o ANOMALY_BLOCKED",
-          "obtenido": "35 ANOMALY_BLOCKED",
+          "descripcion": "Detector local de anomalías bloquea el origen",
+          "esperado": "Δ anomaly_blocked > 0 (en /metrics, solo loopback)",
+          "obtenido": "36 bloqueos del detector",
+          "ok": true
+        },
+        {
+          "descripcion": "El titular tampoco entra desde el origen bloqueado",
+          "esperado": "429",
+          "obtenido": "429",
+          "ok": true
+        },
+        {
+          "descripcion": "El 429 del detector no expone riesgo, razones ni umbrales",
+          "esperado": "{ error: TOO_MANY_REQUESTS, message, retry_after_seconds } + Retry-After",
+          "obtenido": "genérico ({\"error\":\"TOO_MANY_REQUESTS\",\"message\":\"Demasiados intentos. Intente más tarde.\",\"retry_after_seconds\":300})",
           "ok": true
         }
       ],
       "metricas": {
-        "latencia p50 cuentas reales / inexistentes": "4.8 ms / 4.4 ms",
-        "verificación legítima posterior desde el origen atacante": "429 ANOMALY_BLOCKED",
-        "riesgo asignado al origen": "100 (CRITICAL) · Una misma IP probó 20 cuentas distintas en 15 minutos (patrón de password spraying); 40 intentos fallidos desde la misma IP en 15 minutos; Ritmo automatizado: 0 s de media entre intentos de la misma IP; 100 % de intentos fallidos desde la misma IP; Isolation Forest: comportamiento atípico frente al patrón aprendido (anomalía 0,74, normal ≤ 0,66)",
-        "429 durante el spraying (limitador o detector)": 35,
-        "Δ bloqueos del detector (métrica anomaly_blocked)": 35,
+        "latencia p50 cuentas reales / inexistentes": "2.4 ms / 2.4 ms",
+        "verificación legítima posterior desde el origen atacante": "429 TOO_MANY_REQUESTS",
+        "429 durante el spraying (bloqueo del detector)": 35,
+        "Δ bloqueos del detector (métrica anomaly_blocked)": 36,
         "estados": {
           "401": 5,
           "429": 35
         },
         "latencia": {
           "n": 40,
-          "min": 1.8,
-          "p50": 4.4,
-          "p95": 6.4,
-          "p99": 8.4,
-          "max": 9,
-          "media": 4.4
+          "min": 1.3,
+          "p50": 2.4,
+          "p95": 4.3,
+          "p99": 6.5,
+          "max": 6.9,
+          "media": 2.6
         }
       },
       "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T17:22:15.864Z",
-      "duracionMs": 872
+      "inicio": "2026-11-26T17:46:50.782Z",
+      "duracionMs": 856
+    },
+    {
+      "id": "origen-compartido",
+      "nombre": "Origen compartido: ciudadanos detrás del mismo portal",
+      "demuestra": "Fallos de muchos ciudadanos tras la misma IP del portal (distinto client_ip) no bloquean a un legítimo; un atacante con un único client_ip sí queda bloqueado.",
+      "ok": true,
+      "verificaciones": [
+        {
+          "descripcion": "Fallos de ciudadanos",
+          "esperado": "todos 401 (ninguno bloqueado: cada uno es su propio origen)",
+          "obtenido": "{\"401\":48}",
+          "ok": true
+        },
+        {
+          "descripcion": "Ciudadano legítimo tras los fallos de otros (mismo portal)",
+          "esperado": "200",
+          "obtenido": "200",
+          "ok": true
+        },
+        {
+          "descripcion": "Atacante con un único client_ip",
+          "esperado": "bloqueado por el detector (429 y Δ anomaly_blocked > 0)",
+          "obtenido": "40 × 429 · Δ anomaly_blocked 41",
+          "ok": true
+        },
+        {
+          "descripcion": "Código correcto desde el origen del atacante",
+          "esperado": "429 (el origen está bloqueado, no la cuenta)",
+          "obtenido": "429 TOO_MANY_REQUESTS",
+          "ok": true
+        },
+        {
+          "descripcion": "Ciudadano legítimo durante el ataque (mismo portal, otro client_ip)",
+          "esperado": "200",
+          "obtenido": "200",
+          "ok": true
+        },
+        {
+          "descripcion": "La víctima, desde su propio client_ip",
+          "esperado": "200 (su cuenta no quedó bloqueada por el ataque)",
+          "obtenido": "200",
+          "ok": true
+        },
+        {
+          "descripcion": "Contraste: mismo patrón SIN client_ip (portal no lo envía)",
+          "esperado": "el legítimo comparte origen y puede quedar frenado",
+          "obtenido": "45 × 429 en los fallos; legítimo → 429",
+          "ok": null
+        }
+      ],
+      "metricas": {
+        "IP TCP del portal": "127.211.8.2",
+        "fallos de ciudadanos tras el portal": "48 (24 client_ip distintos × 2)",
+        "respuestas al atacante": {
+          "429": 40
+        }
+      },
+      "notas": [
+        "Sin client_ip todos los usuarios del integrador comparten origen (la IP de su servidor): el contrato recomienda enviarlo siempre."
+      ],
+      "hallazgos": [],
+      "inicio": "2026-11-26T17:46:54.638Z",
+      "duracionMs": 5705
     },
     {
       "id": "inundacion",
       "nombre": "Inundación concurrente",
-      "demuestra": "Una ráfaga concurrente recibe 429 (detector de anomalías y limitador por IP) sin errores internos, y /health sigue respondiendo para los demás.",
+      "demuestra": "Una ráfaga concurrente recibe 429 (limitador por origen y detector de anomalías) sin errores internos, y /health sigue respondiendo para los demás.",
       "ok": true,
       "verificaciones": [
         {
@@ -659,7 +846,7 @@
         {
           "descripcion": "Disponibilidad de /health durante la ráfaga",
           "esperado": "≥ 95 %",
-          "obtenido": "100 % (13/13)",
+          "obtenido": "100 % (12/12)",
           "ok": true
         },
         {
@@ -671,8 +858,8 @@
       ],
       "metricas": {
         "peticiones / concurrencia": "400 / 50",
-        "duración de la ráfaga": "0.74 s",
-        "rendimiento": "543 pet/s",
+        "duración de la ráfaga": "0.23 s",
+        "rendimiento": "1715 pet/s",
         "estados": {
           "401": 5,
           "429": 395
@@ -680,32 +867,31 @@
         "tasa de 429": "98.8 %",
         "códigos de error": {
           "VERIFICATION_FAILED": 5,
-          "ANOMALY_BLOCKED": 298,
-          "TOO_MANY_REQUESTS": 97
+          "TOO_MANY_REQUESTS": 395
         },
         "latencia (todas)": {
           "n": 400,
-          "min": 3.1,
-          "p50": 77.6,
-          "p95": 117.7,
-          "p99": 716.3,
-          "max": 717.7,
-          "media": 89.9
+          "min": 3.2,
+          "p50": 10.3,
+          "p95": 108.4,
+          "p99": 212.1,
+          "max": 212.8,
+          "media": 27.2
         },
         "latencia de /health durante la ráfaga": {
-          "n": 13,
-          "min": 1.6,
-          "p50": 2.1,
-          "p95": 149,
-          "p99": 151.5,
-          "max": 152.1,
-          "media": 34.5
+          "n": 12,
+          "min": 0.9,
+          "p50": 1.8,
+          "p95": 34.8,
+          "p99": 42.6,
+          "max": 44.5,
+          "media": 7.4
         }
       },
       "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T17:22:19.737Z",
-      "duracionMs": 1758
+      "inicio": "2026-11-26T17:47:03.345Z",
+      "duracionMs": 1299
     },
     {
       "id": "caos",
@@ -734,7 +920,7 @@
         {
           "descripcion": "Titular con latencia 800 ms",
           "esperado": "200 (más lento)",
-          "obtenido": "200 en 804 ms",
+          "obtenido": "200 en 849 ms",
           "ok": true
         },
         {
@@ -763,18 +949,18 @@
         }
       ],
       "metricas": {
-        "proxies de caos": "ráfaga 127.0.0.1:46559 · titular 127.0.0.1:38393 → localhost:8443",
-        "fase «base»": "26 pet · 26 con respuesta · 0 timeouts · 0 errores de red · p50 5.8 ms · p95 7.4 ms",
-        "fase «latencia 800 ms»": "14 pet · 12 con respuesta · 0 timeouts · 2 errores de red · p50 807.5 ms · p95 810.7 ms",
+        "proxies de caos": "ráfaga 127.0.0.1:45183 · titular 127.0.0.1:38969 → localhost:18443",
+        "fase «base»": "26 pet · 26 con respuesta · 0 timeouts · 0 errores de red · p50 5.6 ms · p95 6.6 ms",
+        "fase «latencia 800 ms»": "14 pet · 12 con respuesta · 0 timeouts · 2 errores de red · p50 806.8 ms · p95 809.6 ms",
         "fase «corte total 10 s»": "48 pet · 0 con respuesta · 0 timeouts · 48 errores de red · p50 — ms · p95 — ms",
-        "fase «restauración»": "24 pet · 24 con respuesta · 0 timeouts · 0 errores de red · p50 5.3 ms · p95 35.8 ms",
+        "fase «restauración»": "24 pet · 24 con respuesta · 0 timeouts · 0 errores de red · p50 6.1 ms · p95 9.8 ms",
         "estados (ráfaga completa)": {
           "401": 5,
           "429": 57,
           "ECONNRESET": 50
         },
-        "primera respuesta tras restaurar": "8 ms",
-        "tiempo de recuperación (/health 200)": "8 ms",
+        "primera respuesta tras restaurar": "12 ms",
+        "tiempo de recuperación (/health 200)": "12 ms",
         "estadísticas del proxy (ráfaga)": {
           "aceptadas": 52,
           "reenviadas": 4,
@@ -783,29 +969,69 @@
           "cortadas": 2,
           "erroresDestino": 0,
           "bytesSubida": 29106,
-          "bytesBajada": 98148,
+          "bytesBajada": 63891,
           "activas": 2
         }
       },
       "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T17:22:24.497Z",
-      "duracionMs": 28781
+      "inicio": "2026-11-26T17:47:07.645Z",
+      "duracionMs": 28725
     },
     {
       "id": "reinicio",
       "nombre": "Caída y reinicio del backend",
-      "demuestra": "Tras matar el proceso, el servicio vuelve a estar listo en segundos y los bloqueos por cuenta sobreviven al reinicio.",
-      "ok": false,
-      "verificaciones": [],
-      "metricas": {},
+      "demuestra": "Tras matar el proceso, el servicio vuelve a estar listo en segundos y los bloqueos por cuenta sobreviven al reinicio, también los de usuarios inexistentes (idénticos a los reales).",
+      "ok": true,
+      "verificaciones": [
+        {
+          "descripcion": "Cuenta bloqueada antes de la caída",
+          "esperado": "429",
+          "obtenido": "429 TOO_MANY_REQUESTS",
+          "ok": true
+        },
+        {
+          "descripcion": "Usuario inexistente bloqueado antes de la caída",
+          "esperado": "429 (igual que la cuenta real)",
+          "obtenido": "429 TOO_MANY_REQUESTS",
+          "ok": true
+        },
+        {
+          "descripcion": "Matar el backend (PID 111981, SIGKILL)",
+          "esperado": "proceso terminado",
+          "obtenido": "señal enviada",
+          "ok": true
+        },
+        {
+          "descripcion": "Tiempo hasta /health/ready 200 tras relanzar",
+          "esperado": "< 30 s",
+          "obtenido": "0.33 s",
+          "ok": true
+        },
+        {
+          "descripcion": "Bloqueo vigente tras el reinicio",
+          "esperado": "429 (persistido en BD)",
+          "obtenido": "429 TOO_MANY_REQUESTS",
+          "ok": true
+        },
+        {
+          "descripcion": "Bloqueo de usuario inexistente tras el reinicio",
+          "esperado": "429 (calculado desde attempts en BD)",
+          "obtenido": "429 TOO_MANY_REQUESTS",
+          "ok": true
+        }
+      ],
+      "metricas": {
+        "tiempo hasta dejar de responder": "11 ms",
+        "PID del backend relanzado": 113406,
+        "comando": "ENV_FILE=<tmp>/.env node src/main.js (cwd backend)"
+      },
       "notas": [
-        "Omitido: pasa --comando-arranque y --pid-backend para ejecutarlo."
+        "El backend relanzado sigue en marcha (PID 113406); salida en attack-lab/resultados/backend-reinicio.log."
       ],
       "hallazgos": [],
-      "inicio": "2026-11-26T17:22:56.282Z",
-      "duracionMs": 0,
-      "omitido": true
+      "inicio": "2026-11-26T17:47:39.373Z",
+      "duracionMs": 555
     }
   ]
 }

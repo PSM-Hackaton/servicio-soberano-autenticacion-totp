@@ -121,6 +121,9 @@ totp_db_errors_total 0
 # HELP totp_db_reconnections_total Reconexiones a la base de datos
 # TYPE totp_db_reconnections_total counter
 totp_db_reconnections_total 0
+# HELP totp_rate_limited_total Peticiones rechazadas por límite de tasa
+# TYPE totp_rate_limited_total counter
+totp_rate_limited_total 0
 # HELP totp_anomaly_inference_ms_avg Latencia media de inferencia del detector
 # TYPE totp_anomaly_inference_ms_avg gauge
 totp_anomaly_inference_ms_avg 0.667

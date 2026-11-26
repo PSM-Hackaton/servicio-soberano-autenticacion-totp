@@ -1,8 +1,13 @@
 // Generación del informe: JSON completo y HTML autocontenido (sin recursos externos, sin scripts).
 
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { RAIZ_REPO } from './config.js';
 import { formatearValor } from './escenario.js';
+
+/** Carpetas adicionales que no deben aparecer en el informe (p. ej. el entorno temporal de la ejecución). */
+const rutasOcultasEntorno = () => String(process.env.ATTACK_OCULTAR_RUTAS ?? '').split(',').map((r) => r.trim()).filter(Boolean);
 
 /** Escapa texto para HTML. */
 export const escaparHtml = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -114,8 +119,25 @@ export function resumir(resultados, duracionMs) {
   };
 }
 
+/**
+ * Sustituye en todo el informe las rutas absolutas del sistema (que delatan usuario y carpetas
+ * temporales) por rutas relativas al repositorio o marcadores neutros.
+ * @template T @param {T} valor @param {{ repo?: string, casa?: string, temporales?: string[] }} [rutas]
+ * @returns {T}
+ */
+export function relativizarRutas(valor, { repo = RAIZ_REPO, casa = homedir(), temporales = [...rutasOcultasEntorno(), tmpdir()] } = {}) {
+  const reemplazos = [
+    ...temporales.filter(Boolean).filter((t) => t.startsWith(repo) === false && t.length > 1).map((t) => [t, '<tmp>']),
+    [`${repo}/`, ''], [repo, '.'],
+    ...(casa && casa !== '/' ? [[casa, '~']] : []),
+  ];
+  const limpiar = (texto) => reemplazos.reduce((t, [de, a]) => t.split(de).join(a), texto);
+  return JSON.parse(JSON.stringify(valor, (_k, v) => (typeof v === 'string' ? limpiar(v) : v)));
+}
+
 /** Escribe informe-<fecha>.json e informe-<fecha>.html en `carpeta`. Devuelve las rutas. */
-export function escribirInforme(informe, carpeta) {
+export function escribirInforme(informeOriginal, carpeta, opcionesRutas) {
+  const informe = relativizarRutas(informeOriginal, opcionesRutas);
   mkdirSync(carpeta, { recursive: true });
   const base = `informe-${marcaFecha(new Date(informe.generado))}`;
   const json = join(carpeta, `${base}.json`);

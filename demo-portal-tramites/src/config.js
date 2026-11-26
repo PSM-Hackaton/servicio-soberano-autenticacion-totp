@@ -45,7 +45,11 @@ const rutaRel = (p) => (p ? resolve(RAIZ, p) : null);
  * @param {Record<string, string>} env
  */
 export function configuracion(env = cargarEnv()) {
-  const clientId = env.TOTP_CLIENT_ID ?? 'portal-tramites';
+  // Sin valor por defecto: el client_id lo emite el servicio (npm run seed o la consola admin).
+  const clientId = (env.TOTP_CLIENT_ID ?? '').trim();
+  if (!clientId || /COPIAR|CAMBIAR|CHANGE_ME/i.test(clientId)) {
+    throw new Error('Falta TOTP_CLIENT_ID en demo-portal-tramites/.env: copie el client_id (app_…) que imprime `cd backend && npm run seed` o el de una app registrada en la consola admin.');
+  }
   const tlsCert = rutaRel(env.PORTAL_TLS_CERT ?? '../backend/certs/localhost.crt');
   const tlsKey = rutaRel(env.PORTAL_TLS_KEY ?? '../backend/certs/localhost.key');
   return {
@@ -67,5 +71,8 @@ export function configuracion(env = cargarEnv()) {
     trazasPorDefecto: (env.PORTAL_TRAZAS ?? '1') !== '0',
     sesionMinutos: Number(env.PORTAL_SESION_MINUTOS ?? 15),
     stepUpMinutos: Number(env.PORTAL_STEPUP_MINUTOS ?? 0),
+    // Solo si hay un proxy inverso PROPIO delante del portal: entonces la IP del ciudadano llega en
+    // X-Forwarded-For (última entrada). Por defecto se usa la dirección del socket.
+    confiarXForwardedFor: env.PORTAL_CONFIAR_X_FORWARDED_FOR === '1',
   };
 }

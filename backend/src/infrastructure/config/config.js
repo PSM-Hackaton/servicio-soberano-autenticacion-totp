@@ -202,6 +202,18 @@ export function validarConfig(vars, { base = CARPETA_BACKEND } = {}) {
   const carpetaDatos = rutaDb === ':memory:' ? resolve(base, 'data') : dirname(ruta(rutaDb ?? './data/totp_soberano.db'));
   const adminRutaQr = qrTexto ? ruta(qrTexto) : resolve(carpetaDatos, 'admin-qr.svg');
 
+  // Límites de tasa (token bucket por minuto). El global por IP TCP es solo anti-DDoS previo a la
+  // autenticación: detrás de un portal integrador todos sus ciudadanos llegan con la IP del portal,
+  // así que debe ser alto. La protección fina es por app y por (app, origen del usuario final).
+  const limites = Object.freeze({
+    globalPorMin: entero('RATE_LIMIT_GLOBAL_POR_MIN', { defecto: 6000, min: 60, max: 1_000_000 }),
+    appPorMin: entero('RATE_LIMIT_APP_POR_MIN', { defecto: 3000, min: 60, max: 1_000_000 }),
+    origenPorMin: entero('RATE_LIMIT_ORIGEN_POR_MIN', { defecto: 60, min: 5, max: 100_000 }),
+  });
+  // Ventana (minutos) en la que se cuentan los fallos de usuarios sin enrolamiento activo, leídos de
+  // `attempts` (persisten tras un reinicio). Por defecto 24 h; la retención de attempts es de 30 días.
+  const ventanaInexistentesMin = entero('BLOQUEO_INEXISTENTES_VENTANA_MIN', { defecto: 1440, min: 5, max: 43_200 });
+
   const referenciaReloj = texto('CLOCK_REFERENCE_URL', { obligatoria: false });
   if (referenciaReloj && !/^https?:\/\//.test(referenciaReloj)) problemas.push('CLOCK_REFERENCE_URL debe ser una URL http(s)');
 
@@ -223,6 +235,8 @@ export function validarConfig(vars, { base = CARPETA_BACKEND } = {}) {
     corsOrigenes: Object.freeze(corsOrigenes),
     admin: Object.freeze({ usuarioSemilla: adminUsuario, rutaQr: adminRutaQr }),
     referenciaReloj: referenciaReloj ?? null,
+    limites,
+    ventanaInexistentesMin,
   });
 }
 
@@ -247,5 +261,6 @@ export function configCasosDeUso(config) {
     ttlJwtSegundos: config.ttlJwtSegundos,
     minutosPendiente: 10,
     modoHeuristica: config.heuristicas,
+    ventanaInexistentesMin: config.ventanaInexistentesMin,
   };
 }

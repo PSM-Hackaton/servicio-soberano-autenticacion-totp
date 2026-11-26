@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { crearServicioFalso } from '../../sdk/testing/servicio-falso.js';
 import { configuracion, parsearEnv } from '../src/config.js';
-import { crearPortal } from '../src/portal.js';
+import { crearPortal, ipCiudadano } from '../src/portal.js';
 import { generarUsuarios, USUARIOS_DEMO } from '../src/usuarios.js';
 
 const CLAVE = 'Tramites-Demo-2026';
@@ -59,7 +59,7 @@ describe('Portal de Trámites con servicio TOTP falso', () => {
     const urlServicio = await falso.iniciar();
     dir = mkdtempSync(join(tmpdir(), 'portal-'));
     // Un ciudadano ficticio por escenario para que los estados (bloqueos, factores) no se mezclen.
-    const extra = ['malo', 'bloqueo', 'caido', 'lento', 'alterado', 'offline', 'recupera'].map((n) => ({
+    const extra = ['malo', 'bloqueo', 'caido', 'lento', 'alterado', 'offline', 'recupera', 'ip'].map((n) => ({
       usuario: `prueba.${n}`, nombre: `Persona ${n}`, documento: `DEMO-${n}`, contrasena: CLAVE,
     }));
     await generarUsuarios(join(dir, 'usuarios.json'), [...USUARIOS_DEMO, ...extra]);
@@ -192,6 +192,38 @@ describe('Portal de Trámites con servicio TOTP falso', () => {
     // Cerrar sesión
     await nav.post('/salir', {});
     assert.equal((await nav.get('/panel')).url, '/ingresar');
+
+    // Toda llamada que comprueba un código lleva la IP del ciudadano (socket), no la del portal ni la de X-Forwarded-For.
+    const conCodigo = falso.registro.filter((x) => /\/(verify|activate|recovery|resync)$/.test(x.ruta));
+    assert.ok(conCodigo.length >= 4);
+    assert.ok(conCodigo.every((x) => x.clientIp === '127.0.0.1'), JSON.stringify(conCodigo.map((x) => x.clientIp)));
+  });
+
+  test('client_ip: X-Forwarded-For se ignora salvo configuración explícita (y entonces vale la última entrada)', async () => {
+    const nav = new Navegador(base);
+    await enrolarYActivar(nav, 'prueba.ip');
+    const antes = falso.registro.length;
+    await nav.post('/verificar', { codigo: '123456' }, { cabeceras: { 'x-forwarded-for': '203.0.113.99' } });
+    const verify = falso.registro.slice(antes).find((x) => x.ruta === '/api/v1/verify');
+    assert.equal(verify.clientIp, '127.0.0.1', 'sin PORTAL_CONFIAR_X_FORWARDED_FOR no se confía en la cabecera');
+
+    const req = (xff, remoto = '::ffff:10.0.0.5') => ({ headers: xff == null ? {} : { 'x-forwarded-for': xff }, socket: { remoteAddress: remoto ?? undefined } });
+    assert.equal(ipCiudadano(req('203.0.113.99')), '10.0.0.5');
+    assert.equal(ipCiudadano(req('198.51.100.1, 203.0.113.99'), true), '203.0.113.99');
+    assert.equal(ipCiudadano(req('203.0.113.99, basura'), true), '10.0.0.5', 'entrada inválida → socket');
+    assert.equal(ipCiudadano(req(null, '2001:db8::9'), true), '2001:db8::9');
+    assert.equal(ipCiudadano(req(null, null)), undefined);
+  });
+
+  test('configuración: TOTP_CLIENT_ID es obligatorio (sin valor por defecto)', () => {
+    assert.throws(() => configuracion({}), /TOTP_CLIENT_ID/);
+    assert.throws(() => configuracion({ TOTP_CLIENT_ID: '  ' }), /TOTP_CLIENT_ID/);
+    assert.throws(() => configuracion({ TOTP_CLIENT_ID: 'app_COPIAR_DEL_CLIENT_ID_QUE_IMPRIME_NPM_RUN_SEED' }), /TOTP_CLIENT_ID/);
+    const c = configuracion({ TOTP_CLIENT_ID: 'app_0123', TOTP_CLIENT_SECRET: 'x' });
+    assert.equal(c.servicio.clientId, 'app_0123');
+    assert.equal(c.servicio.audience, 'app_0123');
+    assert.equal(c.confiarXForwardedFor, false);
+    assert.equal(configuracion({ TOTP_CLIENT_ID: 'app_0123', PORTAL_CONFIAR_X_FORWARDED_FOR: '1' }).confiarXForwardedFor, true);
   });
 
   test('verificación con código incorrecto: 401 y nunca acceso', async () => {

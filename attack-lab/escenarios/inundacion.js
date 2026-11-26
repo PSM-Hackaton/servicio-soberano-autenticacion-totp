@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Escenario: inundación controlada (mini DoS de laboratorio). Un origen lanza una ráfaga concurrente
 // de verificaciones mientras otro origen (el "ciudadano") sondea /health.
-// Esperado: el limitador por IP responde 429 al atacante, no aparecen 5xx, y /health sigue
-// respondiendo durante y después de la ráfaga.
+// Esperado: el limitador por (app, origen) —y, si se adelanta, el detector— responde 429 al atacante,
+// no aparecen 5xx, y /health sigue respondiendo durante y después de la ráfaga. El límite global por
+// IP TCP es alto a propósito (anti-DDoS: un portal concentra a todos sus ciudadanos en una IP).
 // Opciones: --peticiones N (400), --concurrencia N (50).
 
 import { esPrincipal, exigirCredenciales, nuevoUserRef, principal, sondearSalud } from '../lib/escenario.js';
@@ -13,7 +14,7 @@ import { verificar } from '../lib/servicio.js';
 
 export const id = 'inundacion';
 export const nombre = 'Inundación concurrente';
-export const demuestra = 'Una ráfaga concurrente recibe 429 (detector de anomalías y limitador por IP) sin errores internos, y /health sigue respondiendo para los demás.';
+export const demuestra = 'Una ráfaga concurrente recibe 429 (limitador por origen y detector de anomalías) sin errores internos, y /health sigue respondiendo para los demás.';
 
 export async function ejecutar(ctx, res) {
   exigirCredenciales(ctx);

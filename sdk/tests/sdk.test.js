@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import { inspect } from 'node:util';
 import {
-  crearClienteTotp, verificarTokenLocal, crearCacheJwks, ErrorTotp, decodificarSinVerificar, claveDeOtpauth,
+  crearClienteTotp, verificarTokenLocal, crearCacheJwks, ErrorTotp, decodificarSinVerificar, claveDeOtpauth, esClientIpValida,
 } from '../src/index.js';
 import { crearServicioFalso } from '../testing/servicio-falso.js';
 
@@ -53,6 +53,7 @@ describe('SDK TOTP soberano', () => {
 
     const v = await cliente.verificar('ref-flujo', falso.codigoPara('ref-flujo', 1));
     assert.equal(v.aprobado, true);
+    assert.deepEqual(v.riesgo, { nivel: 'LOW' }, 'solo el nivel de riesgo');
     assert.equal(decodificarSinVerificar(v.token).claims.aud, falso.clientId);
 
     const local = await cliente.verificarTokenLocal(v.token);
@@ -160,8 +161,39 @@ describe('SDK TOTP soberano', () => {
 
   test('entrada inválida se rechaza sin llamar al servicio', async () => {
     await assert.rejects(cliente.verificar('ref', '12ab'), (e) => e.codigo === 'ENTRADA_INVALIDA');
-    await assert.rejects(cliente.verificar('x', '123456'), (e) => e.codigo === 'ENTRADA_INVALIDA');
+    for (const ref of ['', 'lab\u0000x', 'a\u001b[31m', ' inicio', 'fin ', 'a\u202eb', 'a\u200bb', 'x'.repeat(129), 7]) {
+      await assert.rejects(cliente.verificar(ref, '123456'), (e) => e.codigo === 'ENTRADA_INVALIDA', JSON.stringify(ref));
+    }
+    for (const ip of ['999.1.1.1', '01.2.3.4', 'fe80::1%eth0', '[::1]', '1.2.3.4:80', 'localhost', '', 5]) {
+      await assert.rejects(cliente.verificar('ref', '123456', { clientIp: ip }), (e) => e.codigo === 'ENTRADA_INVALIDA', JSON.stringify(ip));
+      await assert.rejects(cliente.recuperar('ref', 'AAAA-BBBB', { clientIp: ip }), (e) => e.codigo === 'ENTRADA_INVALIDA');
+      await assert.rejects(cliente.activar('e1', '123456', { clientIp: ip }), (e) => e.codigo === 'ENTRADA_INVALIDA');
+      await assert.rejects(cliente.resincronizar('e1', '123456', '654321', { clientIp: ip }), (e) => e.codigo === 'ENTRADA_INVALIDA');
+    }
     assert.equal(falso.registro.length, 0);
+  });
+
+  test('clientIp viaja como client_ip en verificar, recuperar, activar y resincronizar', async () => {
+    const e = await cliente.enrolar('ref-ip');
+    await cliente.activar(e.enrollmentId, falso.codigoDeEnrolamiento(e.enrollmentId), { clientIp: '203.0.113.7' });
+    await cliente.verificar('ref-ip', falso.codigoPara('ref-ip', 1), { clientIp: '2001:db8::5' });
+    await cliente.resincronizar(e.enrollmentId, falso.codigoPara('ref-ip', 3), falso.codigoPara('ref-ip', 4), { clientIp: '::ffff:198.51.100.9' });
+    await assert.rejects(cliente.recuperar('ref-ip', 'AAAA-BBBB', { clientIp: '198.51.100.10' }), (er) => er.status === 401);
+    await cliente.verificar('ref-ip', falso.codigoPara('ref-ip', 5)).catch(() => {});
+    const porRuta = falso.registro.filter((r) => r.metodo === 'POST').map((r) => [r.ruta.replace(/[0-9a-f-]{36}/, ':id'), r.clientIp]);
+    assert.deepEqual(porRuta, [
+      ['/api/v1/enrollments', null],
+      ['/api/v1/enrollments/:id/activate', '203.0.113.7'],
+      ['/api/v1/verify', '2001:db8::5'],
+      ['/api/v1/enrollments/:id/resync', '198.51.100.9'],
+      ['/api/v1/recovery', '198.51.100.10'],
+      ['/api/v1/verify', null],
+    ]);
+  });
+
+  test('esClientIpValida: IPv4/IPv6 estrictas', () => {
+    for (const ip of ['1.2.3.4', '255.255.255.255', '::1', '2001:db8::1', '::ffff:1.2.3.4']) assert.equal(esClientIpValida(ip), true, ip);
+    for (const ip of ['1.2.3', '256.1.1.1', '01.1.1.1', 'fe80::1%lo', ' ::1', 'g::1', null]) assert.equal(esClientIpValida(ip), false, String(ip));
   });
 
   test('credenciales de app incorrectas: 401 UNAUTHORIZED', async () => {
@@ -184,10 +216,17 @@ describe('SDK TOTP soberano', () => {
     c.cerrar(); await s.cerrar();
   });
 
-  test('acepta el formato de error de los mocks (errorCode / retryAfterSeconds)', async () => {
-    const s = await servidorFijo(429, { errorCode: 'ANOMALY_BLOCKED', message: 'Bloqueado', retryAfterSeconds: 300 });
+  test('429 genérico del detector (contracts/mocks/verify-anomaly-blocked.json): bloqueado con reintentarEn', async () => {
+    const s = await servidorFijo(429, { error: 'TOO_MANY_REQUESTS', message: 'Demasiados intentos. Intente más tarde.', retry_after_seconds: 300 });
     const c = crearClienteTotp({ baseUrl: s.url, clientId: 'a', clientSecret: 'b', timeoutMs: 300 });
-    await assert.rejects(c.verificar('ref', '123456'), (e) => e.codigo === 'ANOMALY_BLOCKED' && e.reintentarEn === 300);
+    await assert.rejects(c.verificar('ref', '123456'), (e) => e.codigo === 'TOO_MANY_REQUESTS' && e.reintentarEn === 300 && e.bloqueado);
+    c.cerrar(); await s.cerrar();
+  });
+
+  test('formato heredado (errorCode / retryAfterSeconds) se sigue entendiendo', async () => {
+    const s = await servidorFijo(429, { errorCode: 'TOO_MANY_REQUESTS', message: 'Bloqueado', retryAfterSeconds: 30 });
+    const c = crearClienteTotp({ baseUrl: s.url, clientId: 'a', clientSecret: 'b', timeoutMs: 300 });
+    await assert.rejects(c.verificar('ref', '123456'), (e) => e.codigo === 'TOO_MANY_REQUESTS' && e.reintentarEn === 30);
     c.cerrar(); await s.cerrar();
   });
 

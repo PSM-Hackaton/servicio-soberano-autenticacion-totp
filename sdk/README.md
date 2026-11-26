@@ -34,16 +34,20 @@ try {
 | Método | Endpoint | Devuelve |
 | --- | --- | --- |
 | `enrolar(userRef, { etiquetaCuenta?, algoritmo?, digitos?, periodo? })` | `POST /api/v1/enrollments` | `{ enrollmentId, otpauthUri, qrSvg, claveManual, expiraEn, … }` |
-| `activar(enrollmentId, codigo)` | `POST /api/v1/enrollments/{id}/activate` | `{ estado: 'activo', codigosRecuperacion[10] }` |
-| `verificar(userRef, codigo, { idempotencyKey? })` | `POST /api/v1/verify` | `{ aprobado: true, token, jti, kid, expiraEn, derivaPasos, riesgo }` |
+| `activar(enrollmentId, codigo, { clientIp? })` | `POST /api/v1/enrollments/{id}/activate` | `{ estado: 'activo', codigosRecuperacion[10] }` |
+| `verificar(userRef, codigo, { idempotencyKey?, clientIp? })` | `POST /api/v1/verify` | `{ aprobado: true, token, jti, kid, expiraEn, derivaPasos, riesgo: { nivel } }` |
 | `validarToken(token, { consumirJti = true })` | `POST /api/v1/tokens/validate` | `{ valido, sub, aud, jti, kid, amr, exp, motivo }` |
-| `resincronizar(enrollmentId, codigo1, codigo2)` | `POST /api/v1/enrollments/{id}/resync` | `{ resincronizado, derivaPasos }` |
-| `recuperar(userRef, codigoRecuperacion)` | `POST /api/v1/recovery` | `{ recuperado, debeReenrolar, codigosRestantes }` |
+| `resincronizar(enrollmentId, codigo1, codigo2, { clientIp? })` | `POST /api/v1/enrollments/{id}/resync` | `{ resincronizado, derivaPasos }` |
+| `recuperar(userRef, codigoRecuperacion, { clientIp? })` | `POST /api/v1/recovery` | `{ recuperado, debeReenrolar, codigosRestantes }` |
 | `revocar(enrollmentId)` | `DELETE /api/v1/enrollments/{id}` | `{ estado: 'revocado', revocadoEn }` |
 | `jwks()` / `salud()` | `/.well-known/jwks.json` / `/health` | respuesta del servicio |
 | `verificarTokenLocal(token)` | — (sin red) | `{ valido, header, claims }` o `{ valido: false, motivo }` |
 
-Exportaciones sueltas: `verificarTokenLocal(token, { jwks, issuer, audience })` (acepta un JWKS o una caché), `crearCacheJwks({ obtener, ttlMs })`, `decodificarSinVerificar(token)` (solo para mostrar), `ErrorTotp`, `CODIGOS_LOCALES`.
+Exportaciones sueltas: `verificarTokenLocal(token, { jwks, issuer, audience })` (acepta un JWKS o una caché), `crearCacheJwks({ obtener, ttlMs })`, `decodificarSinVerificar(token)` (solo para mostrar), `esClientIpValida(ip)`, `ErrorTotp`, `CODIGOS_LOCALES`.
+
+**`clientIp` (muy recomendado):** la IP de SU usuario final, tomada de la conexión con su sistema (dirección del socket; `X-Forwarded-For` solo si hay un proxy propio de confianza). El servicio la usa —como HMAC, nunca en claro— para el detector de anomalías, el registro de intentos y el límite por origen. Sin ella, todos sus usuarios comparten un único origen (la IP de su servidor) y unos pocos fallos pueden frenar a todos. Se valida localmente (IPv4/IPv6; `::ffff:a.b.c.d` se envía como `a.b.c.d`); inválida → `ENTRADA_INVALIDA` sin llamar al servicio.
+
+`userRef`: 1 a 128 caracteres imprimibles, sin espacios en los extremos ni caracteres de control, bidi o invisibles (mismo patrón que el servicio). Un código incorrecto, un usuario sin factor y un código ya usado producen el mismo `VERIFICATION_FAILED` (401); el bloqueo progresivo y el del detector, el mismo `TOO_MANY_REQUESTS` (429) con `reintentarEn`: es deliberado (sin oráculos).
 
 ## Garantías
 

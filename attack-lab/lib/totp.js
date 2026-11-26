@@ -54,7 +54,8 @@ export function codigoIncorrecto(datos, { ahora = Date.now(), margen = 3, azar =
  * Lleva la cuenta del último paso usado de un usuario de prueba para no auto-provocar un replay.
  * El servidor centra su ventana en (paso actual + deriva), así que se respeta la deriva conocida
  * (usuario.deriva, que actualiza verificarUsuario con el drift_steps devuelto). Nunca se adelanta más
- * de un paso al reloj (como mucho T + 1) para no arrastrar la deriva hacia el futuro.
+ * de un paso al reloj (como mucho T + 1) y respeta el tope de deriva del servidor
+ * (|paso − T| <= max(|deriva|, ventana)).
  * Si no hay paso libre en la ventana, espera al siguiente periodo.
  * @param {{ datos: DatosTotp, ultimoPaso: number, deriva?: number }} usuario @param {{ ventana?: number, esperar?: boolean }} [op]
  * @returns {Promise<{ codigo: string, paso: number } | null>}
@@ -63,8 +64,10 @@ export async function codigoNuevo(usuario, { ventana = 1, esperar = true } = {})
   for (;;) {
     const t = pasoActual(usuario.datos);
     const deriva = usuario.deriva ?? 0;
-    const paso = Math.max(usuario.ultimoPaso + 1, t + deriva - ventana);
-    if (paso <= Math.min(t + deriva + ventana, t + 1)) {
+    // El servidor acota la deriva resultante a max(|deriva|, ventana): no se baja de t - tope.
+    const tope = Math.max(Math.abs(deriva), ventana);
+    const paso = Math.max(usuario.ultimoPaso + 1, t + deriva - ventana, t - tope);
+    if (paso <= Math.min(t + deriva + ventana, t + 1, t + tope)) {
       usuario.ultimoPaso = paso;
       return { codigo: codigoEnPaso(usuario.datos, paso), paso };
     }

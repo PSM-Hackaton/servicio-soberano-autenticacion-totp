@@ -33,56 +33,64 @@
 <body>
 <main>
   <h1>Laboratorio de ataques simulados y caos</h1>
-  <p class="sub">Servicio soberano TOTP · destino https://localhost:8443 · generado 2026-11-26T17:22:56.283Z · Node v22.22.1</p>
+  <p class="sub">Servicio soberano TOTP · destino https://localhost:18443 · generado 2026-11-26T17:47:42.931Z · Node v22.22.1</p>
   <div class="cifras">
-    <div class="cifra"><b>8/8</b>escenarios OK</div>
-    <div class="cifra"><b>85/85</b>verificaciones OK</div>
+    <div class="cifra"><b>11/11</b>escenarios OK</div>
+    <div class="cifra"><b>116/116</b>verificaciones OK</div>
     <div class="cifra"><b>0</b>hallazgos</div>
-    <div class="cifra"><b>78 s</b>duración total</div>
+    <div class="cifra"><b>123 s</b>duración total</div>
   </div>
   <section>
     <h2>Resumen</h2>
     <table>
       <thead><tr><th>Escenario</th><th>Qué demuestra</th><th>Verificaciones</th><th>Duración</th><th>Resultado</th></tr></thead>
       <tbody>
-      <tr><td><a href="#replay">Replay de código TOTP</a></td><td>Un código ya aceptado se rechaza al reenviarlo (anti-replay atómico: last_step &lt; T), también en carrera concurrente.</td>
-      <td class="num">4/4</td>
-      <td class="num">21.4 s</td><td><span class="ok">OK</span></td></tr>
+      <tr><td><a href="#replay">Replay de código TOTP</a></td><td>Un código ya aceptado se rechaza al reenviarlo (anti-replay atómico: last_step &lt; T), también en carrera concurrente; el rechazo es idéntico al de un código incorrecto (sin oráculo) y queda registrado internamente.</td>
+      <td class="num">6/6</td>
+      <td class="num">19.9 s</td><td><span class="ok">OK</span></td></tr>
       <tr><td><a href="#jwt">Manipulación de JWT MFA</a></td><td>Un JWT alterado, con alg falso, caducado, de otra audiencia o ya usado es rechazado; el legítimo se valida una sola vez y también offline con JWKS.</td>
       <td class="num">13/13</td>
       <td class="num">0.2 s</td><td><span class="ok">OK</span></td></tr>
       <tr><td><a href="#entradas">Entradas malformadas</a></td><td>Campos extra, tipos incorrectos, JSON roto o cuerpos enormes se rechazan con 4xx genérico, sin errores internos ni filtraciones.</td>
-      <td class="num">40/40</td>
+      <td class="num">47/47</td>
       <td class="num">0.1 s</td><td><span class="ok">OK</span></td></tr>
-      <tr><td><a href="#fuerza-bruta">Fuerza bruta secuencial</a></td><td>Tras 5 fallos la cuenta se bloquea (429, 30 s) y el bloqueo escala (2 min…); un código correcto tampoco pasa durante el bloqueo.</td>
+      <tr><td><a href="#deriva">Deriva acotada (ráfaga T+1…T+12)</a></td><td>Códigos futuros enviados en ráfaga no arrastran la deriva: de T+1…T+12 solo entra T+1; solo resync fija derivas mayores y verify respeta ese tope.</td>
       <td class="num">6/6</td>
-      <td class="num">0.2 s</td><td><span class="ok">OK</span></td></tr>
-      <tr><td><a href="#fuerza-bruta-distribuida">Fuerza bruta distribuida (rotación de IP)</a></td><td>Rotar de IP no evita el bloqueo progresivo por cuenta; el detector local de anomalías registra el patrón.</td>
-      <td class="num">4/4</td>
       <td class="num">0.3 s</td><td><span class="ok">OK</span></td></tr>
-      <tr><td><a href="#spraying">Spraying: un origen contra muchas cuentas</a></td><td>Pocos intentos por cuenta no comprometen ninguna; no hay enumeración de usuarios y el detector eleva el riesgo del origen.</td>
+      <tr><td><a href="#fuerza-bruta">Fuerza bruta secuencial</a></td><td>Tras 5 fallos la cuenta se bloquea (429, 30 s); al vencer, el siguiente fallo vuelve a bloquear (escala 30 s → 2 min → 10 min → 1 h); un código correcto tampoco pasa durante el bloqueo.</td>
+      <td class="num">7/7</td>
+      <td class="num">31.7 s</td><td><span class="ok">OK</span></td></tr>
+      <tr><td><a href="#fuerza-bruta-distribuida">Fuerza bruta distribuida (rotación de IP)</a></td><td>Rotar de IP no evita el bloqueo progresivo por cuenta; el detector local de anomalías registra el patrón.</td>
       <td class="num">5/5</td>
+      <td class="num">0.3 s</td><td><span class="ok">OK</span></td></tr>
+      <tr><td><a href="#spraying">Spraying: un origen contra muchas cuentas</a></td><td>Pocos intentos por cuenta no comprometen ninguna; no hay enumeración de usuarios y el detector bloquea el origen con un 429 genérico que no revela su puntuación ni sus razones.</td>
+      <td class="num">7/7</td>
       <td class="num">0.9 s</td><td><span class="ok">OK</span></td></tr>
-      <tr><td><a href="#inundacion">Inundación concurrente</a></td><td>Una ráfaga concurrente recibe 429 (detector de anomalías y limitador por IP) sin errores internos, y /health sigue respondiendo para los demás.</td>
+      <tr><td><a href="#origen-compartido">Origen compartido: ciudadanos detrás del mismo portal</a></td><td>Fallos de muchos ciudadanos tras la misma IP del portal (distinto client_ip) no bloquean a un legítimo; un atacante con un único client_ip sí queda bloqueado.</td>
+      <td class="num">6/6</td>
+      <td class="num">5.7 s</td><td><span class="ok">OK</span></td></tr>
+      <tr><td><a href="#inundacion">Inundación concurrente</a></td><td>Una ráfaga concurrente recibe 429 (limitador por origen y detector de anomalías) sin errores internos, y /health sigue respondiendo para los demás.</td>
       <td class="num">5/5</td>
-      <td class="num">1.8 s</td><td><span class="ok">OK</span></td></tr>
+      <td class="num">1.3 s</td><td><span class="ok">OK</span></td></tr>
       <tr><td><a href="#caos">Caos de red: latencia, corte y restauración</a></td><td>Con latencia y cortes de red el servicio falla cerrado: ningún código incorrecto se aprueba, nadie entra durante el corte y se recupera solo en segundos.</td>
       <td class="num">8/8</td>
-      <td class="num">28.8 s</td><td><span class="ok">OK</span></td></tr>
-      <tr><td><a href="#reinicio">Caída y reinicio del backend</a></td><td>Tras matar el proceso, el servicio vuelve a estar listo en segundos y los bloqueos por cuenta sobreviven al reinicio.</td>
-      <td class="num">0/0</td>
-      <td class="num">0.0 s</td><td><span class="info">INFO</span></td></tr></tbody>
+      <td class="num">28.7 s</td><td><span class="ok">OK</span></td></tr>
+      <tr><td><a href="#reinicio">Caída y reinicio del backend</a></td><td>Tras matar el proceso, el servicio vuelve a estar listo en segundos y los bloqueos por cuenta sobreviven al reinicio, también los de usuarios inexistentes (idénticos a los reales).</td>
+      <td class="num">6/6</td>
+      <td class="num">0.6 s</td><td><span class="ok">OK</span></td></tr></tbody>
     </table>
   </section>
   
   <section id="replay">
     <h2>Replay de código TOTP <span class="ok">OK</span></h2>
-    <p class="demuestra">Un código ya aceptado se rechaza al reenviarlo (anti-replay atómico: last_step &lt; T), también en carrera concurrente.</p>
+    <p class="demuestra">Un código ya aceptado se rechaza al reenviarlo (anti-replay atómico: last_step &lt; T), también en carrera concurrente; el rechazo es idéntico al de un código incorrecto (sin oráculo) y queda registrado internamente.</p>
     <table>
       <thead><tr><th>Verificación</th><th>Esperado</th><th>Obtenido</th><th>Resultado</th></tr></thead>
       <tbody>
         <tr class=""><td>Primer uso del código</td><td>200 + JWT</td><td><code>200 + JWT</code></td><td><span class="ok">OK</span></td></tr>
-        <tr class=""><td>Reenvío del mismo código</td><td>401 (REPLAY_DETECTED)</td><td><code>401 REPLAY_DETECTED</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Reenvío del mismo código</td><td>401 VERIFICATION_FAILED</td><td><code>401 VERIFICATION_FAILED</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Replay indistinguible de un código incorrecto</td><td>mismo status, cuerpo y cabeceras (sin Retry-After)</td><td><code>idénticos: 401 {&quot;error&quot;:&quot;VERIFICATION_FAILED&quot;,&quot;message&quot;:&quot;No se pudo completar la verificación.&quot;}</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>El replay queda registrado internamente</td><td>Δ totp_verifications_total{resultado=&quot;replay&quot;} = 1</td><td><code>1</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>Carrera: 10 envíos simultáneos del mismo código</td><td>exactamente 1 aceptado, 0 errores 5xx</td><td><code>1 aceptado(s), 0 5xx</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>Código anterior tras aceptar uno más nuevo</td><td>rechazado</td><td><code>429</code></td><td><span class="ok">OK</span></td></tr>
       </tbody>
@@ -90,7 +98,7 @@
     
     <table class="metricas">
       <thead><tr><th>Métrica</th><th>Valor</th></tr></thead>
-      <tbody><tr><td>respuesta del replay</td><td><code>REPLAY_DETECTED</code></td></tr><tr><td>latencia verificación</td><td><code>p50 24.6 ms · p95 42.8 ms · máx 44.9 ms (n=12)</code></td></tr></tbody>
+      <tbody><tr><td>respuesta del replay</td><td><code>{&quot;error&quot;:&quot;VERIFICATION_FAILED&quot;,&quot;message&quot;:&quot;No se pudo completar la verificación.&quot;}</code></td></tr><tr><td>latencia verificación</td><td><code>p50 70.3 ms · p95 100.9 ms · máx 101.5 ms (n=12)</code></td></tr></tbody>
     </table>
     
     
@@ -119,7 +127,7 @@
     
     <table class="metricas">
       <thead><tr><th>Métrica</th><th>Valor</th></tr></thead>
-      <tbody><tr><td>JWT legítimo</td><td><code>alg=EdDSA kid=H8atP26YJcioiY_mxCednA aud=app_3b57117f4df708b7cf7d40388b79892a ttl=300 s amr=[&quot;otp&quot;]</code></td></tr></tbody>
+      <tbody><tr><td>JWT legítimo</td><td><code>alg=EdDSA kid=JrgHgyWQnX_sZgobtZrDBw aud=app_b98b35d6d6e15479c7e0780690dd15d6 ttl=300 s amr=[&quot;otp&quot;]</code></td></tr></tbody>
     </table>
     <ul class="notas"><li>La caducidad real se prueba con --esperar-caducidad (espera TTL + 30 s de tolerancia).</li></ul>
     
@@ -142,7 +150,14 @@
         <tr class=""><td>Faltan campos obligatorios</td><td>400</td><td><code>400</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>Contaminación de prototipo (__proto__)</td><td>400</td><td><code>400</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>constructor.prototype</td><td>400</td><td><code>400</code></td><td><span class="ok">OK</span></td></tr>
-        <tr class=""><td>Caracteres de control / NUL en user_ref</td><td>400/401</td><td><code>401</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Caracteres de control / NUL en user_ref</td><td>400</td><td><code>400</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>user_ref con control bidi (U+202E)</td><td>400</td><td><code>400</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>user_ref con carácter invisible (U+200B)</td><td>400</td><td><code>400</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>user_ref con espacio final</td><td>400</td><td><code>400</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>user_ref de 129 caracteres</td><td>400</td><td><code>400</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>client_ip inválida (octeto 999)</td><td>400</td><td><code>400</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>client_ip con zona IPv6</td><td>400</td><td><code>400</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>client_ip no textual</td><td>400</td><td><code>400</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>Inyección SQL en user_ref</td><td>401/400</td><td><code>401</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>JSON anidado 5 000 niveles</td><td>400/413</td><td><code>413</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>Cuerpo enorme (2 MiB) con Content-Length</td><td>413</td><td><code>413</code></td><td><span class="ok">OK</span></td></tr>
@@ -175,14 +190,36 @@
     
     <table class="metricas">
       <thead><tr><th>Métrica</th><th>Valor</th></tr></thead>
-      <tbody><tr><td>casos</td><td><code>37</code></td></tr><tr><td>estados</td><td><code>400×21 401×7 404×3 405×1 413×3 415×2</code></td></tr><tr><td>latencia</td><td><code>p50 0.6 ms · p95 5.3 ms · máx 32.4 ms (n=37)</code></td></tr></tbody>
+      <tbody><tr><td>casos</td><td><code>44</code></td></tr><tr><td>estados</td><td><code>400×29 401×6 404×3 405×1 413×3 415×2</code></td></tr><tr><td>latencia</td><td><code>p50 1.1 ms · p95 4.9 ms · máx 28.7 ms (n=44)</code></td></tr></tbody>
+    </table>
+    
+    
+  </section>
+  <section id="deriva">
+    <h2>Deriva acotada (ráfaga T+1…T+12) <span class="ok">OK</span></h2>
+    <p class="demuestra">Códigos futuros enviados en ráfaga no arrastran la deriva: de T+1…T+12 solo entra T+1; solo resync fija derivas mayores y verify respeta ese tope.</p>
+    <table>
+      <thead><tr><th>Verificación</th><th>Esperado</th><th>Obtenido</th><th>Resultado</th></tr></thead>
+      <tbody>
+        <tr class=""><td>Ráfaga T+1…T+12 en el mismo periodo</td><td>solo T+1 aceptado</td><td><code>T+1</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Deriva devuelta tras T+1</td><td>drift_steps = 1</td><td><code>1</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Rechazos de la ráfaga</td><td>401 VERIFICATION_FAILED o 429 (bloqueo progresivo), nunca 200 ni 5xx</td><td><code>{&quot;401&quot;:5,&quot;429&quot;:6}</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Resincronización con T+8, T+9</td><td>200 drift_steps = 9</td><td><code>200 drift_steps = 9</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Tras resync, T+10 supera el tope (|10| &gt; 9)</td><td>401, idéntico a un código incorrecto</td><td><code>401 VERIFICATION_FAILED</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Resync más allá de ±10 pasos</td><td>rechazado (401)</td><td><code>401</code></td><td><span class="ok">OK</span></td></tr>
+      </tbody>
+    </table>
+    
+    <table class="metricas">
+      <thead><tr><th>Métrica</th><th>Valor</th></tr></thead>
+      <tbody><tr><td>ráfaga T+1…T+12</td><td><code>T+1:200 T+2:401 T+3:401 T+4:401 T+5:401 T+6:401 T+7:429 T+8:429 T+9:429 T+10:429 T+11:429 T+12:429</code></td></tr></tbody>
     </table>
     
     
   </section>
   <section id="fuerza-bruta">
     <h2>Fuerza bruta secuencial <span class="ok">OK</span></h2>
-    <p class="demuestra">Tras 5 fallos la cuenta se bloquea (429, 30 s) y el bloqueo escala (2 min…); un código correcto tampoco pasa durante el bloqueo.</p>
+    <p class="demuestra">Tras 5 fallos la cuenta se bloquea (429, 30 s); al vencer, el siguiente fallo vuelve a bloquear (escala 30 s → 2 min → 10 min → 1 h); un código correcto tampoco pasa durante el bloqueo.</p>
     <table>
       <thead><tr><th>Verificación</th><th>Esperado</th><th>Obtenido</th><th>Resultado</th></tr></thead>
       <tbody>
@@ -190,6 +227,7 @@
         <tr class=""><td>Primer escalón de bloqueo</td><td>≈30 s (Retry-After)</td><td><code>30</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>15 intentos más durante el bloqueo</td><td>todos 429</td><td><code>{&quot;429&quot;:15}</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>Código CORRECTO durante el bloqueo</td><td>429 (no se concede)</td><td><code>429</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Tras vencer el primer escalón, el siguiente fallo vuelve a bloquear</td><td>429 TOO_MANY_REQUESTS (≥ 30 s) en ≤ 2 intentos</td><td><code>300 s en el intento 1 (TOO_MANY_REQUESTS)</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>Códigos incorrectos aceptados</td><td>0</td><td><code>0</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>Errores internos (5xx)</td><td>0</td><td><code>0</code></td><td><span class="ok">OK</span></td></tr>
       </tbody>
@@ -197,9 +235,9 @@
     
     <table class="metricas">
       <thead><tr><th>Métrica</th><th>Valor</th></tr></thead>
-      <tbody><tr><td>secuencia de respuestas</td><td><code>401 → 401 → 401 → 401 → 401 → 429</code></td></tr><tr><td>peticiones</td><td><code>22</code></td></tr><tr><td>estados</td><td><code>401×5 429×17</code></td></tr><tr><td>latencia</td><td><code>p50 2 ms · p95 2.8 ms · máx 3.1 ms (n=22)</code></td></tr></tbody>
+      <tbody><tr><td>secuencia de respuestas</td><td><code>401 → 401 → 401 → 401 → 401 → 429</code></td></tr><tr><td>escalones observados</td><td><code>30 s → 300 s (detector de anomalías)</code></td></tr><tr><td>peticiones</td><td><code>23</code></td></tr><tr><td>estados</td><td><code>401×5 429×18</code></td></tr><tr><td>latencia</td><td><code>p50 1.4 ms · p95 2.3 ms · máx 33.3 ms (n=23)</code></td></tr></tbody>
     </table>
-    <ul class="notas"><li>Escalada no medida (--rapido o sin bloqueo inicial). Sin --rapido se espera el primer escalón y se comprueba 30 s → 2 min.</li></ul>
+    
     
   </section>
   <section id="fuerza-bruta-distribuida">
@@ -212,55 +250,81 @@
         <tr class=""><td>Códigos incorrectos aceptados</td><td>0</td><td><code>0</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>Errores internos (5xx)</td><td>0</td><td><code>0</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>Código correcto del titular durante el ataque</td><td>429 (cuenta protegida)</td><td><code>429</code></td><td><span class="ok">OK</span></td></tr>
-        <tr class=""><td>Detector local de anomalías</td><td>bloqueo adaptativo o registro del patrón</td><td><code>sin ANOMALY_BLOCKED (actuó antes el bloqueo por cuenta)</code></td><td><span class="info">INFO</span></td></tr>
+        <tr class=""><td>Los 429 son genéricos</td><td>TOO_MANY_REQUESTS (sin detalles del detector)</td><td><code>sí</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Detector local de anomalías</td><td>bloqueo adaptativo o registro del patrón</td><td><code>sin bloqueos del detector (actuó antes el bloqueo por cuenta)</code></td><td><span class="info">INFO</span></td></tr>
       </tbody>
     </table>
     
     <table class="metricas">
       <thead><tr><th>Métrica</th><th>Valor</th></tr></thead>
-      <tbody><tr><td>orígenes simulados</td><td><code>40 IP de loopback reales (127.79.5.10 … 127.79.5.49)</code></td></tr><tr><td>429 ANOMALY_BLOCKED recibidos</td><td><code>0</code></td></tr><tr><td>Δ verificaciones bloqueadas (métrica locked)</td><td><code>36</code></td></tr><tr><td>Δ bloqueos del detector (métrica anomaly_blocked)</td><td><code>0</code></td></tr><tr><td>estados</td><td><code>401×5 429×35</code></td></tr><tr><td>latencia</td><td><code>p50 3.5 ms · p95 4.4 ms · máx 8 ms (n=40)</code></td></tr></tbody>
+      <tbody><tr><td>orígenes simulados</td><td><code>40 IP de loopback reales (127.211.6.10 … 127.211.6.49)</code></td></tr><tr><td>Δ verificaciones bloqueadas (métrica locked)</td><td><code>36</code></td></tr><tr><td>Δ bloqueos del detector (métrica anomaly_blocked)</td><td><code>0</code></td></tr><tr><td>estados</td><td><code>401×5 429×35</code></td></tr><tr><td>latencia</td><td><code>p50 2.9 ms · p95 5.1 ms · máx 11.3 ms (n=40)</code></td></tr></tbody>
     </table>
     <ul class="notas"><li>El bloqueo vigente de la cuenta se comprueba antes que el detector, así que con 1 intento por IP la defensa que actúa es el bloqueo por cuenta; el detector registra cada intento (bitácora y /admin/api/anomalies).</li></ul>
     
   </section>
   <section id="spraying">
     <h2>Spraying: un origen contra muchas cuentas <span class="ok">OK</span></h2>
-    <p class="demuestra">Pocos intentos por cuenta no comprometen ninguna; no hay enumeración de usuarios y el detector eleva el riesgo del origen.</p>
+    <p class="demuestra">Pocos intentos por cuenta no comprometen ninguna; no hay enumeración de usuarios y el detector bloquea el origen con un 429 genérico que no revela su puntuación ni sus razones.</p>
     <table>
       <thead><tr><th>Verificación</th><th>Esperado</th><th>Obtenido</th><th>Resultado</th></tr></thead>
       <tbody>
         <tr class=""><td>Cuentas comprometidas</td><td>0</td><td><code>0</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>Errores internos (5xx)</td><td>0</td><td><code>0</code></td><td><span class="ok">OK</span></td></tr>
-        <tr class=""><td>Sin enumeración de usuarios</td><td>misma respuesta para cuentas reales e inexistentes</td><td><code>idénticas (401 VERIFICATION_FAILED, 429 ANOMALY_BLOCKED)</code></td><td><span class="ok">OK</span></td></tr>
-        <tr class=""><td>Sin enumeración por tiempo de respuesta</td><td>diferencia p50 &lt; 15 ms</td><td><code>0.4 ms</code></td><td><span class="ok">OK</span></td></tr>
-        <tr class=""><td>Detector local de anomalías marca el origen</td><td>riesgo ≥ MEDIUM o ANOMALY_BLOCKED</td><td><code>35 ANOMALY_BLOCKED</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Sin enumeración de usuarios</td><td>misma respuesta para cuentas reales e inexistentes</td><td><code>idénticas (401 VERIFICATION_FAILED, 429 TOO_MANY_REQUESTS)</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Sin enumeración por tiempo de respuesta</td><td>diferencia p50 &lt; 15 ms</td><td><code>0 ms</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Detector local de anomalías bloquea el origen</td><td>Δ anomaly_blocked &gt; 0 (en /metrics, solo loopback)</td><td><code>36 bloqueos del detector</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>El titular tampoco entra desde el origen bloqueado</td><td>429</td><td><code>429</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>El 429 del detector no expone riesgo, razones ni umbrales</td><td>{ error: TOO_MANY_REQUESTS, message, retry_after_seconds } + Retry-After</td><td><code>genérico ({&quot;error&quot;:&quot;TOO_MANY_REQUESTS&quot;,&quot;message&quot;:&quot;Demasiados intentos. Intente más tarde.&quot;,&quot;retry_after_seconds&quot;:300})</code></td><td><span class="ok">OK</span></td></tr>
       </tbody>
     </table>
     
     <table class="metricas">
       <thead><tr><th>Métrica</th><th>Valor</th></tr></thead>
-      <tbody><tr><td>latencia p50 cuentas reales / inexistentes</td><td><code>4.8 ms / 4.4 ms</code></td></tr><tr><td>verificación legítima posterior desde el origen atacante</td><td><code>429 ANOMALY_BLOCKED</code></td></tr><tr><td>riesgo asignado al origen</td><td><code>100 (CRITICAL) · Una misma IP probó 20 cuentas distintas en 15 minutos (patrón de password spraying); 40 intentos fallidos desde la misma IP en 15 minutos; Ritmo automatizado: 0 s de media entre intentos de la misma IP; 100 % de intentos fallidos desde la misma IP; Isolation Forest: comportamiento atípico frente al patrón aprendido (anomalía 0,74, normal ≤ 0,66)</code></td></tr><tr><td>429 durante el spraying (limitador o detector)</td><td><code>35</code></td></tr><tr><td>Δ bloqueos del detector (métrica anomaly_blocked)</td><td><code>35</code></td></tr><tr><td>estados</td><td><code>401×5 429×35</code></td></tr><tr><td>latencia</td><td><code>p50 4.4 ms · p95 6.4 ms · máx 9 ms (n=40)</code></td></tr></tbody>
+      <tbody><tr><td>latencia p50 cuentas reales / inexistentes</td><td><code>2.4 ms / 2.4 ms</code></td></tr><tr><td>verificación legítima posterior desde el origen atacante</td><td><code>429 TOO_MANY_REQUESTS</code></td></tr><tr><td>429 durante el spraying (bloqueo del detector)</td><td><code>35</code></td></tr><tr><td>Δ bloqueos del detector (métrica anomaly_blocked)</td><td><code>36</code></td></tr><tr><td>estados</td><td><code>401×5 429×35</code></td></tr><tr><td>latencia</td><td><code>p50 2.4 ms · p95 4.3 ms · máx 6.9 ms (n=40)</code></td></tr></tbody>
     </table>
     
     
   </section>
+  <section id="origen-compartido">
+    <h2>Origen compartido: ciudadanos detrás del mismo portal <span class="ok">OK</span></h2>
+    <p class="demuestra">Fallos de muchos ciudadanos tras la misma IP del portal (distinto client_ip) no bloquean a un legítimo; un atacante con un único client_ip sí queda bloqueado.</p>
+    <table>
+      <thead><tr><th>Verificación</th><th>Esperado</th><th>Obtenido</th><th>Resultado</th></tr></thead>
+      <tbody>
+        <tr class=""><td>Fallos de ciudadanos</td><td>todos 401 (ninguno bloqueado: cada uno es su propio origen)</td><td><code>{&quot;401&quot;:48}</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Ciudadano legítimo tras los fallos de otros (mismo portal)</td><td>200</td><td><code>200</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Atacante con un único client_ip</td><td>bloqueado por el detector (429 y Δ anomaly_blocked &gt; 0)</td><td><code>40 × 429 · Δ anomaly_blocked 41</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Código correcto desde el origen del atacante</td><td>429 (el origen está bloqueado, no la cuenta)</td><td><code>429 TOO_MANY_REQUESTS</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Ciudadano legítimo durante el ataque (mismo portal, otro client_ip)</td><td>200</td><td><code>200</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>La víctima, desde su propio client_ip</td><td>200 (su cuenta no quedó bloqueada por el ataque)</td><td><code>200</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Contraste: mismo patrón SIN client_ip (portal no lo envía)</td><td>el legítimo comparte origen y puede quedar frenado</td><td><code>45 × 429 en los fallos; legítimo → 429</code></td><td><span class="info">INFO</span></td></tr>
+      </tbody>
+    </table>
+    
+    <table class="metricas">
+      <thead><tr><th>Métrica</th><th>Valor</th></tr></thead>
+      <tbody><tr><td>IP TCP del portal</td><td><code>127.211.8.2</code></td></tr><tr><td>fallos de ciudadanos tras el portal</td><td><code>48 (24 client_ip distintos × 2)</code></td></tr><tr><td>respuestas al atacante</td><td><code>429×40</code></td></tr></tbody>
+    </table>
+    <ul class="notas"><li>Sin client_ip todos los usuarios del integrador comparten origen (la IP de su servidor): el contrato recomienda enviarlo siempre.</li></ul>
+    
+  </section>
   <section id="inundacion">
     <h2>Inundación concurrente <span class="ok">OK</span></h2>
-    <p class="demuestra">Una ráfaga concurrente recibe 429 (detector de anomalías y limitador por IP) sin errores internos, y /health sigue respondiendo para los demás.</p>
+    <p class="demuestra">Una ráfaga concurrente recibe 429 (limitador por origen y detector de anomalías) sin errores internos, y /health sigue respondiendo para los demás.</p>
     <table>
       <thead><tr><th>Verificación</th><th>Esperado</th><th>Obtenido</th><th>Resultado</th></tr></thead>
       <tbody>
         <tr class=""><td>La ráfaga es frenada (limitador o detector)</td><td>≥ 1 respuesta 429</td><td><code>395 × 429</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>Errores internos (5xx)</td><td>0</td><td><code>0</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>Peticiones sin respuesta (caídas/timeouts)</td><td>0</td><td><code>0</code></td><td><span class="ok">OK</span></td></tr>
-        <tr class=""><td>Disponibilidad de /health durante la ráfaga</td><td>≥ 95 %</td><td><code>100 % (13/13)</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Disponibilidad de /health durante la ráfaga</td><td>≥ 95 %</td><td><code>100 % (12/12)</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>/health tras la ráfaga</td><td>200</td><td><code>200</code></td><td><span class="ok">OK</span></td></tr>
       </tbody>
     </table>
     
     <table class="metricas">
       <thead><tr><th>Métrica</th><th>Valor</th></tr></thead>
-      <tbody><tr><td>peticiones / concurrencia</td><td><code>400 / 50</code></td></tr><tr><td>duración de la ráfaga</td><td><code>0.74 s</code></td></tr><tr><td>rendimiento</td><td><code>543 pet/s</code></td></tr><tr><td>estados</td><td><code>401×5 429×395</code></td></tr><tr><td>tasa de 429</td><td><code>98.8 %</code></td></tr><tr><td>códigos de error</td><td><code>VERIFICATION_FAILED×5 ANOMALY_BLOCKED×298 TOO_MANY_REQUESTS×97</code></td></tr><tr><td>latencia (todas)</td><td><code>p50 77.6 ms · p95 117.7 ms · máx 717.7 ms (n=400)</code></td></tr><tr><td>latencia de /health durante la ráfaga</td><td><code>p50 2.1 ms · p95 149 ms · máx 152.1 ms (n=13)</code></td></tr></tbody>
+      <tbody><tr><td>peticiones / concurrencia</td><td><code>400 / 50</code></td></tr><tr><td>duración de la ráfaga</td><td><code>0.23 s</code></td></tr><tr><td>rendimiento</td><td><code>1715 pet/s</code></td></tr><tr><td>estados</td><td><code>401×5 429×395</code></td></tr><tr><td>tasa de 429</td><td><code>98.8 %</code></td></tr><tr><td>códigos de error</td><td><code>VERIFICATION_FAILED×5 TOO_MANY_REQUESTS×395</code></td></tr><tr><td>latencia (todas)</td><td><code>p50 10.3 ms · p95 108.4 ms · máx 212.8 ms (n=400)</code></td></tr><tr><td>latencia de /health durante la ráfaga</td><td><code>p50 1.8 ms · p95 34.8 ms · máx 44.5 ms (n=12)</code></td></tr></tbody>
     </table>
     
     
@@ -274,7 +338,7 @@
         <tr class=""><td>Códigos INCORRECTOS aprobados durante todo el caos</td><td>0 (falla cerrado)</td><td><code>0 de 112</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>Errores internos (5xx)</td><td>0</td><td><code>0</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>Titular en fase base</td><td>200</td><td><code>200</code></td><td><span class="ok">OK</span></td></tr>
-        <tr class=""><td>Titular con latencia 800 ms</td><td>200 (más lento)</td><td><code>200 en 804 ms</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Titular con latencia 800 ms</td><td>200 (más lento)</td><td><code>200 en 849 ms</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>Titular durante el corte</td><td>sin acceso (error de red, nunca 200)</td><td><code>ECONNRESET tras 2 intento/s</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>Titular tras restaurar</td><td>200</td><td><code>200</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>Corte total efectivo</td><td>0 respuestas HTTP durante el corte</td><td><code>0 de 48</code></td><td><span class="ok">OK</span></td></tr>
@@ -284,21 +348,31 @@
     
     <table class="metricas">
       <thead><tr><th>Métrica</th><th>Valor</th></tr></thead>
-      <tbody><tr><td>proxies de caos</td><td><code>ráfaga 127.0.0.1:46559 · titular 127.0.0.1:38393 → localhost:8443</code></td></tr><tr><td>fase «base»</td><td><code>26 pet · 26 con respuesta · 0 timeouts · 0 errores de red · p50 5.8 ms · p95 7.4 ms</code></td></tr><tr><td>fase «latencia 800 ms»</td><td><code>14 pet · 12 con respuesta · 0 timeouts · 2 errores de red · p50 807.5 ms · p95 810.7 ms</code></td></tr><tr><td>fase «corte total 10 s»</td><td><code>48 pet · 0 con respuesta · 0 timeouts · 48 errores de red · p50 — ms · p95 — ms</code></td></tr><tr><td>fase «restauración»</td><td><code>24 pet · 24 con respuesta · 0 timeouts · 0 errores de red · p50 5.3 ms · p95 35.8 ms</code></td></tr><tr><td>estados (ráfaga completa)</td><td><code>401×5 429×57 ECONNRESET×50</code></td></tr><tr><td>primera respuesta tras restaurar</td><td><code>8 ms</code></td></tr><tr><td>tiempo de recuperación (/health 200)</td><td><code>8 ms</code></td></tr><tr><td>estadísticas del proxy (ráfaga)</td><td><code>aceptadas=52 · reenviadas=4 · rechazadasCorte=48 · perdidas=0 · cortadas=2 · erroresDestino=0 · bytesSubida=29106 · bytesBajada=98148 · activas=2</code></td></tr></tbody>
+      <tbody><tr><td>proxies de caos</td><td><code>ráfaga 127.0.0.1:45183 · titular 127.0.0.1:38969 → localhost:18443</code></td></tr><tr><td>fase «base»</td><td><code>26 pet · 26 con respuesta · 0 timeouts · 0 errores de red · p50 5.6 ms · p95 6.6 ms</code></td></tr><tr><td>fase «latencia 800 ms»</td><td><code>14 pet · 12 con respuesta · 0 timeouts · 2 errores de red · p50 806.8 ms · p95 809.6 ms</code></td></tr><tr><td>fase «corte total 10 s»</td><td><code>48 pet · 0 con respuesta · 0 timeouts · 48 errores de red · p50 — ms · p95 — ms</code></td></tr><tr><td>fase «restauración»</td><td><code>24 pet · 24 con respuesta · 0 timeouts · 0 errores de red · p50 6.1 ms · p95 9.8 ms</code></td></tr><tr><td>estados (ráfaga completa)</td><td><code>401×5 429×57 ECONNRESET×50</code></td></tr><tr><td>primera respuesta tras restaurar</td><td><code>12 ms</code></td></tr><tr><td>tiempo de recuperación (/health 200)</td><td><code>12 ms</code></td></tr><tr><td>estadísticas del proxy (ráfaga)</td><td><code>aceptadas=52 · reenviadas=4 · rechazadasCorte=48 · perdidas=0 · cortadas=2 · erroresDestino=0 · bytesSubida=29106 · bytesBajada=63891 · activas=2</code></td></tr></tbody>
     </table>
     
     
   </section>
   <section id="reinicio">
-    <h2>Caída y reinicio del backend <span class="info">INFO</span></h2>
-    <p class="demuestra">Tras matar el proceso, el servicio vuelve a estar listo en segundos y los bloqueos por cuenta sobreviven al reinicio.</p>
+    <h2>Caída y reinicio del backend <span class="ok">OK</span></h2>
+    <p class="demuestra">Tras matar el proceso, el servicio vuelve a estar listo en segundos y los bloqueos por cuenta sobreviven al reinicio, también los de usuarios inexistentes (idénticos a los reales).</p>
     <table>
       <thead><tr><th>Verificación</th><th>Esperado</th><th>Obtenido</th><th>Resultado</th></tr></thead>
       <tbody>
+        <tr class=""><td>Cuenta bloqueada antes de la caída</td><td>429</td><td><code>429 TOO_MANY_REQUESTS</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Usuario inexistente bloqueado antes de la caída</td><td>429 (igual que la cuenta real)</td><td><code>429 TOO_MANY_REQUESTS</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Matar el backend (PID 111981, SIGKILL)</td><td>proceso terminado</td><td><code>señal enviada</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Tiempo hasta /health/ready 200 tras relanzar</td><td>&lt; 30 s</td><td><code>0.33 s</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Bloqueo vigente tras el reinicio</td><td>429 (persistido en BD)</td><td><code>429 TOO_MANY_REQUESTS</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Bloqueo de usuario inexistente tras el reinicio</td><td>429 (calculado desde attempts en BD)</td><td><code>429 TOO_MANY_REQUESTS</code></td><td><span class="ok">OK</span></td></tr>
       </tbody>
     </table>
     
-    <ul class="notas"><li>Omitido: pasa --comando-arranque y --pid-backend para ejecutarlo.</li></ul>
+    <table class="metricas">
+      <thead><tr><th>Métrica</th><th>Valor</th></tr></thead>
+      <tbody><tr><td>tiempo hasta dejar de responder</td><td><code>11 ms</code></td></tr><tr><td>PID del backend relanzado</td><td><code>113406</code></td></tr><tr><td>comando</td><td><code>ENV_FILE=&lt;tmp&gt;/.env node src/main.js (cwd backend)</code></td></tr></tbody>
+    </table>
+    <ul class="notas"><li>El backend relanzado sigue en marcha (PID 113406); salida en attack-lab/resultados/backend-reinicio.log.</li></ul>
     
   </section>
 </main>

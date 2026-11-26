@@ -63,6 +63,18 @@ export function prohibido() {
 export const iso = (ms) => new Date(ms).toISOString();
 
 /**
+ * Identidad de origen de un usuario final en una app: HMAC-SHA256(app_id + ':' + ip, pepper
+ * diario). `ip` es el `client_ip` que envía la app (IP del ciudadano) o, si no lo envía, la IP
+ * TCP de la app: entonces todos sus usuarios comparten un único origen. Es lo que se guarda en
+ * attempts.ip_hash y lo que usan el historial del detector y el bloqueo adaptativo por origen;
+ * al incluir app_id, el historial de un origen es propio de cada app.
+ * @param {string} appId @param {string | undefined} ip @param {string} semilla @param {number} ahora
+ */
+export function anonimizarOrigen(appId, ip, semilla, ahora) {
+  return hashPepper(`${appId}:${String(ip || 'desconocida')}`, pepperDiario(semilla, new Date(ahora)));
+}
+
+/**
  * ip_hash = HMAC-SHA256(ip, pepper diario derivado de la semilla). La IP nunca se guarda.
  * @param {string | undefined} ip @param {string} semilla @param {number} ahora
  */
@@ -112,24 +124,33 @@ export const EVALUACION_NEUTRA = Object.freeze({
 });
 
 /**
- * Objeto `risk` del contrato (VerifySuccessResponse) a partir de la evaluación del detector.
+ * Objeto `risk` de VerifySuccessResponse: solo el nivel (LOW, MEDIUM, HIGH, CRITICAL). La
+ * puntuación, las razones, la acción y los umbrales del detector nunca salen hacia el cliente
+ * (le darían a un atacante una guía para calibrar su ataque); quedan en `attempts`, en la
+ * bitácora y en /admin/api/anomalies.
  * @param {{ riskScore: number, level: string, action: string, reasons: string[], inferenceMs: number }} e
+ * @returns {{ level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' }}
  */
 export function riesgoContrato(e) {
-  const r = aRiesgoContrato(e);
-  return {
-    score: Number.isFinite(r.score) ? r.score : 0,
-    level: r.level ?? 'LOW',
-    action: r.action ?? 'ALLOW',
-    inference_ms: Number.isFinite(r.inference_ms) ? r.inference_ms : 0,
-    reasons: Array.isArray(r.reasons) ? r.reasons : [],
-  };
+  const nivel = aRiesgoContrato(e)?.level;
+  return { level: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(nivel) ? nivel : 'LOW' };
 }
 
 /**
- * Forma `riskAssessment` de los mocks verify-anomaly-blocked / verify-replay-blocked.
- * @param {ReturnType<typeof riesgoContrato>} r @param {string} [accion]
+ * Tope de deriva aceptable en verify: max(|drift_steps guardado|, ventana). Solo la
+ * resincronización (dos códigos consecutivos) puede fijar derivas mayores (hasta ±10).
+ * @param {number | null | undefined} derivaGuardada @param {number} ventana
  */
-export function evaluacionMock(r, accion = r.action) {
-  return { riskScore: r.score, level: r.level, action: accion, inferenceMs: r.inference_ms, reasons: r.reasons };
+export const topeDeriva = (derivaGuardada, ventana) => Math.max(Math.abs(derivaGuardada ?? 0), ventana);
+
+/**
+ * Deriva que se guarda tras aceptar un código en verify. Dentro de la ventana normal la deriva
+ * sigue al último código aceptado; una deriva mayor fijada por resync no se reduce por un código
+ * tecleado tarde (evitaría que el siguiente código del mismo dispositivo quedara fuera del tope).
+ * Invariante: |resultado| <= topeDeriva(guardada, ventana), así que verify nunca la hace crecer.
+ * @param {number | null | undefined} guardada @param {number} observada @param {number} ventana
+ */
+export function derivaAGuardar(guardada, observada, ventana) {
+  const g = guardada ?? 0;
+  return Math.abs(g) > ventana && Math.abs(observada) < Math.abs(g) ? g : observada;
 }

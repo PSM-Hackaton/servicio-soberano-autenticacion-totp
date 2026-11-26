@@ -110,3 +110,19 @@ test('URI otpauth incluye algoritmo, dígitos y periodo', () => {
     ['MZXW6YTBOI', 'SHA512', '8', '30'],
   );
 });
+
+test('derivaMaxima: un paso fuera del tope es código incorrecto aunque esté en la ventana', () => {
+  const semilla = SEMILLAS.SHA256;
+  const politica = { algoritmo: 'SHA256', digitos: 6, periodo: 30, ventana: 1 };
+  const t = pasoDeTiempo(AHORA, 30);
+  const en = (paso) => generateHotp(semilla, paso, 'SHA256', 6);
+  // Con deriva guardada 1 la ventana cubre T..T+2, pero el tope 1 deja fuera T+2.
+  const fuera = verifyTotpWithDrift(semilla, en(t + 2), AHORA, { ...politica, driftSteps: 1, derivaMaxima: 1 });
+  assert.deepEqual(fuera, { valid: false, matchedStep: null, driftSteps: 1, reason: 'codigo' });
+  const dentro = verifyTotpWithDrift(semilla, en(t + 1), AHORA, { ...politica, driftSteps: 1, derivaMaxima: 1 });
+  assert.equal(dentro.valid, true);
+  assert.equal(dentro.driftSteps, 1);
+  // Sin tope se mantiene el comportamiento anterior.
+  assert.equal(verifyTotpWithDrift(semilla, en(t + 2), AHORA, { ...politica, driftSteps: 1 }).valid, true);
+  assert.throws(() => verifyTotpWithDrift(semilla, en(t), AHORA, { ...politica, derivaMaxima: -1 }), RangeError);
+});

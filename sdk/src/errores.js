@@ -8,7 +8,9 @@
  *  - CONFIGURACION: parámetros del SDK inválidos.
  *  - ENTRADA_INVALIDA: argumentos inválidos antes de llamar al servicio.
  * El resto proviene del campo `error` del servicio (VERIFICATION_FAILED, TOO_MANY_REQUESTS,
- * SERVICE_UNAVAILABLE, UNAUTHORIZED, INVALID_REQUEST, REPLAY_DETECTED, ANOMALY_BLOCKED…).
+ * SERVICE_UNAVAILABLE, UNAUTHORIZED, INVALID_REQUEST…). El servicio no distingue hacia fuera un
+ * código ya usado (replay) de uno incorrecto (ambos VERIFICATION_FAILED) ni el bloqueo del detector
+ * de anomalías del bloqueo progresivo (ambos TOO_MANY_REQUESTS): es deliberado, no son oráculos.
  */
 export const CODIGOS_LOCALES = Object.freeze({
   TIEMPO_AGOTADO: 'TIEMPO_AGOTADO',

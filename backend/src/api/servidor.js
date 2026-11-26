@@ -12,7 +12,7 @@ import { realpath, stat } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
-import { cabecerasSeguridad, crearLimitador, errorGenerico, validarCuerpo } from '../security/index.js';
+import { cabecerasSeguridad, crearLimitador, errorGenerico, normalizarIp, validarCuerpo } from '../security/index.js';
 import { ESQUEMA_ADMIN_LOGIN } from '../application/use-cases/esquemas.js';
 import { crearRouter } from './router.js';
 
@@ -218,8 +218,12 @@ function esObjetoPlano(v) {
  * @typedef {{ prefijo: string, carpeta: string }} Estatico
  * @typedef {{
  *   global?: ReturnType<typeof crearLimitador>, porApp?: ReturnType<typeof crearLimitador>,
- *   login?: ReturnType<typeof crearLimitador>,
+ *   porOrigen?: ReturnType<typeof crearLimitador>, login?: ReturnType<typeof crearLimitador>,
  * }} Limitadores
+ *   global: por IP TCP, antes de autenticar (anti-DDoS; alto porque un portal integrador concentra
+ *   a todos sus ciudadanos en una sola IP). porApp: por app autenticada. porOrigen: por (app, origen
+ *   del usuario final) en las rutas que comprueban credenciales (verify, recovery, activate, resync);
+ *   el origen es `client_ip` si la app lo envía y, si no, la IP TCP de la app.
  */
 
 /**
@@ -264,8 +268,9 @@ export function crearServidor({
   const limiteCuerpo = opciones.limiteCuerpo ?? LIMITE_CUERPO_BYTES;
   const timeoutCuerpoMs = opciones.timeoutCuerpoMs ?? 10_000;
   const ttlCacheAppsMs = opciones.ttlCacheAppsMs ?? TTL_CACHE_APPS_MS;
-  const limGlobal = limitadores.global ?? crearLimitador({ capacidad: 300, ventanaMs: 60_000 });
-  const limApp = limitadores.porApp ?? crearLimitador({ capacidad: 600, ventanaMs: 60_000 });
+  const limGlobal = limitadores.global ?? crearLimitador({ capacidad: 6000, ventanaMs: 60_000 });
+  const limApp = limitadores.porApp ?? crearLimitador({ capacidad: 3000, ventanaMs: 60_000 });
+  const limOrigen = limitadores.porOrigen ?? crearLimitador({ capacidad: 60, ventanaMs: 60_000 });
   const limLogin = limitadores.login ?? crearLimitador({ capacidad: 10, ventanaMs: 5 * 60_000 });
   const origenes = new Set((cors?.origenes ?? []).map((o) => o.replace(/\/$/, '')));
   // RBAC: si no se inyecta, falla cerrado (se niega todo).
@@ -370,6 +375,9 @@ export function crearServidor({
 
   // Exposición en texto para un recolector local (Prometheus en el mismo host): solo loopback.
   // La cookie de sesión tiene Path=/admin, así que la consola usa GET /admin/api/metrics (RBAC).
+  // IMPORTANTE: si se coloca un proxy inverso local delante del servicio, todas las peticiones
+  // llegarán desde 127.0.0.1 y esta comprobación dejaría /metrics abierto a cualquiera: en ese caso
+  // /metrics debe bloquearse en el propio proxy (p. ej. denegar la ruta salvo al recolector).
   router.agregar('GET', '/metrics', async () => ({
     status: 200, texto: metricas.formatoTexto(), tipoContenido: 'text/plain; version=0.0.4; charset=utf-8',
   }), { tipo: 'loopback' });
@@ -381,12 +389,13 @@ export function crearServidor({
     router.agregar(metodo, plantilla, async (p) => caso(nombre)(entrada(p), p.ctx), { tipo: 'api', ...extra });
 
   api('POST', '/api/v1/enrollments', 'enrolar', (p) => p.cuerpo, { cuerpo: true });
-  api('POST', '/api/v1/enrollments/:id/activate', 'activar', (p) => ({ id: p.params.id, cuerpo: p.cuerpo }), { cuerpo: true });
-  api('POST', '/api/v1/enrollments/:id/resync', 'resincronizar', (p) => ({ id: p.params.id, cuerpo: p.cuerpo }), { cuerpo: true });
+  // porOrigen: rutas que comprueban un código y aceptan `client_ip` (límite por app y usuario final).
+  api('POST', '/api/v1/enrollments/:id/activate', 'activar', (p) => ({ id: p.params.id, cuerpo: p.cuerpo }), { cuerpo: true, porOrigen: true });
+  api('POST', '/api/v1/enrollments/:id/resync', 'resincronizar', (p) => ({ id: p.params.id, cuerpo: p.cuerpo }), { cuerpo: true, porOrigen: true });
   api('DELETE', '/api/v1/enrollments/:id', 'revocar', (p) => ({ id: p.params.id, cuerpo: {} }));
-  api('POST', '/api/v1/verify', 'verificar', (p) => p.cuerpo, { cuerpo: true });
+  api('POST', '/api/v1/verify', 'verificar', (p) => p.cuerpo, { cuerpo: true, porOrigen: true });
   api('POST', '/api/v1/tokens/validate', 'validarToken', (p) => p.cuerpo, { cuerpo: true });
-  api('POST', '/api/v1/recovery', 'recuperar', (p) => p.cuerpo, { cuerpo: true });
+  api('POST', '/api/v1/recovery', 'recuperar', (p) => p.cuerpo, { cuerpo: true, porOrigen: true });
 
   // --- consola admin (cookie de sesión + CSRF + RBAC)
   router.agregar('POST', '/admin/api/login', async (p) => {
@@ -580,7 +589,7 @@ export function crearServidor({
     const ip = ipDe(req);
     const ipHash = anonimizar(`ip:${ip}`);
 
-    // 1. Límite global por IP antes de cualquier operación costosa.
+    // 1. Límite global por IP TCP antes de cualquier operación costosa (anti-DDoS, capacidad alta).
     const esVerificacion = req.method === 'POST' && pathname === '/api/v1/verify';
     const rechazoPorLimite = () => {
       try { metricas.registrarLimiteTasa({ verificacion: esVerificacion }); } catch { /* sin métricas */ }
@@ -678,8 +687,15 @@ export function crearServidor({
       if (op.tipo === 'api') {
         const app = await autenticarApp(req);
         if (!app) throw new ErrorHttp(401);
-        const ra = limApp.consumir(`app:${String(app.id ?? app.client_id)}`);
+        const idApp = String(app.id ?? app.client_id);
+        const ra = limApp.consumir(`app:${idApp}`);
         if (!ra.permitido) throw Object.assign(new ErrorHttp(429), { reintentarMs: ra.reintentarEnMs });
+        if (op.porOrigen) {
+          // Origen = client_ip válido del cuerpo o, si falta (o es inválido: el caso de uso dará 400), la IP TCP.
+          const origen = normalizarIp(cuerpo.client_ip) ?? ip;
+          const ro = limOrigen.consumir(`o:${anonimizar(`${idApp}:${origen}`)}`);
+          if (!ro.permitido) throw Object.assign(new ErrorHttp(429), { reintentarMs: ro.reintentarEnMs });
+        }
         ctx.app = app;
       } else if (op.tipo === 'loopback') {
         if (!esLocal(ip)) throw new ErrorHttp(403);

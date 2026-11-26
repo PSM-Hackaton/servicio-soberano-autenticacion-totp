@@ -3,7 +3,20 @@
 // cuerpo (rutas admin) se usan los nombres de columna del esquema SQL.
 
 const CODIGO = { type: 'string', pattern: '^[0-9]{6,8}$' };
-const USER_REF = { type: 'string', minLength: 2, maxLength: 160 };
+/**
+ * user_ref: 1 a 128 caracteres imprimibles (letras, marcas, números, puntuación, símbolos y el
+ * espacio U+0020 solo en el interior). Se rechazan NUL, controles C0/C1, caracteres de formato
+ * (bidi, U+200B…U+200F, U+2060…, BOM), separadores distintos del espacio, privados, sin asignar y
+ * rellenos invisibles (U+034F, U+115F, U+1160, U+2800, U+3164, U+FFA0).
+ */
+export const PATRON_USER_REF = '^(?! )(?!.* $)(?:(?![\\u034F\\u115F\\u1160\\u2800\\u3164\\uFFA0])[\\p{L}\\p{M}\\p{N}\\p{P}\\p{S} ])+$';
+const USER_REF = { type: 'string', minLength: 1, maxLength: 128, pattern: PATRON_USER_REF };
+/**
+ * client_ip (opcional): IP del usuario final que la app integradora atiende. Aquí solo se filtra el
+ * alfabeto; la validación estricta (IPv4 sin ceros a la izquierda o IPv6 sin zona) la hace
+ * security/ip.js en el caso de uso, que responde 400 si no es una IP válida.
+ */
+const CLIENT_IP = { type: 'string', minLength: 2, maxLength: 45, pattern: '^[0-9A-Fa-f:.]{2,45}$' };
 const ENTERO_TEXTO = { type: 'string', pattern: '^[0-9]{1,9}$' };
 
 /** POST /api/v1/enrollments */
@@ -20,10 +33,12 @@ export const ESQUEMA_ENROLAR = {
 };
 
 /** POST /api/v1/enrollments/{id}/activate */
-export const ESQUEMA_ACTIVAR = { type: 'object', required: ['code'], properties: { code: CODIGO } };
+export const ESQUEMA_ACTIVAR = { type: 'object', required: ['code'], properties: { code: CODIGO, client_ip: CLIENT_IP } };
 
 /** POST /api/v1/verify */
-export const ESQUEMA_VERIFICAR = { type: 'object', required: ['user_ref', 'code'], properties: { user_ref: USER_REF, code: CODIGO } };
+export const ESQUEMA_VERIFICAR = {
+  type: 'object', required: ['user_ref', 'code'], properties: { user_ref: USER_REF, code: CODIGO, client_ip: CLIENT_IP },
+};
 
 /** POST /api/v1/tokens/validate */
 export const ESQUEMA_VALIDAR_TOKEN = {
@@ -33,13 +48,15 @@ export const ESQUEMA_VALIDAR_TOKEN = {
 };
 
 /** POST /api/v1/enrollments/{id}/resync */
-export const ESQUEMA_RESINCRONIZAR = { type: 'object', required: ['code_1', 'code_2'], properties: { code_1: CODIGO, code_2: CODIGO } };
+export const ESQUEMA_RESINCRONIZAR = {
+  type: 'object', required: ['code_1', 'code_2'], properties: { code_1: CODIGO, code_2: CODIGO, client_ip: CLIENT_IP },
+};
 
-/** POST /api/v1/recovery (el contrato no limita user_ref; se aplican los mismos límites que en verify). */
+/** POST /api/v1/recovery (mismo patrón de user_ref que en verify). */
 export const ESQUEMA_RECUPERAR = {
   type: 'object',
   required: ['user_ref', 'recovery_code'],
-  properties: { user_ref: USER_REF, recovery_code: { type: 'string', minLength: 8, maxLength: 32 } },
+  properties: { user_ref: USER_REF, recovery_code: { type: 'string', minLength: 8, maxLength: 32 }, client_ip: CLIENT_IP },
 };
 
 /** DELETE /api/v1/enrollments/{id} (sin cuerpo). */

@@ -6,7 +6,7 @@ Sistema institucional **ficticio** que muestra cómo una institución añade el 
 
 ```bash
 cd demo-portal-tramites
-cp .env.example .env                 # ponga TOTP_CLIENT_ID / TOTP_CLIENT_SECRET de la app "Portal de Trámites"
+cp .env.example .env                 # ponga TOTP_CLIENT_ID / TOTP_CLIENT_SECRET de la app "Portal de Trámites" (obligatorios: sin ellos no arranca)
 node scripts/crear-usuarios.js       # ciudadanos ficticios (contraseña: Tramites-Demo-2026)
 node server.js                       # https://localhost:8444 si existen ../backend/certs/, si no http://localhost:8444
 ```
@@ -15,7 +15,7 @@ Sin backend (servicio falso, para ensayar la demo):
 
 ```bash
 node ../sdk/testing/servicio-falso.js --puerto 8099 &
-TOTP_BASE_URL=http://127.0.0.1:8099 TOTP_CLIENT_SECRET=secreto-de-prueba-no-usar-en-produccion node server.js
+TOTP_BASE_URL=http://127.0.0.1:8099 TOTP_CLIENT_ID=portal-tramites TOTP_CLIENT_SECRET=secreto-de-prueba-no-usar-en-produccion node server.js
 ```
 
 Pruebas: `node --test tests/*.test.js` (desde la raíz: `node --test 'sdk/tests/*.test.js' 'demo-portal-tramites/tests/*.test.js'`).
@@ -23,6 +23,7 @@ Pruebas: `node --test tests/*.test.js` (desde la raíz: `node --test 'sdk/tests/
 ## Flujo
 
 1. **Usuario y contraseña** (primer factor propio del portal, scrypt). El portal solo envía al servicio un `user_ref` opaco (`ptd-…`): ni nombre ni documento.
+   En cada llamada que comprueba un código (`verify`, `activate`, `recovery`) envía además `client_ip`, la IP de la conexión del ciudadano con el portal (dirección del socket), para que el detector de anomalías y los límites del servicio traten a cada ciudadano como un origen propio y los fallos de unos no bloqueen a todo el portal. `X-Forwarded-For` solo se usa con `PORTAL_CONFIAR_X_FORWARDED_FOR=1` (proxy inverso propio delante; vale la última entrada).
 2. **Sin segundo factor → enrolamiento:** QR del servicio (como imagen `data:`; nunca SVG en línea), clave manual, botón *Abrir en el Autenticador Soberano* (`AUTENTICADOR_URL#add=<otpauth>`), primer código para activar y **10 códigos de recuperación mostrados una sola vez** (copiar / imprimir).
 3. **Con segundo factor → código TOTP:** `verificar` → JWT EdDSA → firma comprobada localmente con la JWKS en caché → `tokens/validate` (consume el `jti`) → sesión nueva.
 4. **Panel** con trámites ficticios. Los sensibles (certificado, datos bancarios, desactivar el factor) piden **otro código** (step-up).

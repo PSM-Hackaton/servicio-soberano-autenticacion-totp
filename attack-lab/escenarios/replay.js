@@ -1,16 +1,18 @@
 #!/usr/bin/env node
 // Escenario: ataque de repetición (replay). Un código TOTP aceptado una vez debe rechazarse si se
-// reenvía dentro de su ventana, incluso si dos peticiones idénticas llegan a la vez (carrera).
+// reenvía dentro de su ventana, incluso si dos peticiones idénticas llegan a la vez (carrera). Además
+// el rechazo debe ser INDISTINGUIBLE de un código incorrecto (sin oráculo que confirme que el código
+// robado fue válido), mientras el servicio lo registra internamente como replay (/metrics).
 
 import { crearUsuarioPrueba, esPrincipal, exigirCredenciales, principal } from '../lib/escenario.js';
 import { codigoError, etiquetaEstado } from '../lib/http.js';
-import { codigoNuevo } from '../lib/totp.js';
+import { codigoIncorrecto, codigoNuevo } from '../lib/totp.js';
 import { resumenLatencias } from '../lib/metricas.js';
-import { verificar, verificarUsuario } from '../lib/servicio.js';
+import { deltaMetrica, firmaRespuesta, leerMetricas, verificar, verificarUsuario } from '../lib/servicio.js';
 
 export const id = 'replay';
 export const nombre = 'Replay de código TOTP';
-export const demuestra = 'Un código ya aceptado se rechaza al reenviarlo (anti-replay atómico: last_step < T), también en carrera concurrente.';
+export const demuestra = 'Un código ya aceptado se rechaza al reenviarlo (anti-replay atómico: last_step < T), también en carrera concurrente; el rechazo es idéntico al de un código incorrecto (sin oráculo) y queda registrado internamente.';
 
 export async function ejecutar(ctx, res) {
   exigirCredenciales(ctx);
@@ -25,12 +27,23 @@ export async function ejecutar(ctx, res) {
   res.verificar('Primer uso del código', '200 + JWT', `${etiquetaEstado(primera)}${primera.cuerpo?.token ? ' + JWT' : ''}`,
     primera.status === 200 && typeof primera.cuerpo?.token === 'string');
 
-  // 2. Mismo código otra vez: debe rechazarse.
+  // 2. Mismo código otra vez: debe rechazarse… exactamente igual que un código incorrecto.
+  const metricasAntes = await leerMetricas(cliente);
   const segunda = await verificar(cliente, usuario.userRef, codigo);
   latencias.push(segunda.ms);
-  res.verificar('Reenvío del mismo código', '401 (REPLAY_DETECTED)', `${etiquetaEstado(segunda)} ${codigoError(segunda) ?? ''}`.trim(),
-    segunda.status !== 200 && segunda.status >= 400 && segunda.status < 500);
+  res.verificar('Reenvío del mismo código', '401 VERIFICATION_FAILED', `${etiquetaEstado(segunda)} ${codigoError(segunda) ?? ''}`.trim(),
+    segunda.status === 401 && codigoError(segunda) === 'VERIFICATION_FAILED');
   if (segunda.status === 200) res.hallazgo('El servicio aceptó dos veces el mismo código TOTP (replay).');
+  const incorrecto = await verificar(cliente, usuario.userRef, codigoIncorrecto(usuario.datos));
+  const iguales = firmaRespuesta(segunda) === firmaRespuesta(incorrecto);
+  res.verificar('Replay indistinguible de un código incorrecto', 'mismo status, cuerpo y cabeceras (sin Retry-After)',
+    iguales ? `idénticos: ${segunda.status} ${JSON.stringify(segunda.cuerpo)}` : `distintos: ${firmaRespuesta(segunda)} ≠ ${firmaRespuesta(incorrecto)}`,
+    iguales && segunda.cabeceras['retry-after'] === undefined);
+  if (!iguales) res.hallazgo('El rechazo de un replay difiere del de un código incorrecto: oráculo de códigos válidos.');
+  const metricasDespues = await leerMetricas(cliente);
+  const deltaReplay = deltaMetrica(metricasAntes, metricasDespues, 'totp_verifications_total', 'replay');
+  res.verificar('El replay queda registrado internamente', 'Δ totp_verifications_total{resultado="replay"} = 1',
+    deltaReplay ?? 'métricas no disponibles', deltaReplay === 1);
 
   // 3. Carrera: el mismo código nuevo enviado 10 veces en paralelo → como mucho 1 aceptado.
   const { codigo: codigoCarrera } = await codigoNuevo(usuario, { ventana: ctx.config.ventana });
@@ -46,7 +59,7 @@ export async function ejecutar(ctx, res) {
   const viejo = await verificar(cliente, usuario.userRef, codigo);
   res.verificar('Código anterior tras aceptar uno más nuevo', 'rechazado', etiquetaEstado(viejo), viejo.status !== 200);
 
-  res.metrica('respuesta del replay', segunda.cuerpo?.error ?? segunda.cuerpo?.errorCode ?? '—');
+  res.metrica('respuesta del replay', JSON.stringify(segunda.cuerpo));
   res.metrica('latencia verificación', resumenLatencias(latencias));
 }
 

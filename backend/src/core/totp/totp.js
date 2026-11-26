@@ -53,15 +53,18 @@ function igualSeguro(a, b) {
 /**
  * Verifica un código con ventana, deriva y protección anti replay.
  * Recorre siempre toda la ventana (sin salir antes) para no filtrar información por tiempo.
+ * `derivaMaxima` (opcional) acota la deriva resultante: un paso con |paso − actual| > derivaMaxima
+ * se trata como código incorrecto aunque coincida (impide arrastrar la deriva paso a paso).
  * @param {Buffer} semilla
  * @param {string} codigo
  * @param {number} epochMs
- * @param {Politica & { ventana: number, driftSteps?: number, lastStep?: number }} opciones
+ * @param {Politica & { ventana: number, driftSteps?: number, lastStep?: number, derivaMaxima?: number }} opciones
  * @returns {{ valid: boolean, matchedStep: number | null, driftSteps: number, reason?: 'formato' | 'codigo' | 'replay' }}
  */
 export function verifyTotpWithDrift(semilla, codigo, epochMs, opciones) {
   validarPolitica(opciones);
-  const { ventana, driftSteps = 0, lastStep = -1 } = opciones;
+  const { ventana, driftSteps = 0, lastStep = -1, derivaMaxima = Infinity } = opciones;
+  if (!(derivaMaxima >= 0)) throw new RangeError('derivaMaxima inválida');
   if (typeof codigo !== 'string' || !new RegExp(`^\\d{${opciones.digitos}}$`).test(codigo)) {
     return { valid: false, matchedStep: null, driftSteps, reason: 'formato' };
   }
@@ -71,7 +74,8 @@ export function verifyTotpWithDrift(semilla, codigo, epochMs, opciones) {
   for (let paso = centro - ventana; paso <= centro + ventana; paso++) {
     if (paso < 0) continue;
     const candidato = generateHotp(semilla, paso, opciones.algoritmo, opciones.digitos);
-    if (igualSeguro(candidato, codigo) && coincidencia === null) coincidencia = paso;
+    const dentroDeTope = Math.abs(paso - actual) <= derivaMaxima;
+    if (igualSeguro(candidato, codigo) && dentroDeTope && coincidencia === null) coincidencia = paso;
   }
   if (coincidencia === null) return { valid: false, matchedStep: null, driftSteps, reason: 'codigo' };
   if (coincidencia <= lastStep) return { valid: false, matchedStep: null, driftSteps, reason: 'replay' };

@@ -10,3 +10,4 @@ export { crearLimitador } from './limitador.js';
 export { validarCuerpo } from './validacion.js';
 export { cabecerasSeguridad } from './cabeceras.js';
 export { errorGenerico } from './errores.js';
+export { normalizarIp, esIpValida } from './ip.js';

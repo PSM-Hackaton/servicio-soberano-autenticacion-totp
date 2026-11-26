@@ -7,6 +7,7 @@
     "errores4xx": 22,
     "erroresBaseDatos": 0,
     "reconexiones": 0,
+    "limitadas": 0,
     "verificaciones": 8
   },
   "disponibilidadPct": 100,

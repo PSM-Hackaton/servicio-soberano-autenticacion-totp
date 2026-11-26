@@ -199,3 +199,15 @@ test('informe HTML autocontenido y escapado', () => {
   assert.match(marcaFecha(new Date('2026-11-26T15:04:05Z')), /^2026-11-26T15-04-05$/);
   assert.equal(escaparHtml(`"'&`), '&quot;&#39;&amp;');
 });
+
+test('informe: las rutas absolutas del sistema se sustituyen por relativas o marcadores', async () => {
+  const { relativizarRutas } = await import('../lib/informe.js');
+  const informe = {
+    destino: 'https://localhost:8443',
+    resultados: [{ metricas: { comando: 'node src/main.js (cwd /home/ana/proyectos/repo/backend)' }, notas: ['log en /home/ana/.tmp-lab/backend.log', 'ca /tmp/x/ca.crt', 'otra /home/ana/datos'] }],
+  };
+  const r = relativizarRutas(informe, { repo: '/home/ana/proyectos/repo', casa: '/home/ana', temporales: ['/home/ana/.tmp-lab', '/tmp'] });
+  assert.equal(r.resultados[0].metricas.comando, 'node src/main.js (cwd backend)');
+  assert.deepEqual(r.resultados[0].notas, ['log en <tmp>/backend.log', 'ca <tmp>/x/ca.crt', 'otra ~/datos']);
+  assert.doesNotMatch(JSON.stringify(r), /\/home\/ana/);
+});

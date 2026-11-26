@@ -155,7 +155,7 @@ export function crearServicioFalso({
     'GET /.well-known/jwks.json': () => ({ status: 200, cuerpo: { keys: claves.slice(0, 2).map((c) => c.jwk) } }),
 
     'POST /api/v1/enrollments': (b) => {
-      if (typeof b.user_ref !== 'string' || b.user_ref.length < 2 || b.user_ref.length > 160) return err(400, 'INVALID_REQUEST', 'Solicitud inválida.');
+      if (typeof b.user_ref !== 'string' || b.user_ref.length < 1 || b.user_ref.length > 128) return err(400, 'INVALID_REQUEST', 'Solicitud inválida.');
       const id = randomUUID();
       const semilla = randomBytes(32);
       const cuenta = typeof b.account_label === 'string' ? b.account_label : b.user_ref;
@@ -211,7 +211,7 @@ export function crearServicioFalso({
         status: 200,
         cuerpo: {
           verified: true, token, jti: claims.jti, kid, expires_at: new Date(claims.exp * 1000).toISOString(), drift_steps: ok.deriva,
-          risk: { score: 6.5, level: 'LOW', action: 'ALLOW', inference_ms: 0.9, reasons: ['Patrón de acceso normal'] },
+          risk: { level: 'LOW' },
         },
       };
     },
@@ -308,6 +308,8 @@ export function crearServicioFalso({
     const entrada = {
       metodo: req.method, ruta: url.pathname, idempotencyKey: req.headers['idempotency-key'] ?? null,
       autenticado: req.headers['x-client-id'] === clientId && req.headers['x-client-secret'] === clientSecret, en: reloj(),
+      // IP del usuario final que envía el integrador (dato de red, no secreto): para aserciones.
+      clientIp: cuerpo && typeof cuerpo.client_ip === 'string' ? cuerpo.client_ip : null,
     };
     registro.push(entrada);
 

@@ -45,11 +45,11 @@ export async function ejecutar(ctx, res) {
 
   // Dos proxies de caos con la MISMA configuración en cada fase (la «red» entre el sistema
   // institucional y el servicio): uno para la ráfaga de ataque y otro para el titular legítimo.
-  // Cada uno sale por su propia IP de loopback: el detector local de anomalías puntúa por IP de
-  // origen y, si compartieran IP, bloquearía al titular por culpa de la ráfaga (ANOMALY_BLOCKED),
-  // ocultando lo que aquí se mide (el comportamiento ante fallos de red).
+  // Cada uno sale por su propia IP de loopback: sin client_ip, el detector local de anomalías y el
+  // límite por origen puntúan por (app, IP de conexión) y, si compartieran IP, frenarían al titular
+  // por culpa de la ráfaga (429), ocultando lo que aquí se mide (el comportamiento ante fallos de red).
   const multiorigen = await ctx.puedeSimularOrigenes();
-  if (!multiorigen) res.nota('Sin orígenes simulados: ráfaga y titular comparten IP y el detector puede bloquear al titular (429 ANOMALY_BLOCKED).');
+  if (!multiorigen) res.nota('Sin orígenes simulados: ráfaga y titular comparten IP y el detector puede bloquear al titular (429).');
   const destino = { host: config.destino.hostname, port: Number(config.destino.port || 443) };
   const crear = (n, puerto = 0) => crearProxyCaos({
     puertoEscucha: puerto, destino, direccionSalida: multiorigen ? ctx.ip(n) : undefined, permitirHost: config.permitirHost,

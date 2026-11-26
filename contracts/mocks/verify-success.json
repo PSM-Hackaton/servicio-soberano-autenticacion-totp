@@ -6,12 +6,6 @@
   "expires_at": "2026-11-26T16:57:43.000Z",
   "drift_steps": 1,
   "risk": {
-    "score": 0,
-    "level": "LOW",
-    "action": "ALLOW",
-    "inference_ms": 0.161,
-    "reasons": [
-      "Comportamiento dentro del patrón habitual"
-    ]
+    "level": "LOW"
   }
 }

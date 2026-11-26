@@ -91,8 +91,24 @@ describe('validarConfig', () => {
     assert.deepEqual(configCasosDeUso(c), {
       userRefPepper: VALIDAS.USER_REF_PEPPER, ipPepperSemilla: VALIDAS.DAILY_IP_PEPPER_SEED, emisorTotp: 'Emisor',
       emisorJwt: 'https://totp.soberano.local', ttlJwtSegundos: 300, minutosPendiente: 10, modoHeuristica: 'local',
+      ventanaInexistentesMin: 1440,
     });
     assert.equal(c.admin.rutaQr, '/srv/backend/data/admin-qr.svg', 'el QR va junto a la base de datos');
+  });
+
+  test('límites de tasa: valores por defecto altos, configurables y validados', () => {
+    const base = { base: '/srv/backend' };
+    const d = validarConfig(VALIDAS, base);
+    assert.deepEqual({ ...d.limites }, { globalPorMin: 6000, appPorMin: 3000, origenPorMin: 60 });
+    const c = validarConfig({
+      ...VALIDAS, RATE_LIMIT_GLOBAL_POR_MIN: '20000', RATE_LIMIT_APP_POR_MIN: '9000', RATE_LIMIT_ORIGEN_POR_MIN: '30',
+      BLOQUEO_INEXISTENTES_VENTANA_MIN: '60',
+    }, base);
+    assert.deepEqual({ ...c.limites }, { globalPorMin: 20000, appPorMin: 9000, origenPorMin: 30 });
+    assert.equal(configCasosDeUso(c).ventanaInexistentesMin, 60);
+    assert.throws(() => validarConfig({ ...VALIDAS, RATE_LIMIT_GLOBAL_POR_MIN: '10' }, base), /RATE_LIMIT_GLOBAL_POR_MIN debe estar entre/);
+    assert.throws(() => validarConfig({ ...VALIDAS, RATE_LIMIT_ORIGEN_POR_MIN: 'mucho' }, base), /RATE_LIMIT_ORIGEN_POR_MIN debe ser un entero/);
+    assert.throws(() => validarConfig({ ...VALIDAS, BLOQUEO_INEXISTENTES_VENTANA_MIN: '0' }, base), /BLOQUEO_INEXISTENTES_VENTANA_MIN/);
   });
 
   test('ruta del QR del admin: junto a SQLITE_DB_PATH o ADMIN_QR_PATH', () => {

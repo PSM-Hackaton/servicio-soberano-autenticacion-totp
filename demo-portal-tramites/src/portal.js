@@ -7,7 +7,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { crearClienteTotp, ErrorTotp, decodificarSinVerificar } from '../../sdk/src/index.js';
+import { crearClienteTotp, ErrorTotp, decodificarSinVerificar, esClientIpValida } from '../../sdk/src/index.js';
 import { RAIZ } from './config.js';
 import { abrirUsuarios } from './usuarios.js';
 import { crearAlmacenSesiones, csrfValido, trazar } from './sesiones.js';
@@ -41,6 +41,28 @@ function cabecerasSeguridad(tls) {
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
     ...(tls ? { 'Strict-Transport-Security': 'max-age=63072000; includeSubDomains' } : {}),
   };
+}
+
+/** Quita el prefijo IPv4 mapeado en IPv6 que Node pone en sockets de doble pila. */
+const sinMapeo = (ip) => (typeof ip === 'string' && /^::ffff:\d+\.\d+\.\d+\.\d+$/i.test(ip) ? ip.slice(7) : ip);
+
+/**
+ * IP real del ciudadano para enviarla al servicio como `client_ip`: la dirección del socket que
+ * llega al portal. X-Forwarded-For solo se usa con PORTAL_CONFIAR_X_FORWARDED_FOR=1 (proxy inverso
+ * propio delante del portal) y entonces se toma la última entrada, la que añade ese proxy; las
+ * anteriores las puede escribir cualquiera. Si no hay una IP válida, se devuelve undefined y el
+ * servicio usará la IP del portal (todos los ciudadanos comparten origen).
+ * @param {import('node:http').IncomingMessage} req @param {boolean} confiarXff
+ * @returns {string | undefined}
+ */
+export function ipCiudadano(req, confiarXff = false) {
+  if (confiarXff) {
+    const xff = req.headers['x-forwarded-for'];
+    const ultima = typeof xff === 'string' ? sinMapeo(xff.split(',').at(-1)?.trim()) : undefined;
+    if (esClientIpValida(ultima)) return ultima;
+  }
+  const ip = sinMapeo(req.socket?.remoteAddress);
+  return esClientIpValida(ip) ? ip : undefined;
 }
 
 /**
@@ -101,7 +123,7 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
    * Verifica un código TOTP con el servicio y valida el JWT (local + remoto). Falla cerrado.
    * @returns {Promise<{ ok: true, claims: any, header: any, modo: string } | { ok: false, tipo: 'codigo'|'bloqueo'|'servicio'|'token', reintentarEn?: number, status: number }>}
    */
-  async function segundoFactor(sesion, usuario, codigo, proposito) {
+  async function segundoFactor(sesion, usuario, codigo, proposito, clientIp) {
     const ahora = Date.now();
     if (sesion.bloqueadoHasta > ahora) {
       const s = Math.ceil((sesion.bloqueadoHasta - ahora) / 1000);
@@ -115,12 +137,12 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
     trazar(sesion, {
       tipo: 'local',
       titulo: proposito === 'step-up' ? 'Operación sensible: se exige un código nuevo (step-up)' : 'Se solicita la verificación del segundo factor',
-      detalle: `El portal envía solo user_ref ${usuario.userRef.slice(0, 12)}… (opaco) y el código. Ni nombre ni documento salen del portal.`,
+      detalle: `El portal envía solo user_ref ${usuario.userRef.slice(0, 12)}… (opaco), el código y la IP de la conexión del ciudadano (client_ip, para que el detector y los límites lo traten como un origen propio y no como «todo el portal»). Ni nombre ni documento salen del portal.`,
     });
 
     let v;
     try {
-      v = await cliente.verificar(usuario.userRef, codigo);
+      v = await cliente.verificar(usuario.userRef, codigo, { clientIp });
     } catch (e) {
       return clasificar(sesion, e);
     }
@@ -129,7 +151,7 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
     trazar(sesion, {
       tipo: 'jwt',
       titulo: 'JWT MFA recibido (cabecera y claims, sin la firma)',
-      detalle: v.riesgo ? `Riesgo ${v.riesgo.level} (${v.riesgo.score}) · acción ${v.riesgo.action} · deriva ${v.derivaPasos ?? 0} pasos` : '',
+      detalle: `${v.riesgo ? `Nivel de riesgo ${v.riesgo.nivel} (el servicio no revela puntuación ni razones) · ` : ''}deriva ${v.derivaPasos ?? 0} pasos`,
       bloque: dec ? JSON.stringify({ header: dec.header, claims: dec.claims }, null, 2) : null,
     });
 
@@ -291,10 +313,11 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
       return enviar(res, 405, '', { Allow: 'GET, POST' });
     }
 
-    return contexto.run(sesion, () => despachar({ req, res, metodo, ruta, sesion, usuario, cuerpo }));
+    const clientIp = ipCiudadano(req, config.confiarXForwardedFor);
+    return contexto.run(sesion, () => despachar({ req, res, metodo, ruta, sesion, usuario, cuerpo, clientIp }));
   }
 
-  async function despachar({ res, metodo, ruta, sesion, usuario, cuerpo }) {
+  async function despachar({ res, metodo, ruta, sesion, usuario, cuerpo, clientIp }) {
     const etapa = usuario ? sesion.etapa : 'anonima';
     const enSegundoPaso = etapa === 'contrasena';
     const ver = (p) => pagina(res, sesion, { usuario, ruta, ...p });
@@ -401,7 +424,7 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
         resultado = { ok: false, tipo: 'codigo', status: 401 };
       } else {
         try {
-          const a = await cliente.activar(e.enrollmentId, codigo);
+          const a = await cliente.activar(e.enrollmentId, codigo, { clientIp });
           usuarios.fijarFactor(usuario.usuario, { enrollmentId: a.enrollmentId, activadoEn: a.activadoEn ?? new Date().toISOString() });
           sesion.codigosRecuperacion = a.codigosRecuperacion;
           sesion.enrolamiento = null;
@@ -440,7 +463,7 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
         return ver({ titulo: 'Verificación en dos pasos', contenido: V.paginaVerificar({ sesion, usuario, resultado }) });
       }
       const codigo = String(cuerpo.get('codigo') ?? '').replace(/\s+/g, '');
-      const r = await segundoFactor(sesion, usuario, codigo, 'ingreso');
+      const r = await segundoFactor(sesion, usuario, codigo, 'ingreso', clientIp);
       if (!r.ok) return ver({ status: r.status, titulo: 'Verificación en dos pasos', contenido: V.paginaVerificar({ sesion, usuario, resultado: r }) });
       sesiones.rotar(sesion);
       sesion.etapa = 'autenticado';
@@ -461,7 +484,7 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
         resultado = { ok: false, tipo: 'bloqueo', reintentarEn: Math.ceil((sesion.bloqueadoHasta - Date.now()) / 1000), status: 429 };
       } else {
         try {
-          const r = await cliente.recuperar(usuario.userRef, codigo);
+          const r = await cliente.recuperar(usuario.userRef, codigo, { clientIp });
           usuarios.fijarFactor(usuario.usuario, null);
           trazar(sesion, {
             tipo: 'decision', titulo: 'Código de recuperación aceptado: se obliga a re-enrolar',
@@ -500,7 +523,7 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
       if (error) return ver({ status: 400, titulo: tramite.titulo, contenido: V.paginaTramite({ sesion, tramite, error, valores }) });
 
       const codigo = String(cuerpo.get('codigo') ?? '').replace(/\s+/g, '');
-      const r = await segundoFactor(sesion, usuario, codigo, 'step-up');
+      const r = await segundoFactor(sesion, usuario, codigo, 'step-up', clientIp);
       if (!r.ok) return ver({ status: r.status, titulo: tramite.titulo, contenido: V.paginaTramite({ sesion, tramite, resultado: r, valores }) });
 
       if (tramite.id === 'desactivar-factor') {

@@ -48,6 +48,8 @@ Opciones comunes a todos los scripts:
 `ejecutar-todo.js` añade `--solo replay,jwt`, `--omitir caos`, `--rapido` (no espera la escalada del
 bloqueo), `--pausa 3` (segundos entre escenarios), `--salida carpeta` y
 `--comando-arranque "node src/main.js" --pid-backend <pid>` para incluir el escenario de reinicio.
+El informe sustituye las rutas absolutas por rutas relativas al repositorio (`~` para la carpeta
+personal, `<tmp>` para las temporales); `ATTACK_OCULTAR_RUTAS=/ruta/a,/ruta/b` añade otras carpetas a ocultar.
 
 ### Orígenes simulados (IP distintas sin salir de la máquina)
 
@@ -55,8 +57,13 @@ El servicio **no confía en `X-Forwarded-For`** (correcto: cualquiera podría fa
 cabecera no sirve para simular IP. En Linux todo `127.0.0.0/8` es loopback: el laboratorio abre cada
 conexión desde una dirección distinta (`127.<ejecución>.<escenario>.<n>`) y el servidor ve **IP de origen
 reales y distintas**. Además, cada escenario y cada ejecución usan su propio bloque, para que el historial
-que el detector acumula por IP en un ataque no contamine el siguiente. En macOS (sin alias de loopback)
+que el detector acumula por origen en un ataque no contamine el siguiente. En macOS (sin alias de loopback)
 se detecta automáticamente y se cae a una sola IP; los escenarios lo indican en sus notas.
+
+El origen que puntúan el detector y el límite por origen es HMAC(app_id + ':' + IP del usuario final):
+la `client_ip` que envía un integrador (un portal reenvía la IP de cada ciudadano) o, si no la envía, la
+IP de la conexión. `origen-compartido.js` usa una sola IP de conexión (la «del portal») con muchas
+`client_ip` de los rangos de documentación (RFC 5737), nunca direcciones reales.
 
 ## Escenarios
 
@@ -66,15 +73,17 @@ Cada verificación registra **esperado / obtenido / OK·FALLO**; las observacion
 
 | Escenario | Qué hace | Qué demuestra |
 | --- | --- | --- |
-| `escenarios/replay.js` | Crea un usuario (enrolamiento + activación con la URI `otpauth://` devuelta), verifica un código y lo reenvía; luego manda el mismo código nuevo 10 veces **en paralelo**. | Anti-replay atómico (`last_step < T`): el reenvío da `401 REPLAY_DETECTED` y en la carrera se acepta exactamente uno. |
+| `escenarios/replay.js` | Crea un usuario (enrolamiento + activación con la URI `otpauth://` devuelta), verifica un código y lo reenvía; compara la respuesta con la de un código incorrecto; luego manda el mismo código nuevo 10 veces **en paralelo**. | Anti-replay atómico (`last_step < T`): el reenvío da `401 VERIFICATION_FAILED` **idéntico** (estado, cuerpo y cabeceras) a un código incorrecto —sin oráculo—, queda registrado como `replay` en `/metrics` y en la carrera se acepta exactamente uno. |
+| `escenarios/deriva.js` | Envía en ráfaga los códigos de T+1 a T+12; resincroniza otro usuario con T+8/T+9 y prueba T+10 y una resincronización a ±11. | La deriva ya no se arrastra: solo entra T+1; solo `resync` fija derivas mayores (hasta ±10) y `verify` respeta ese tope. |
 | `escenarios/jwt.js` | Obtiene un JWT legítimo y prueba: payload alterado, firma rota, `alg: none`, confusión HS256, `kid` desconocido, caducado, clave ajena, otra audiencia (app 2 real), reutilización del `jti`. Valida además offline con `/.well-known/jwks.json`. | Todos rechazados; el legítimo vale una sola vez. `--esperar-caducidad` prueba la caducidad real (≈5,5 min). |
 | `escenarios/entradas.js` | 37 peticiones malformadas: JSON roto, campos extra, tipos incorrectos, `__proto__`, 5 000 niveles, 2 MiB con y sin `Content-Length`, `Content-Type` incorrecto, rutas raras, métodos no permitidos, credenciales ausentes… | Siempre 4xx con error genérico, sin 5xx ni rastros internos; cabeceras de seguridad presentes; `/health` sano al final. |
-| `escenarios/fuerza-bruta.js` | Códigos incorrectos secuenciales contra una cuenta; insiste durante el bloqueo, prueba el código **correcto** bloqueado y, tras vencer el primer escalón, vuelve a fallar. | 429 en el 6.º intento con `Retry-After: 30`; ni el código correcto pasa; el bloqueo escala (2 min, o 5 min si el detector se adelanta). |
+| `escenarios/fuerza-bruta.js` | Códigos incorrectos secuenciales contra una cuenta; insiste durante el bloqueo, prueba el código **correcto** bloqueado y, tras vencer el primer escalón, vuelve a fallar. | 429 en el 6.º intento con `Retry-After: 30`; ni el código correcto pasa; al vencer, el siguiente fallo vuelve a bloquear (30 s → 2 min → 10 min → 1 h, o 5 min si el detector se adelanta), siempre con el mismo `TOO_MANY_REQUESTS` genérico. |
 | `escenarios/fuerza-bruta-distribuida.js` | 40 IP distintas, un intento cada una, contra la misma cuenta. | Rotar de IP no sirve: el bloqueo es por cuenta; el titular legítimo también queda protegido (falla cerrado). |
-| `escenarios/spraying.js` | Un origen prueba 2 códigos en 20 cuentas (6 reales + 14 inexistentes) y luego intenta una verificación legítima desde ese origen. | Ninguna cuenta comprometida; respuestas y tiempos idénticos para cuentas reales e inexistentes (sin enumeración); el **detector de anomalías** bloquea el origen con riesgo CRITICAL y razones explicables. |
-| `escenarios/inundacion.js` | 400 verificaciones con concurrencia 50 desde un origen mientras otro sondea `/health` cada 100 ms (`--peticiones`, `--concurrencia`). | 429 (detector + limitador por IP), 0 errores 5xx, `/health` disponible al 100 % para los demás. |
+| `escenarios/spraying.js` | Un origen prueba 2 códigos en 20 cuentas (6 reales + 14 inexistentes) y luego intenta una verificación legítima desde ese origen. | Ninguna cuenta comprometida; respuestas y tiempos idénticos para cuentas reales e inexistentes (sin enumeración); el **detector de anomalías** bloquea el origen (Δ `anomaly_blocked` en `/metrics`) con un 429 `TOO_MANY_REQUESTS` genérico que no revela puntuación, razones ni umbrales (solo constan en `attempts`, la bitácora y `/admin/api/anomalies`). |
+| `escenarios/origen-compartido.js` | Una sola IP de conexión (la «del portal»): 24 ciudadanos con `client_ip` distintas fallan 2 veces cada uno; luego un atacante con una única `client_ip` recorre 20 cuentas. Contraste informativo sin `client_ip`. | Los fallos de muchos ciudadanos no bloquean a un ciudadano legítimo del mismo portal; el atacante sí queda bloqueado (incluso con un código correcto), sin afectar al legítimo ni a la cuenta de la víctima. |
+| `escenarios/inundacion.js` | 400 verificaciones con concurrencia 50 desde un origen mientras otro sondea `/health` cada 100 ms (`--peticiones`, `--concurrencia`). | 429 (limitador por origen + detector), 0 errores 5xx, `/health` disponible al 100 % para los demás. |
 | `caos/escenario-caos.js` | Ráfaga continua de verificaciones a través del **proxy de caos**: base → latencia 800 ms → corte total 10 s → restauración. El titular legítimo verifica en cada fase como el SDK (3 s de espera, 1 reintento con la misma `Idempotency-Key`). | **Falla cerrado**: 0 códigos incorrectos aprobados; nadie entra durante el corte; con latencia funciona más lento; tiempo de recuperación medido (objetivo < 30 s). |
-| `caos/reinicio.js` | Bloquea una cuenta, mata el backend (`--pid`, `SIGKILL` por defecto), lo relanza con `--comando` y mide hasta `/health/ready` 200. | Recuperación en segundos y los bloqueos sobreviven al reinicio (persisten en la base de datos). |
+| `caos/reinicio.js` | Bloquea una cuenta real y un usuario inexistente, mata el backend (`--pid`, `SIGKILL` por defecto), lo relanza con `--comando` y mide hasta `/health/ready` 200. | Recuperación en segundos y los bloqueos sobreviven al reinicio (persisten en la base de datos), también el del usuario inexistente (calculado desde `attempts`: sin enumeración tras reiniciar). |
 
 ### Proxy de caos (`caos/proxy-caos.js`)
 
@@ -96,17 +105,17 @@ Preparación (antes de subir al escenario): backend arrancado, credenciales expo
 con `--detallado`, y la consola admin abierta en «Anomalías».
 
 1. **0:00 – 0:30 · Replay.** `node attack-lab/escenarios/replay.js --detallado`
-   «Robamos un código válido y lo reenviamos: `REPLAY_DETECTED`. Diez envíos a la vez del mismo código: exactamente uno entra.»
+   «Robamos un código válido y lo reenviamos: rechazado, y con la misma respuesta que un código cualquiera (el atacante ni siquiera sabe que el código era bueno). Diez envíos a la vez del mismo código: exactamente uno entra.»
 2. **0:30 – 1:00 · JWT.** `node attack-lab/escenarios/jwt.js`
    «Alteramos el token, le ponemos `alg: none`, lo firmamos con otra clave, lo usamos en otra app y lo reutilizamos: todo rechazado. El integrador lo valida incluso sin red, con nuestras claves públicas.»
 3. **1:00 – 1:45 · Spraying + detector local de anomalías.** `node attack-lab/escenarios/spraying.js`
-   «Un atacante prueba pocas veces muchas cuentas para no disparar el bloqueo por cuenta. Al quinto intento el detector local bloquea el origen con riesgo 100 y explica por qué; todo se calcula en nuestra máquina, sin servicios externos.» Señalar las razones en pantalla y en la consola admin.
+   «Un atacante prueba pocas veces muchas cuentas para no disparar el bloqueo por cuenta. Al quinto intento el detector local bloquea el origen; al atacante solo le llega un 429 genérico, y las razones las ve el equipo de seguridad en la consola admin; todo se calcula en nuestra máquina, sin servicios externos.» Señalar las razones en la consola admin («Anomalías»).
 4. **1:45 – 2:40 · Caos.** `node attack-lab/caos/escenario-caos.js --detallado`
    «Metemos 800 ms de latencia: el usuario entra, más lento. Cortamos la red 10 s: nadie entra, ningún código incorrecto se aprueba (falla cerrado). Restauramos: se recupera en milisegundos.»
 5. **2:40 – 3:00 · Informe.** Abrir `attack-lab/resultados/informe-<fecha>.html` de la última ejecución de
-   `ejecutar-todo.js` (preparada antes): «9 escenarios, todas las verificaciones con esperado y obtenido.»
+   `ejecutar-todo.js` (preparada antes): «11 escenarios, todas las verificaciones con esperado y obtenido.»
 
-Plan B sin backend: `npm test` en `attack-lab/` (25 pruebas, incluido el proxy contra un servidor eco).
+Plan B sin backend: `npm test` en `attack-lab/` (26 pruebas, incluido el proxy contra un servidor eco).
 
 ## Estructura
 
@@ -114,7 +123,7 @@ Plan B sin backend: `npm test` en `attack-lab/` (25 pruebas, incluido el proxy c
 attack-lab/
 ├── ejecutar-todo.js        # orquestador + informe JSON/HTML
 ├── lib/                    # config y guardia de destino, cliente HTTPS, TOTP, métricas, consola, informe
-├── escenarios/             # replay, jwt, entradas, fuerza-bruta, fuerza-bruta-distribuida, spraying, inundacion
+├── escenarios/             # replay, jwt, entradas, deriva, fuerza-bruta, fuerza-bruta-distribuida, spraying, origen-compartido, inundacion
 ├── caos/                   # proxy-caos, escenario-caos, reinicio
 ├── tests/                  # node:test (utilidades y proxy)
 └── resultados/             # informes generados (ignorados por git salvo .gitkeep)

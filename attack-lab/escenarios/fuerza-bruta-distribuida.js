@@ -10,6 +10,8 @@
 //
 // Esperado: el bloqueo es POR CUENTA, así que salta igual aunque cada IP intente una sola vez, y el
 // detector local de anomalías registra el patrón (verificaciones anómalas / riesgo elevado).
+// Nota: aquí las IP son de CONEXIÓN distintas y sin client_ip (como varios clientes directos);
+// el origen es HMAC(app_id:IP de conexión).
 
 import { crearUsuarioPrueba, esPrincipal, exigirCredenciales, principal } from '../lib/escenario.js';
 import { codigoError, etiquetaEstado } from '../lib/http.js';
@@ -61,18 +63,19 @@ export async function ejecutar(ctx, res) {
     res.verificar('Código correcto del titular durante el ataque', '429 (cuenta protegida)', etiquetaEstado(r), r.status === 429);
   }
 
-  // Señal del detector local de anomalías: /metrics (solo localhost) y 429 ANOMALY_BLOCKED.
+  // Señal del detector local de anomalías: /metrics (solo localhost). Hacia fuera su bloqueo es el
+  // mismo 429 TOO_MANY_REQUESTS genérico que el bloqueo por cuenta (no revela qué defensa actuó).
   const metricasDespues = await leerMetricas(cliente);
-  const anomalias = respuestas.filter((r) => codigoError(r) === 'ANOMALY_BLOCKED').length;
   const deltaAnom = deltaMetrica(metricasAntes, metricasDespues, 'totp_verifications_total', 'anomaly');
   const deltaLocked = deltaMetrica(metricasAntes, metricasDespues, 'totp_verifications_total', 'locked');
-  res.metrica('429 ANOMALY_BLOCKED recibidos', anomalias);
   res.metrica('Δ verificaciones bloqueadas (métrica locked)', deltaLocked ?? 'métricas no disponibles');
   res.metrica('Δ bloqueos del detector (métrica anomaly_blocked)', deltaAnom ?? 'métricas no disponibles');
+  const genericos = respuestas.filter((r) => r.status === 429).every((r) => codigoError(r) === 'TOO_MANY_REQUESTS');
+  res.verificar('Los 429 son genéricos', 'TOO_MANY_REQUESTS (sin detalles del detector)', genericos ? 'sí' : 'no', genericos);
   res.verificar('Detector local de anomalías', 'bloqueo adaptativo o registro del patrón',
-    anomalias > 0 || (deltaAnom ?? 0) > 0 ? `${Math.max(anomalias, deltaAnom ?? 0)} bloqueos del detector` : 'sin ANOMALY_BLOCKED (actuó antes el bloqueo por cuenta)',
+    (deltaAnom ?? 0) > 0 ? `${deltaAnom} bloqueos del detector` : 'sin bloqueos del detector (actuó antes el bloqueo por cuenta)',
     null);
-  if (!(anomalias > 0 || (deltaAnom ?? 0) > 0)) {
+  if (!((deltaAnom ?? 0) > 0)) {
     res.nota('El bloqueo vigente de la cuenta se comprueba antes que el detector, así que con 1 intento por IP la defensa que actúa es el bloqueo por cuenta; el detector registra cada intento (bitácora y /admin/api/anomalies).');
   }
   res.metrica('estados', distribucionEstados(respuestas));

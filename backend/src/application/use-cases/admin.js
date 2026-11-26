@@ -8,7 +8,7 @@ import {
 } from '../../security/index.js';
 import { verificarCadena, respuestaVerificacion } from '../../audit/index.js';
 import {
-  HASH_FICTICIO, anonimizarIp, errorEntrada, iso, noEncontrado, prohibido, separarEntrada, validar,
+  HASH_FICTICIO, anonimizarIp, derivaAGuardar, errorEntrada, topeDeriva, iso, noEncontrado, prohibido, separarEntrada, validar,
 } from './comun.js';
 import {
   ESQUEMA_ADMIN_ANOMALIAS, ESQUEMA_ADMIN_APP, ESQUEMA_ADMIN_AUDITORIA, ESQUEMA_ADMIN_ENROLAMIENTOS,
@@ -132,12 +132,14 @@ export function crearCasosAdmin(d) {
       r = verifyTotpWithDrift(semilla, codigo, ahora, {
         algoritmo: enrol.algoritmo, digitos: enrol.digitos, periodo: enrol.periodo,
         ventana: appTotp?.ventana ?? 1, driftSteps: enrol.drift_steps, lastStep: enrol.last_step,
+        derivaMaxima: topeDeriva(enrol.drift_steps, appTotp?.ventana ?? 1),
       });
     } finally {
       semilla.fill(0);
     }
     const aceptado = repos.transaccion(() => {
-      if (r.valid && repos.enrollments.registrarPasoAceptado(enrol.id, r.matchedStep, r.driftSteps)) return true;
+      if (r.valid && repos.enrollments.registrarPasoAceptado(enrol.id, r.matchedStep,
+        derivaAGuardar(enrol.drift_steps, r.driftSteps, appTotp?.ventana ?? 1))) return true;
       bloqueos.falloEnrolamiento(enrol.id, appTotp?.max_intentos ?? MAX_INTENTOS_ADMIN, ahora);
       return false;
     });

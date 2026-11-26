@@ -1,7 +1,22 @@
 // Atajos sobre la API del servicio TOTP (contracts/openapi.yaml) y lectura de /metrics.
 
-/** POST /api/v1/verify. */
-export const verificar = (cliente, userRef, code, op = {}) => cliente.post('/api/v1/verify', { user_ref: userRef, code }, op);
+/**
+ * POST /api/v1/verify. `op.clientIp` añade `client_ip` (IP del usuario final que enviaría un portal
+ * integrador); sin él, el servicio usa la IP TCP de la conexión como origen.
+ */
+export function verificar(cliente, userRef, code, op = {}) {
+  const { clientIp, ...resto } = op;
+  return cliente.post('/api/v1/verify', { user_ref: userRef, code, ...(clientIp ? { client_ip: clientIp } : {}) }, resto);
+}
+
+/** Cuerpo y cabeceras relevantes de una respuesta, para comparar si dos respuestas son indistinguibles. */
+export function firmaRespuesta(r) {
+  const h = r.cabeceras ?? {};
+  return JSON.stringify({
+    status: r.status, cuerpo: r.cuerpo,
+    cabeceras: { 'content-type': h['content-type'] ?? null, 'retry-after': h['retry-after'] ?? null, 'cache-control': h['cache-control'] ?? null },
+  });
+}
 
 /**
  * Verifica con un usuario de prueba y, si se acepta, registra la deriva que devuelve el servidor

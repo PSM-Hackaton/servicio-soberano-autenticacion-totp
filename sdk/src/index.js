@@ -1,6 +1,6 @@
 // SDK del Servicio Soberano de Autenticación TOTP. Sin dependencias: solo node:https, node:http y node:crypto.
 
-export { crearClienteTotp, claveDeOtpauth } from './cliente.js';
+export { crearClienteTotp, claveDeOtpauth, esClientIpValida } from './cliente.js';
 export { verificarTokenLocal } from './local.js';
 export { crearCacheJwks } from './jwks.js';
 export { decodificarSinVerificar } from './jwt.js';

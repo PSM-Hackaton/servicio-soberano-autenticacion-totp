@@ -492,6 +492,56 @@ describe('servidor HTTP: salud caída y límites de tasa', () => {
       s.servidor.closeAllConnections();
     }
   });
+
+  test('límite por (app, origen): client_ip distintos detrás de la misma IP TCP no se frenan entre sí', async () => {
+    const casos = casosFalsos();
+    casos.verificar = async () => ({ status: 401, cuerpo: { error: 'VERIFICATION_FAILED', message: 'x' } });
+    const s = await levantar({ casos, limitadores: { porOrigen: crearLimitador({ capacidad: 3, ventanaMs: 60_000 }) } });
+    try {
+      const verificar = (clientIp) => pedir(s.puerto, {
+        metodo: 'POST', ruta: '/api/v1/verify', cabeceras: credenciales,
+        cuerpo: { user_ref: 'u1', code: '123456', ...(clientIp ? { client_ip: clientIp } : {}) },
+      });
+      // Un mismo ciudadano (client_ip) agota su cupo…
+      for (let i = 0; i < 3; i++) assert.equal((await verificar('203.0.113.7')).status, 401);
+      const r = await verificar('203.0.113.7');
+      assert.equal(r.status, 429);
+      assert.equal(r.json.error, 'TOO_MANY_REQUESTS');
+      assert.ok(Number(r.cabeceras['retry-after']) >= 1);
+      // …sin afectar a otros ciudadanos del mismo portal (misma IP TCP) ni a la forma canónica de otra IP.
+      for (let i = 0; i < 3; i++) assert.equal((await verificar(`203.0.113.${20 + i}`)).status, 401);
+      assert.equal((await verificar('2001:db8::1')).status, 401);
+      assert.equal((await verificar('2001:DB8:0:0:0:0:0:1')).status, 401);
+      assert.equal((await verificar('2001:db8::1')).status, 401);
+      assert.equal((await verificar('2001:db8::1')).status, 429, 'IPv6 equivalentes comparten cupo');
+      // Sin client_ip, el origen es la IP TCP de la app: todos sus usuarios comparten cupo.
+      for (let i = 0; i < 3; i++) assert.equal((await verificar()).status, 401);
+      assert.equal((await verificar()).status, 429);
+      // Las rutas sin client_ip (enrolar, validar token) no consumen el cupo por origen.
+      assert.equal((await pedir(s.puerto, { metodo: 'POST', ruta: '/api/v1/enrollments', cuerpo: { user_ref: 'u' }, cabeceras: credenciales })).status, 201);
+    } finally {
+      s.servidor.close();
+      s.servidor.closeAllConnections();
+    }
+  });
+
+  test('límite por origen también en recovery, activate y resync', async () => {
+    const s = await levantar({ limitadores: { porOrigen: crearLimitador({ capacidad: 1, ventanaMs: 60_000 }) } });
+    try {
+      const rutas = [
+        ['/api/v1/recovery', { user_ref: 'u1', recovery_code: 'AAAA-BBBB', client_ip: '198.51.100.1' }],
+        ['/api/v1/enrollments/e1/activate', { code: '123456', client_ip: '198.51.100.2' }],
+        ['/api/v1/enrollments/e1/resync', { code_1: '123456', code_2: '654321', client_ip: '198.51.100.3' }],
+      ];
+      for (const [ruta, cuerpo] of rutas) {
+        assert.equal((await pedir(s.puerto, { metodo: 'POST', ruta, cuerpo, cabeceras: credenciales })).status, 200, ruta);
+        assert.equal((await pedir(s.puerto, { metodo: 'POST', ruta, cuerpo, cabeceras: credenciales })).status, 429, ruta);
+      }
+    } finally {
+      s.servidor.close();
+      s.servidor.closeAllConnections();
+    }
+  });
 });
 
 describe('arranque real (main.js)', () => {
