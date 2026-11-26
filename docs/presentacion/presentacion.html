@@ -210,7 +210,7 @@
     <!-- Servicio -->
     <rect class="cajaA" x="334" y="0" width="560" height="430" rx="14"/>
     <text class="t" x="354" y="32">Servicio Soberano TOTP</text>
-    <text class="s" x="354" y="54">Node.js 22 · HTTPS TLS 1.3 · API v1 (22 operaciones) · /app/ · /consola/</text>
+    <text class="s" x="354" y="54">Node.js 22 · HTTPS TLS 1.3 · 31 rutas (API v1 + consola) · /app/ · /consola/</text>
 
     <rect class="mod" x="354" y="72" width="252" height="70" rx="8"/>
     <text class="m" x="368" y="98">1. Seguridad de entrada</text>
@@ -388,7 +388,7 @@
   </table>
   <div class="pie"><span>Servicio Soberano TOTP · Fuentes: matriz de cumplimiento §3, informe del laboratorio (26-11-2026)</span><b>7</b></div>
 </section>
-<aside class="notas"><b>Notas (40 s).</b> No leer la tabla: elegir dos filas (anti replay y bitácora) y decir «todo esto está probado: 256 pruebas automatizadas en verde (README §4) y el laboratorio de ataques de la siguiente diapositiva». Si preguntan por robo de la base: semillas y claves privadas cifradas con una llave maestra que no está en la base; usuarios e IP solo como HMAC.</aside>
+<aside class="notas"><b>Notas (40 s).</b> No leer la tabla: elegir dos filas (anti replay y bitácora) y decir «todo esto está probado: 307 pruebas automatizadas en verde (README §4) y el laboratorio de ataques de la siguiente diapositiva». Si preguntan por robo de la base: semillas y claves privadas cifradas con una llave maestra que no está en la base; usuarios e IP solo como HMAC.</aside>
 
 <!-- ============ 8. LABORATORIO ============ -->
 <section class="diapo">
@@ -428,7 +428,7 @@
   </div>
   <div class="pie"><span>Servicio Soberano TOTP · Fuente: docs/evidencias/attack-lab-informe-2026-11-26 (0 hallazgos, 123 s)</span><b>8</b></div>
 </section>
-<aside class="notas"><b>Notas (50 s).</b> En vivo (guion 3:00–4:30): replay.js, jwt.js y spraying.js. Decir: «robamos un código válido y lo reenviamos: rechazado; diez envíos simultáneos: exactamente uno entra». Para el caos: «800 ms de latencia: el usuario entra, más lento; cortamos la red 10 s: nadie entra; restauramos: se recupera en milisegundos». Los bloqueos persisten tras el reinicio porque viven en la base. Si el README cita 9/9 y 89/89, es una ejecución anterior; el informe vigente es 11/11 y 116/116.</aside>
+<aside class="notas"><b>Notas (50 s).</b> En vivo (guion 3:00–4:30): replay.js, jwt.js y spraying.js. Decir: «robamos un código válido y lo reenviamos: rechazado; diez envíos simultáneos: exactamente uno entra». Para el caos: «800 ms de latencia: el usuario entra, más lento; cortamos la red 10 s: nadie entra; restauramos: se recupera en milisegundos». Los bloqueos persisten tras el reinicio porque viven en la base. El escaneo dinámico propio suma 12/12 verificaciones sobre las 31 rutas.</aside>
 
 <!-- ============ 9. IA LOCAL ============ -->
 <section class="diapo">
@@ -473,7 +473,7 @@
     </div>
     <div>
       <img class="captura" src="img/consola-panel.png" width="430" height="269" alt="Consola administrativa: panel de operación con verificaciones, bloqueos, latencia y disponibilidad">
-      <div class="leyenda"><b>Consola:</b> operación, políticas por app, llaves y auditoría con RBAC (datos simulados).</div>
+      <div class="leyenda"><b>Consola:</b> operación, apps y políticas, enrolamientos (suspender, reactivar, revocar), cuentas, llaves y auditoría con RBAC (datos simulados).</div>
     </div>
     
   </div>
@@ -532,9 +532,9 @@
       </tbody>
     </table>
     <div>
-      <div class="tarjeta" style="margin-bottom: 14px;"><div class="cifra">29<small> de 32</small></div><div class="etq">requisitos de los Términos y del enunciado: <b>cumple</b></div></div>
-      <div class="tarjeta" style="margin-bottom: 14px;"><div class="cifra" style="color: var(--ambar);">3</div><div class="etq">parciales, con límite declarado · <b>0 pendientes</b></div></div>
-      <p style="font-size: 16px; line-height: 1.45;" class="gris"><b style="color: var(--tinta)">Lo parcial:</b> cámara de la PWA limitada por una cabecera; la consola aún no revoca ni da de alta apps y cuentas desde la interfaz; despliegue no probado en un servidor institucional real.</p>
+      <div class="tarjeta" style="margin-bottom: 14px;"><div class="cifra">32<small> de 32</small></div><div class="etq">requisitos de los Términos y del enunciado: <b>cumple</b></div></div>
+      <div class="tarjeta" style="margin-bottom: 14px;"><div class="cifra" style="color: var(--ambar);">2</div><div class="etq">criterios en parcial, con lo pendiente declarado</div></div>
+      <p style="font-size: 16px; line-height: 1.45;" class="gris"><b style="color: var(--tinta)">Lo pendiente:</b> ejecutar el instalador en modo sistema (root) en un servidor institucional real y la sesión de usabilidad con 3 personas ajenas al equipo.</p>
     </div>
   </div>
   <div class="pie"><span>Servicio Soberano TOTP · Fuente: docs/cumplimiento/matriz-cumplimiento.html (26-11-2026)</span><b>12</b></div>
@@ -549,9 +549,9 @@
     <div class="tarjeta" style="border-top: 6px solid var(--amarillo); padding: 22px;">
       <h3 style="font-size: 24px;">Inmediato</h3>
       <ul class="lista" style="margin-top: 12px;">
-        <li style="font-size: 21px;">Habilitar la cámara solo en /app/</li>
-        <li style="font-size: 21px;">Pantallas de consola: alta de apps, cuentas Operador y Auditor, revocación</li>
-        <li style="font-size: 21px;">Escaneo dinámico OWASP con herramienta local</li>
+        <li style="font-size: 21px;">Sesión de usabilidad con 3 personas (protocolo listo)</li>
+        <li style="font-size: 21px;">Instalador en modo sistema (root) en un servidor real</li>
+        <li style="font-size: 21px;">App Android nativa completa sobre la base Kotlin</li>
       </ul>
     </div>
     <div class="tarjeta" style="border-top: 6px solid var(--azul); padding: 22px;">
@@ -574,7 +574,7 @@
   <p class="medio" style="margin-top: 34px; border-left: 6px solid var(--azul); padding-left: 18px;">En cada etapa se mantienen AES-256 en reposo, TLS 1.3, anonimización HMAC, OWASP y la bitácora encadenada, <b>solo con infraestructura propia o nacional y software libre</b>.</p>
   <div class="pie"><span>Servicio Soberano TOTP · Fuentes: matriz de cumplimiento §6, escalabilidad §C, README §4 (límites)</span><b>13</b></div>
 </section>
-<aside class="notas"><b>Notas (30 s).</b> Lo inmediato son ajustes pequeños y ya identificados. El piloto valida el único punto parcial de impacto: probar el despliegue en un servidor real. La escala nacional sigue la escalera de la diapositiva 11, siempre con infraestructura propia o nacional.</aside>
+<aside class="notas"><b>Notas (30 s).</b> Lo inmediato son tareas pequeñas y ya preparadas (protocolo de usabilidad, instalador probado en modo usuario, base Kotlin con RFC 6238). El piloto valida el punto parcial de impacto: el despliegue en un servidor real. La escala nacional sigue la escalera de la diapositiva 11, siempre con infraestructura propia o nacional.</aside>
 
 <!-- ============ 14. CIERRE ============ -->
 <section class="diapo cierre">
@@ -584,13 +584,13 @@
   <div class="comando"><span class="p">$</span> cd backend &amp;&amp; npm run env &amp;&amp; npm run certs &amp;&amp; npm run seed &amp;&amp; npm start</div>
   <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 30px;">
     <div><div class="cifra" style="color: #FFCC00;">0</div><div class="etq" style="color: #D6E0F7;">dependencias npm</div></div>
-    <div><div class="cifra" style="color: #FFCC00;">256</div><div class="etq" style="color: #D6E0F7;">pruebas automatizadas en verde</div></div>
+    <div><div class="cifra" style="color: #FFCC00;">307</div><div class="etq" style="color: #D6E0F7;">pruebas automatizadas en verde</div></div>
     <div><div class="cifra" style="color: #FFCC00;">116/116</div><div class="etq" style="color: #D6E0F7;">verificaciones de ataque</div></div>
     <div><div class="cifra" style="color: #FFCC00;">$0</div><div class="etq" style="color: #D6E0F7;">en licencias · AGPL-3.0</div></div>
   </div>
   <div class="pie"><span>Repositorio: servicio-soberano-autenticacion-totp · Producción: deploy/README.md (systemd, CA y NTP institucionales)</span><b>14</b></div>
 </section>
-<aside class="notas"><b>Notas (30 s).</b> Cerrar con la frase: «Cualquier sistema se integra con nuestro SDK o con cuatro llamadas HTTPS; lo hicimos con el Portal de Trámites y lo ofrecemos al equipo del Reto 3». Fuentes de las cifras: README §4 y §6 (256 pruebas, instalación), informe del laboratorio (116/116), docs/sbom (0 dependencias). Agradecer y abrir preguntas.</aside>
+<aside class="notas"><b>Notas (30 s).</b> Cerrar con la frase: «Cualquier sistema se integra con nuestro SDK o con cuatro llamadas HTTPS; lo hicimos con el Portal de Trámites y lo ofrecemos al equipo del Reto 3». Fuentes de las cifras: README §4 y §6 (307 pruebas, instalación), informe del laboratorio (116/116), docs/sbom (0 dependencias). Agradecer y abrir preguntas.</aside>
 
 </body>
 </html>
