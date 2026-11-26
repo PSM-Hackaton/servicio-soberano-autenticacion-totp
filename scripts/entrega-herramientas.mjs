@@ -501,6 +501,7 @@ function cmdEtapas(copia, archivoEtapas, archivoExclusiones, dirPlan, opciones) 
 
   const limpiar = (s) => s.replace(/[\t\r\n]+/g, ' ');
   const tsv = etapas.map((e, i) => [i + 1, e.id, e.rama, e.nombre, e.correo, e.archivos.length, e.mensaje].map((c) => limpiar(String(c))).join('\t'));
+  mkdirSync(dirPlan, { recursive: true });
   writeFileSync(join(dirPlan, 'plan.tsv'), `${tsv.join('\n')}\n`);
   etapas.forEach((e, i) => writeFileSync(join(dirPlan, `etapa-${i + 1}.lista`), `${e.archivos.join('\n')}\n`));
 
@@ -555,8 +556,21 @@ function principal() {
     etapas: () => cmdEtapas(resolve(args[0]), resolve(args[1]), resolve(args[2]), resolve(args[3]), { autorLaya }),
     copiar: () => cmdCopiar(resolve(args[0]), resolve(args[1]), resolve(args[2])),
   };
-  if (!comandos[cmd] || !args[0]) {
-    console.error('Uso: node entrega-herramientas.mjs excluir|ajustar|verificar|env|etapas|copiar <copia> [...]');
+  // Argumentos obligatorios de cada subcomando (sin ellos resolve() recibiría undefined y lanzaría TypeError).
+  const usos = {
+    excluir: ['<copia>', '<exclusiones.txt>'],
+    ajustar: ['<copia>', '<lista-excluidos.txt>'],
+    verificar: ['<copia>'],
+    env: ['<archivo .env>'],
+    etapas: ['<copia>', '<etapas.txt>', '<exclusiones.txt>', '<dir-plan>'],
+    copiar: ['<origen>', '<lista>', '<destino>'],
+  };
+  if (!comandos[cmd] || args.length < usos[cmd].length || args.slice(0, usos[cmd].length).some((a) => !a)) {
+    if (comandos[cmd]) {
+      console.error(`Uso: node entrega-herramientas.mjs ${cmd} ${usos[cmd].join(' ')}${cmd === 'etapas' ? ' [--autor-laya "Nombre <correo>"]' : ''}`);
+    } else {
+      console.error('Uso: node entrega-herramientas.mjs excluir|ajustar|verificar|env|etapas|copiar <copia> [...]');
+    }
     process.exitCode = 2;
   } else {
     process.exitCode = comandos[cmd]();
