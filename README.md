@@ -187,6 +187,8 @@ impide arrancar. Las rutas relativas se resuelven respecto a `backend/`.
 | `TOTP_TIMEOUT_MS` | `3000` | Tiempo de espera total por intento. |
 | `AUTENTICADOR_URL` | `https://localhost:8443/app/` | Destino del botón «Abrir en el Autenticador Soberano». |
 | `PORTAL_ETIQUETA_CUENTA` | `Portal de Trámites` | Etiqueta de la cuenta en la app. |
+| `TOTP_CEDULA_SECRETO` | vacío (secreto local al azar en `datos/seudonimos.clave`) | Secreto HMAC con el que el portal deriva el `user_ref` de la cédula; debe ser el `cedula_secreto` que imprime `npm run seed` para que la consola encuentre el enrolamiento por cédula. Cambiarlo desvincula a todos los ciudadanos. |
+| `TOTP_CEDULA_PREFIJO` | `ptd-` | Prefijo del `user_ref` derivado; igual al `cedula_prefijo` de la app. |
 | `PORTAL_TRAZAS` | `1` | Muestra el panel «Lo que ocurre por dentro». |
 | `PORTAL_SESION_MINUTOS` | `15` | Inactividad máxima de la sesión. |
 | `PORTAL_USUARIOS` | `datos/usuarios.json` | Archivo de ciudadanos ficticios. |
