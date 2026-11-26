@@ -1,0 +1,13 @@
+{
+  "name": "servicio-soberano-autenticacion-totp-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "API del servicio soberano TOTP. Sin dependencias externas: solo módulos nativos de Node.js.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "test": "node --test --test-reporter=spec"
+  }
+}

@@ -18,7 +18,7 @@
 ## FASE 2: Ejecución Paralela (Alineada al Plan Jueves 26 – Viernes 27)
 
 ### Track A — Backend & Criptografía (`feat/backend-*`)
-- [ ] `[BACKEND]` `backend/src/core/totp/`: Motor RFC 6238 propio (`node:crypto`, SHA-256 32B / SHA-512 64B, truncado RFC 4226, drift + resync ±10) + tests contra vectores oficiales Apéndice B en verde.
+- [x] `[BACKEND]` `backend/src/core/totp/`: Motor RFC 6238 propio (`node:crypto`, SHA-256 32B / SHA-512 64B, truncado RFC 4226, drift + resync ±10) + tests contra vectores oficiales Apéndice B en verde.
 - [ ] `[BACKEND]` `backend/src/core/vault/`: AES-256-GCM con AAD (`enrollment_id:key_version`), llave maestra versionada y rotación en lote.
 - [ ] `[BACKEND]` `backend/src/core/tokens/`: JWT Ed25519 (`EdDSA`), `/.well-known/jwks.json`, `jti` único en `consumed_jti`, rotación `kid`.
 - [ ] `[BACKEND]` `backend/src/infrastructure/persistence/` + `backend/migrations/`: Adaptadores PostgreSQL 16 y fallback SQLite WAL para las 8 tablas oficiales.
