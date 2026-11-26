@@ -614,4 +614,35 @@ describe('arranque real (main.js)', () => {
       }
     }
   });
+
+  test('sitio público (F1, F2, F5): sirve /, /instalar-certificado, /estado y /sitio/css/sitio.css con CSP estricta', async () => {
+    const { iniciar } = await import('../main.js');
+    const { validarConfig } = await import('../infrastructure/config/config.js');
+    const silencio = { info() {}, warn() {}, error() {} };
+    const config = validarConfig({
+      HOST: '127.0.0.1', PORT: '0', TLS_MODE: 'off', SQLITE_DB_PATH: ':memory:', HEURISTICS_MODE: 'mock',
+      MASTER_KEY_VERSION: 'v1', MASTER_KEY_V1_HEX: 'ab'.repeat(32),
+      USER_REF_PEPPER: 'p'.repeat(43), DAILY_IP_PEPPER_SEED: 'q'.repeat(43),
+    });
+    const svc = await iniciar({ config, registro: silencio, senales: false });
+    try {
+      for (const [ruta, patron] of [
+        ['/', /Servicio Soberano de Autenticación/],
+        ['/instalar-certificado', /Autoridad Certificadora/],
+        ['/estado', /Disponibilidad en tiempo real/],
+      ]) {
+        const r = await pedir(svc.puerto, { ruta });
+        assert.equal(r.status, 200, ruta);
+        assert.match(r.cabeceras['content-type'], /text\/html/, ruta);
+        assert.match(r.cabeceras['content-security-policy'], /default-src 'self'/, ruta);
+        assert.match(r.cabeceras['permissions-policy'], /camera=\(\)/, ruta);
+        assert.match(r.texto, patron, ruta);
+      }
+      const css = await pedir(svc.puerto, { ruta: '/sitio/css/sitio.css' });
+      assert.equal(css.status, 200);
+      assert.match(css.cabeceras['content-type'], /text\/css/);
+    } finally {
+      await svc.detener('prueba');
+    }
+  });
 });

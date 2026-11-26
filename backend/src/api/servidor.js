@@ -260,6 +260,7 @@ export function crearServidor({
   certificadoCa = null,
   registro = console,
   estaticos = [],
+  sitioPublico = null,
   redirigirRaiz = '/app/',
   ahora = () => Date.now(),
   opciones = {},
@@ -467,6 +468,46 @@ export function crearServidor({
   // ---------------------------------------------------------------- estáticos
 
   const montajes = estaticos.map((e) => ({ prefijo: e.prefijo.replace(/\/$/, ''), carpeta: resolve(e.carpeta) }));
+  const carpetaSitio = sitioPublico ? resolve(sitioPublico) : null;
+  const PAGINAS_SITIO = Object.freeze({
+    '/': 'index.html',
+    '/instalar-certificado': 'instalar-certificado.html',
+    '/estado': 'estado.html',
+  });
+
+  async function servirArchivoDesde(req, res, carpetaRaiz, archivoRel, pathname, estado) {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      enviar(req, res, estado, { ...respuestaError(405), cabeceras: { Allow: 'GET, HEAD' } });
+      return true;
+    }
+    const noEncontrado = () => enviar(req, res, estado, respuestaError(404));
+    try {
+      const raiz = await realpath(carpetaRaiz);
+      const ruta = join(raiz, archivoRel);
+      const info = await stat(ruta);
+      const real = await realpath(ruta);
+      if (!info.isFile() || (real !== raiz && !real.startsWith(raiz + sep))) throw new Error();
+      res.setHeader('Content-Security-Policy', CSP_ESTATICOS);
+      res.setHeader('Permissions-Policy', politicaPermisosPara(pathname));
+      res.setHeader('Cache-Control', 'no-cache');
+      res.removeHeader('Pragma');
+      res.setHeader('Content-Type', TIPOS_MIME[extname(real).toLowerCase()] ?? 'application/octet-stream');
+      res.setHeader('Content-Length', info.size);
+      res.setHeader('Last-Modified', info.mtime.toUTCString());
+      estado.status = 200;
+      res.writeHead(200);
+      if (req.method === 'HEAD') {
+        res.end();
+        return true;
+      }
+      const flujo = createReadStream(real);
+      flujo.on('error', () => res.destroy());
+      flujo.pipe(res);
+    } catch {
+      noEncontrado();
+    }
+    return true;
+  }
 
   /** @returns {Promise<boolean>} true si respondió */
   async function servirEstatico(req, res, pathname, estado) {
@@ -651,7 +692,12 @@ export function crearServidor({
       return;
     }
 
-    // 3. Raíz y estáticos.
+    // 3. Raíz, páginas públicas y estáticos.
+    if (carpetaSitio && Object.hasOwn(PAGINAS_SITIO, pathname)) {
+      estado.plantilla = pathname;
+      await servirArchivoDesde(req, res, carpetaSitio, PAGINAS_SITIO[pathname], pathname, estado);
+      return;
+    }
     if (pathname === '/' && redirigirRaiz && (req.method === 'GET' || req.method === 'HEAD')) {
       estado.plantilla = '/';
       enviarRedireccion(req, res, estado, redirigirRaiz, 302);
