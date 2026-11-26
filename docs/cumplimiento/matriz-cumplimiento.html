@@ -44,7 +44,7 @@
 <body>
 
 <h1>Matriz de cumplimiento</h1>
-<div class="sub">Requisito por requisito de los documentos oficiales del Reto Grupal 3, con la evidencia trazable en el repositorio</div>
+<div class="sub">Requisito por requisito de los documentos oficiales del Reto Grupal 1, con la evidencia trazable en el repositorio</div>
 <div class="meta">Equipo PSM-Hackaton · Servicio Soberano de Autenticación Multifactorial basado en Tiempo (TOTP) · 26 de noviembre de 2026 · Repositorio: PSM-Hackaton/servicio-soberano-autenticacion-totp</div>
 
 <div class="box"><b>Cómo leer esta matriz.</b> Cada fila cita <b>textualmente</b> un requisito de
@@ -139,7 +139,7 @@ del repositorio; <code>…/</code> abrevia la carpeta del módulo anterior en la
 <table class="larga">
   <tr><th style="width:22%">Requisito (cita textual)</th><th style="width:31%">Cómo se cumple</th><th style="width:22%">Código</th><th style="width:17%">Prueba</th><th style="width:8%">Estado</th></tr>
   <tr><td class="req">«APIs y SDKs: Endpoints claros para integrar el factor TOTP en aplicaciones institucionales críticas como factor obligatorio adicional.»</td>
-    <td>API v1 + SDK sin dependencias (tiempo de espera, reintento idempotente, errores tipados, validación offline, falla cerrado) + servicio falso para integradores + guías <code>docs/api/README.md</code> y <code>sdk/INTEGRACION_RETO1.md</code>; apps "Portal de Trámites" y "Reto 1" creadas por la semilla.</td>
+    <td>API v1 + SDK sin dependencias (tiempo de espera, reintento idempotente, errores tipados, validación offline, falla cerrado) + servicio falso para integradores + guías <code>docs/api/README.md</code> y <code>sdk/INTEGRACION_RETO3.md</code>; apps "Portal de Trámites" y "Agente Evaluador (Reto 3)" creadas por la semilla.</td>
     <td><code>sdk/src/cliente.js</code>, <code>…/local.js</code>, <code>sdk/testing/servicio-falso.js</code>, <code>docs/api/README.md</code></td>
     <td><code>sdk/tests/sdk.test.js</code> (23), <code>portal.test.js</code> (12)</td><td><span class="st ok">CUMPLE</span></td></tr>
   <tr><td class="req">«Aprovisionamiento y UX: Flujo claro de registro, generación/lectura segura de códigos QR y verificación ágil en sistemas de trámites o datos sensibles.»</td>
@@ -220,7 +220,7 @@ del repositorio; <code>…/</code> abrevia la carpeta del módulo anterior en la
   <tr><td>«3. Uso e Integración de Inteligencia Artificial» · 3 ítems · <b>10 %</b> · 10 pts</td>
     <td>Detector de anomalías local con Isolation Forest programado desde cero (sin librerías ni servicios externos), reglas explicables y respuesta adaptativa por app; latencia de inferencia p95 &lt; 15 ms (prueba); demostración en vivo con spraying (riesgo 100, razones legibles) y panel «Detector de anomalías» de la consola.</td><td><span class="st ok">LISTO</span></td></tr>
   <tr><td>«4. Impacto y Viabilidad» · 3 ítems · <b>15 %</b> · 15 pts</td>
-    <td>Cero costo de licencias y cero dependencia extranjera; despliegue con <code>systemd</code> sin Internet (<code>deploy/README.md</code>); SDK y guía para integrar sistemas existentes (incluido el Reto 1); análisis de escalabilidad en <code>docs/escalabilidad/</code>; licencia AGPL-3.0. Pendiente: probar el despliegue en un servidor institucional real.</td><td><span class="st par">PARCIAL</span></td></tr>
+    <td>Cero costo de licencias y cero dependencia extranjera; despliegue con <code>systemd</code> sin Internet (<code>deploy/README.md</code>); SDK y guía para integrar sistemas existentes (incluido el Reto 3); análisis de escalabilidad en <code>docs/escalabilidad/</code>; licencia AGPL-3.0. Pendiente: probar el despliegue en un servidor institucional real.</td><td><span class="st par">PARCIAL</span></td></tr>
   <tr><td>«5. Innovación y Creatividad» · 3 ítems · <b>10 %</b> · 10 pts</td>
     <td>Todo propio: TLS, enrutador, QR con Reed-Solomon, JWT, Isolation Forest; app con SHA-512 y 8 dígitos; auditoría encadenada; pepper diario; proxy de caos propio; validación offline del JWT con JWKS en caché.</td><td><span class="st ok">LISTO</span></td></tr>
   <tr><td>«6. Diseño y Experiencia de Usuario (UX/UI)» · 4 ítems · <b>15 %</b> · 15 pts</td>

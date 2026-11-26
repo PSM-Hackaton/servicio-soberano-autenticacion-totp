@@ -17,7 +17,7 @@
 - **Base de datos:** SQLite única (`contracts/schema.sqlite.sql` / `backend/migrations/001_esquema.sql`). PostgreSQL y Docker quedan fuera.
 - **TLS y Despliegue:** Node HTTPS directo con TLS 1.3 (`TLS_MODE=node`, certificados vía `openssl` o CA institucional) + unidad `systemd` endurecida en `deploy/servicio-totp.service`.
 - **Frontends (`authenticator-app/`, `admin-console/`, `demo-portal-tramites/`):** HTML + CSS + JavaScript propios, sin React, Vite ni CDNs. El propio servidor backend sirve la PWA en `/app/` y la consola administrativa en `/consola/`.
-- **Integración con Reto 1:** `backend/scripts/semilla.js` registra automáticamente la app `Reto 1`, integrable con `sdk/src/index.js` (ver `sdk/INTEGRACION_RETO1.md`).
+- **Integración con Reto 3:** `backend/scripts/semilla.js` registra automáticamente la app `Agente Evaluador (Reto 3)`, integrable con `sdk/src/index.js` (ver `sdk/INTEGRACION_RETO3.md`).
 
 ### ADR-003: Controles Criptográficos, de Integridad y Resiliencia
 - **AES-256-GCM con AAD:** `AAD = enrollment_id + ":" + key_version` + script `rotar-llave-maestra.js`.
@@ -40,10 +40,10 @@
 
 ---
 
-## 2. Flujo de Integración (Portal de Trámites & Reto 1)
+## 2. Flujo de Integración (Portal de Trámites & Reto 3)
 
 ```text
-[App Integradora: Portal Trámites / Reto 1]
+[App Integradora: Portal Trámites / Reto 3]
     |  (Auth: X-Client-Id + X-Client-Secret sobre TLS 1.3 + Idempotency-Key en verify)
     |
     +--> 1. POST /api/v1/enrollments              --> enrollment_id + QR SVG + otpauth:// (pendiente 10 min)

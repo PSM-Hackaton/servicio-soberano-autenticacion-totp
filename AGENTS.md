@@ -14,7 +14,7 @@
   - **Lenguaje:** JavaScript moderno (ESM, `"type": "module"`) con comentarios JSDoc.
   - **Base de datos oficial única:** **SQLite WAL nativa** (`contracts/schema.sqlite.sql` y `backend/migrations/001_esquema.sql`). PostgreSQL y Docker quedan fuera del alcance del hackatón.
   - **Frontends (`authenticator-app/`, `admin-console/`, `demo-portal-tramites/`):** HTML + CSS + JavaScript propios servidos localmente sin React, Vite ni CDNs. El backend sirve directamente `/app/` (PWA) y `/consola/` (Consola Admin).
-- **Integración con Reto 1:** `npm run seed` registra la app cliente `Reto 1`, que se integra mediante `sdk/` siguiendo `sdk/INTEGRACION_RETO1.md`.
+- **Integración con Reto 3:** `npm run seed` registra la app cliente `Agente Evaluador (Reto 3)`, que se integra mediante `sdk/` siguiendo `sdk/INTEGRACION_RETO3.md`.
 - **Soberanía y costo operativo:** **\$0 en APIs externas**, **100 % local / sin llamadas a Internet**, cero librerías OTP externas.
 
 ---
@@ -50,7 +50,7 @@ servicio-soberano-autenticacion-totp/
 ├── backend/                         # API HTTPS TLS 1.3 + motor TOTP + vault + tokens + QR + SQLite + seguridad + auditoría + IA + scripts/
 ├── authenticator-app/               # PWA offline propia (servida en /app/) + tests/
 ├── admin-console/                   # Consola administrativa RBAC propia (servida en /consola/)
-├── sdk/                             # SDK Node 22 nativo (src/, testing/, tests/, INTEGRACION_RETO1.md)
+├── sdk/                             # SDK Node 22 nativo (src/, testing/, tests/, INTEGRACION_RETO3.md)
 ├── demo-portal-tramites/            # Portal institucional demo con step-up MFA + tests/
 ├── attack-lab/                      # 10 escenarios (ataques, DAST propio y caos) + proxy-caos.js + tests/
 ├── deploy/                          # servicio-totp.service (systemd), verificar-despliegue.js y README.md

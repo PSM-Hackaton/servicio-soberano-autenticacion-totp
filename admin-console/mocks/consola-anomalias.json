@@ -15,12 +15,12 @@
   "alerts": [
     {
       "id": "alrt-008",
-      "externalUserId": "usr-reto1-evaluador-01",
+      "externalUserId": "usr-reto3-evaluador-01",
       "ipHash": "hmac_9b34f1e2c8a7",
       "riskScore": 91.5,
       "level": "CRITICAL",
       "action": "BLOCK",
-      "app": "reto1-evaluador",
+      "app": "reto3-evaluador",
       "inferenceMs": 2.3,
       "reasons": [
         "Ráfaga de 14 intentos fallidos sobre la misma cuenta en 15 minutos",
@@ -111,7 +111,7 @@
       "riskScore": 79.3,
       "level": "HIGH",
       "action": "BLOCK",
-      "app": "reto1-evaluador",
+      "app": "reto3-evaluador",
       "inferenceMs": 1.8,
       "reasons": [
         "Ráfaga de 9 intentos fallidos sobre la misma cuenta en 15 minutos",

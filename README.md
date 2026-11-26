@@ -1,6 +1,6 @@
 # Servicio Soberano de Autenticación Multifactorial basado en Tiempo (TOTP)
 
-> **Hackatón Venezuela INNOVA 2026** · **Reto Grupal 3** (con puente SDK hacia el Reto 1) · **Equipo PSM-Hackaton**
+> **Hackatón Venezuela INNOVA 2026** · **Reto Grupal 1** (con puente SDK hacia el Reto 3) · **Equipo PSM-Hackaton**
 
 ---
 
@@ -23,8 +23,8 @@ servicio deben seguir siendo abiertas.
 - Giovani Marcano — C.I. 31.920.153 — Seguridad, pruebas y laboratorio de ataques
 - Enggel Rodríguez — C.I. 32.821.429 — Inteligencia artificial local, documentación y presentación
 
-El equipo del **Reto 1** consume el servicio como aplicación cliente (`Reto 1`) mediante el SDK
-([`sdk/INTEGRACION_RETO1.md`](sdk/INTEGRACION_RETO1.md)).
+El equipo del **Reto 3** consume el servicio como aplicación cliente (`Agente Evaluador (Reto 3)`) mediante el SDK
+([`sdk/INTEGRACION_RETO3.md`](sdk/INTEGRACION_RETO3.md)).
 
 ---
 
@@ -44,7 +44,7 @@ llamadas a servicios de terceros.
 
 ```text
  Ciudadano                     Sistema institucional                 Servicio Soberano TOTP (este repositorio)
- ─────────                     (Portal de Trámites / Reto 1)          ─────────────────────────────────────────
+ ─────────                     (Portal de Trámites / Reto 3)          ─────────────────────────────────────────
  usuario + contraseña  ──────► 1.er factor propio
                                POST /api/v1/enrollments  ──────────► semilla CSPRNG → AES-256-GCM → SQLite
  QR / enlace / clave   ◄────── QR + otpauth:// (SHA-256/512)          (user_ref solo como HMAC-SHA256)
@@ -70,7 +70,7 @@ llamadas a servicios de terceros.
 backend/                API HTTPS, motor TOTP, bóveda, JWT, QR, seguridad, detector, auditoría (+ scripts/ y migrations/)
 authenticator-app/      App autenticadora PWA (servida en /app/)
 admin-console/          Consola administrativa (servida en /consola/)
-sdk/                    SDK para integradores + servicio falso de pruebas + guía Reto 1
+sdk/                    SDK para integradores + servicio falso de pruebas + guía Reto 3
 demo-portal-tramites/   Portal de Trámites de demostración (puerto 8444)
 attack-lab/             Ataques simulados y pruebas de caos
 contracts/              OpenAPI 3.1, esquema SQLite y respuestas reales de ejemplo
@@ -85,7 +85,7 @@ docs/                   Reto, análisis, API, SBOM, cumplimiento, manual, presen
 | [`docs/analisis/analisis-tecnico.pdf`](docs/analisis/analisis-tecnico.pdf) | Análisis técnico: soberanía, TOTP, arquitectura, modelo de amenazas, API, datos, IA y UX. |
 | [`docs/cumplimiento/matriz-cumplimiento.pdf`](docs/cumplimiento/matriz-cumplimiento.pdf) | Cada requisito de los Términos de Referencia y del enunciado, y cada criterio de evaluación con su peso, con el código y la prueba que lo demuestran. |
 | [`docs/api/README.md`](docs/api/README.md) · [PDF](docs/api/guia-integracion.pdf) | Guía de integración HTTP para sistemas institucionales, con ejemplos reales de petición y respuesta. |
-| [`sdk/INTEGRACION_RETO1.md`](sdk/INTEGRACION_RETO1.md) · [`sdk/README.md`](sdk/README.md) | Integración con el SDK (equipo del Reto 1) y referencia del SDK. |
+| [`sdk/INTEGRACION_RETO3.md`](sdk/INTEGRACION_RETO3.md) · [`sdk/README.md`](sdk/README.md) | Integración con el SDK (equipo del Reto 3) y referencia del SDK. |
 | [`docs/manual/manual-usuario.pdf`](docs/manual/manual-usuario.pdf) | Manual del ciudadano (app y portal) y del administrador (consola). |
 | [`docs/presentacion/guion-demo.pdf`](docs/presentacion/guion-demo.pdf) | Guion de la demostración ante el jurado (5–7 min) con plan B. |
 | [`docs/escalabilidad/`](docs/escalabilidad/) | Escalabilidad y viabilidad del despliegue institucional. |
@@ -233,12 +233,12 @@ No hay nada que instalar: **cero dependencias npm** (no ejecute `npm install`).
 cd backend
 npm run env      # crea backend/.env con llave maestra AES-256 y peppers del CSPRNG (permisos 600)
 npm run certs    # crea la CA local y el certificado TLS de localhost en backend/certs/
-npm run seed     # apps "Portal de Trámites" y "Reto 1" + administrador inicial
+npm run seed     # apps "Portal de Trámites" y "Agente Evaluador (Reto 3)" + administrador inicial
 ```
 
 `npm run seed` imprime **una sola vez** (cópielo en ese momento):
 
-- `client_id` (`app_…`) y `client_secret` de **"Portal de Trámites"** y **"Reto 1"**;
+- `client_id` (`app_…`) y `client_secret` de **"Portal de Trámites"** y **"Agente Evaluador (Reto 3)"**;
 - usuario `admin_seguridad`, contraseña aleatoria, rol `Administrador`, URI TOTP del administrador, ruta del QR (`backend/data/admin-qr.svg`) y 10 códigos de recuperación;
 - la nota «el código del paso actual ya se consumió al activar; espere al siguiente para iniciar sesión».
 
@@ -324,7 +324,7 @@ Desde la raíz, con el servicio en marcha:
 
 ```bash
 export ATTACK_CLIENT_ID=app_...   ATTACK_CLIENT_SECRET=...     # "Portal de Trámites"
-export ATTACK_CLIENT_ID_2=app_... ATTACK_CLIENT_SECRET_2=...   # "Reto 1" (prueba de otra audiencia)
+export ATTACK_CLIENT_ID_2=app_... ATTACK_CLIENT_SECRET_2=...   # "Agente Evaluador (Reto 3)" (prueba de otra audiencia)
 node attack-lab/ejecutar-todo.js --comando-arranque "node src/main.js" --pid-backend <PID del backend>
 #   → 11/11 escenarios OK · 116/116 verificaciones · 0 hallazgos (incluye el reinicio: los bloqueos
 #     sobreviven); informe HTML y JSON en attack-lab/resultados/

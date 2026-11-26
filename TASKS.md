@@ -34,7 +34,7 @@
   - [ ] Alta por **cámara**: bloqueada en `/app/` por `Permissions-Policy: camera=()` (`backend/src/security/cabeceras.js`). Corrección propuesta: `camera=(self)` solo para `/app/`.
 - [x] `[B3 · #12]` `admin-console/`: consola RBAC propia en `/consola/`, validada contra el backend real.
   - [ ] Pantallas para registrar apps, crear cuentas Operador/Auditor y revocar enrolamientos (la API de consola no expone las dos últimas).
-- [x] `[B4 · #13]` `sdk/` y `demo-portal-tramites/`: SDK sin dependencias, guía `sdk/INTEGRACION_RETO1.md` y Portal con *step-up* — `sdk.test.js` (23), `portal.test.js` (12); flujo real del portal comprobado de punta a punta.
+- [x] `[B4 · #13]` `sdk/` y `demo-portal-tramites/`: SDK sin dependencias, guía `sdk/INTEGRACION_RETO3.md` y Portal con *step-up* — `sdk.test.js` (23), `portal.test.js` (12); flujo real del portal comprobado de punta a punta.
 - [x] `[B5 · #14]` `attack-lab/`: 9 escenarios de ataque y caos — `npm test` (25); `ejecutar-todo.js --rapido` 8/8 y 85/85, `caos/reinicio.js` 4/4 (0,33 s).
 - [x] `[B6 · #15]` `README.md` final con los 6 apartados oficiales, participantes y roles, instalación probada paso a paso; SBOM CycloneDX 1.5 regenerado.
 
@@ -44,7 +44,7 @@
 - [x] `README.md` — 6 apartados del instructivo de GitLab en orden; variables de entorno reales del backend y del portal; pasos 1–11 ejecutados en una copia limpia.
 - [x] `LICENSE` — texto oficial completo de la GNU AGPL-3.0 con cabecera «Copyright (C) 2026 Equipo PSM-Hackaton» (`AGPL-3.0-or-later`).
 - [x] `docs/sbom/` — `generar-sbom.js` (propio, sin dependencias, rutas relativas): revisa los 4 `package.json` (0 dependencias), escanea las importaciones (0 externas, solo `node:*`), hashes SHA-256 por componente y por archivo; `sbom.cdx.json` (CycloneDX 1.5), `hashes-sha256.txt`, `README.md`.
-- [x] `docs/api/README.md` — guía HTTP de integración con peticiones y respuestas reales (`curl --cacert`); enlaza `sdk/INTEGRACION_RETO1.md`.
+- [x] `docs/api/README.md` — guía HTTP de integración con peticiones y respuestas reales (`curl --cacert`); enlaza `sdk/INTEGRACION_RETO3.md`.
 - [x] `docs/cumplimiento/matriz-cumplimiento.{html,pdf}` — cada requisito citado de los TdR y del enunciado, y cada criterio con su peso, con código y prueba.
 - [x] `docs/manual/manual-usuario.{html,pdf}` — ciudadano (app y portal) y administrador (consola).
 - [x] `docs/presentacion/guion-demo.{html,pdf}` — guion de 5–7 min con plan B (consolida `docs/GUION_DEMO.md`, que ahora apunta al PDF).
@@ -62,7 +62,7 @@
 - [x] `[C6 · #24]` Escaneo dinámico OWASP propio (`attack-lab/escenarios/dast.js` + `dast.test.js`): 9/9 verificaciones OK en vivo contra producción TLS 1.3 (`docs/evidencias/dast-informe-2026-11-26.{html,json}`).
 - [x] `[C7 · #25]` Prueba de despliegue institucional `systemd` (`deploy/verificar-despliegue.js` + `docs/evidencias/prueba-despliegue-systemd.md`): 10/10 controles OK (`systemd-analyze verify`, `security: 3.0 OK`, TLS 1.3, `VACUUM INTO`, `SIGTERM` 4 ms).
 - [x] `[C8 · #26]` Limpieza final: `SYSTEM_GRAPH.md` sin rastros de herramientas/modelos, `AGENTS.md` actualizado, SBOM CycloneDX 1.5 regenerado y todas las pruebas en verde.
-- [x] `[D1 · #27]` `contracts/openapi.yaml` sin claves duplicadas ni `$ref` rotas; documentos raíz sin `USER_PEPPER`/`DAILY_IP_PEPPER`/`Hexagonal`; `sdk/INTEGRACION_RETO1.md` con `clientIp`.
+- [x] `[D1 · #27]` `contracts/openapi.yaml` sin claves duplicadas ni `$ref` rotas; documentos raíz sin `USER_PEPPER`/`DAILY_IP_PEPPER`/`Hexagonal`; `sdk/INTEGRACION_RETO3.md` con `clientIp`.
 - [x] `[D3 · #29]` Prueba automatizada de formato Key URI en `authenticator-app/tests/otpauth.test.mjs` + matriz `docs/evidencias/compatibilidad-clientes-totp.md`.
 - [x] `[D4 · #30]` `README.md` conforme a los 6 apartados del instructivo sin cédulas y con cifras/cobertura verificadas.
 - [x] `[D5 · #31]` CI sin dependencias (`scripts/verificar-todo.js`, `.gitlab-ci.yml`, `.github/workflows/pruebas.yml`) + cobertura real en `docs/evidencias/cobertura-2026-11-26.txt` (287/287 pruebas, backend 98,24 %).
@@ -75,5 +75,5 @@
 
 ## FASE 3 — INTEGRACIÓN Y ENTREGA (Issue #16 C1)
 - [x] `[C1 · #16]` Integración de `origin/diego` + `laya` verificada con todas las suites en verde y prueba E2E real contra el servidor HTTPS TLS 1.3.
-- [ ] `[C1 · #16]` Pull Request `laya` → `staging` → `main` y ensayo de demo con el equipo del Reto 1.
+- [ ] `[C1 · #16]` Pull Request `laya` → `staging` → `main` y ensayo de demo con el equipo del Reto 3.
 - [ ] `[LEAD]` Solo bajo orden explícita `/push gitlab final`: sincronizar la entrega final en GitLab (`avance` y `terminado`).

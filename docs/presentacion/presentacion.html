@@ -113,7 +113,7 @@
     <circle cx="75" cy="85" r="5" fill="#0A1A4F"/><rect x="73" y="86" width="4" height="11" fill="#0A1A4F"/>
   </svg>
   <div class="contenido">
-    <div class="sobre">Reto Grupal 3 · Hackatón 2026</div>
+    <div class="sobre">Reto Grupal 1 · Hackatón 2026</div>
     <h1>Servicio Soberano de Autenticación Multifactorial basado en Tiempo</h1>
     <p class="sub">Segundo factor TOTP propio, auditable y autoejecutable: semillas, validación y registros bajo control institucional.</p>
   </div>
@@ -192,7 +192,7 @@
     <!-- Sistema institucional -->
     <rect class="caja" x="0" y="250" width="230" height="170" rx="12"/>
     <text class="t" x="18" y="282">Sistema institucional</text>
-    <text class="s" x="18" y="306">Portal de Trámites · Reto 1</text>
+    <text class="s" x="18" y="306">Portal de Trámites · Reto 3</text>
     <text class="s" x="18" y="334">SDK sin dependencias:</text>
     <text class="s" x="18" y="355">JWKS en caché, reintento</text>
     <text class="s" x="18" y="376">idempotente, falla cerrado</text>
@@ -272,7 +272,7 @@
   </svg>
   <div class="pie"><span>Servicio Soberano TOTP · Equipo PSM-Hackaton</span><b>4</b></div>
 </section>
-<aside class="notas"><b>Notas (45 s).</b> Recorrer de izquierda a derecha: el ciudadano genera el código en su app; el sistema institucional (nuestro Portal de Trámites o el Reto 1) llama a la API; dentro del servicio, cada verificación pasa por los pasos 1 a 5 y termina en un JWT firmado. Todo vive en un proceso y un archivo SQLite; la llave maestra está fuera de la base. Fuente: README §3, ARCHITECTURE.md (ADR-001 y ADR-002).</aside>
+<aside class="notas"><b>Notas (45 s).</b> Recorrer de izquierda a derecha: el ciudadano genera el código en su app; el sistema institucional (nuestro Portal de Trámites o el Reto 3) llama a la API; dentro del servicio, cada verificación pasa por los pasos 1 a 5 y termina en un JWT firmado. Todo vive en un proceso y un archivo SQLite; la llave maestra está fuera de la base. Fuente: README §3, ARCHITECTURE.md (ADR-001 y ADR-002).</aside>
 
 <!-- ============ 5. CÓMO FUNCIONA TOTP ============ -->
 <section class="diapo">
@@ -590,7 +590,7 @@
   </div>
   <div class="pie"><span>Repositorio: servicio-soberano-autenticacion-totp · Producción: deploy/README.md (systemd, CA y NTP institucionales)</span><b>14</b></div>
 </section>
-<aside class="notas"><b>Notas (30 s).</b> Cerrar con la frase: «Cualquier sistema se integra con nuestro SDK o con cuatro llamadas HTTPS; lo hicimos con el Portal de Trámites y lo ofrecemos al equipo del Reto 1». Fuentes de las cifras: README §4 y §6 (256 pruebas, instalación), informe del laboratorio (116/116), docs/sbom (0 dependencias). Agradecer y abrir preguntas.</aside>
+<aside class="notas"><b>Notas (30 s).</b> Cerrar con la frase: «Cualquier sistema se integra con nuestro SDK o con cuatro llamadas HTTPS; lo hicimos con el Portal de Trámites y lo ofrecemos al equipo del Reto 3». Fuentes de las cifras: README §4 y §6 (256 pruebas, instalación), informe del laboratorio (116/116), docs/sbom (0 dependencias). Agradecer y abrir preguntas.</aside>
 
 </body>
 </html>

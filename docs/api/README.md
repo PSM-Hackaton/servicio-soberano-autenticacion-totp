@@ -6,7 +6,7 @@ sensibles, intranets) a nivel HTTP, desde cualquier lenguaje. Quien use Node.js 
 
 - Contrato completo y fuente de verdad: [`contracts/openapi.yaml`](../../contracts/openapi.yaml) (OpenAPI 3.1).
 - Respuestas de ejemplo reales: [`contracts/mocks/`](../../contracts/mocks/).
-- SDK JavaScript sin dependencias: [`sdk/README.md`](../../sdk/README.md) y guía del Reto 1: [`sdk/INTEGRACION_RETO1.md`](../../sdk/INTEGRACION_RETO1.md).
+- SDK JavaScript sin dependencias: [`sdk/README.md`](../../sdk/README.md) y guía del Reto 3: [`sdk/INTEGRACION_RETO3.md`](../../sdk/INTEGRACION_RETO3.md).
 - Integración de referencia completa: [`demo-portal-tramites/`](../../demo-portal-tramites/).
 
 Todos los ejemplos de esta guía se obtuvieron el 26-11-2026 contra el servicio real en
@@ -20,7 +20,7 @@ Todos los ejemplos de esta guía se obtuvieron el 26-11-2026 contra el servicio 
 | --- | --- |
 | URL del servicio | `https://<servidor>:8443` (en desarrollo, `https://localhost:8443`). Solo HTTPS con TLS 1.3. |
 | CA que firmó el certificado | En desarrollo, `backend/certs/ca.crt` (`npm run certs`); en producción, la CA institucional. |
-| `client_id` y `client_secret` de su aplicación | `npm run seed` crea las apps **"Portal de Trámites"** y **"Reto 1"** y muestra sus secretos **una sola vez**. Una app nueva se registra con `POST /admin/api/apps` (sesión de administrador). |
+| `client_id` y `client_secret` de su aplicación | `npm run seed` crea las apps **"Portal de Trámites"** y **"Agente Evaluador (Reto 3)"** y muestra sus secretos **una sola vez**. Una app nueva se registra con `POST /admin/api/apps` (sesión de administrador). |
 | Emisor esperado del JWT (`iss`) | El valor de `JWT_ISSUER` del servicio (por defecto `https://totp.soberano.local`). |
 | Audiencia del JWT (`aud`) | Su propio `client_id`. |
 
@@ -212,7 +212,7 @@ autenticador nuevo.
 El SDK envuelve estas mismas llamadas con tiempo de espera, reintento idempotente, errores tipados y
 validación local del JWT. No se repite aquí:
 
-- **Guía paso a paso para el equipo del Reto 1:** [`sdk/INTEGRACION_RETO1.md`](../../sdk/INTEGRACION_RETO1.md) (credenciales de la app "Reto 1", inicialización, flujo de 4 llamadas y pruebas con el servicio falso).
+- **Guía paso a paso para el equipo del Reto 3:** [`sdk/INTEGRACION_RETO3.md`](../../sdk/INTEGRACION_RETO3.md) (credenciales de la app "Agente Evaluador (Reto 3)", inicialización, flujo de 4 llamadas y pruebas con el servicio falso).
 - **Referencia de métodos y garantías:** [`sdk/README.md`](../../sdk/README.md).
 - **Ejemplo completo en producción simulada:** [`demo-portal-tramites/src/portal.js`](../../demo-portal-tramites/src/portal.js).
 
@@ -230,7 +230,7 @@ El SDK es opcional: cualquier lenguaje con cliente HTTPS y Ed25519 puede integra
 
 ## 5. Buenas prácticas para cualquier integrador
 
-- Use credenciales propias de su app (el `aud` del JWT debe ser su `client_id`); el equipo del Reto 1 usa la app **"Reto 1"** que crea `npm run seed`.
+- Use credenciales propias de su app (el `aud` del JWT debe ser su `client_id`); el equipo del Reto 3 usa la app **"Agente Evaluador (Reto 3)"** que crea `npm run seed`.
 - Pida el segundo factor después de su primer factor y antes de crear la sesión; en operaciones sensibles, vuelva a pedir un código (*step-up*).
 - Nunca deje pasar a un usuario porque el servicio no respondió (**falla cerrado**) y muestre mensajes genéricos.
 - La política de su app (algoritmo, dígitos, periodo, ventana, intentos, umbral y modo del detector) se ajusta en `/consola/` → Aplicaciones.

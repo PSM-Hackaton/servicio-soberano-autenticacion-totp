@@ -316,9 +316,9 @@ if [ "$DATOS_DEMO" = 1 ]; then
   if [ -f "$DATOS/.datos-demo-cargados" ]; then
     ok "Ya se cargaron en esta instalación ($(cat "$DATOS/.datos-demo-cargados")): no se repiten"
   else
-    ID_DEMO=$(credencial_app "Reto 1" client_id)
-    SECRETO_DEMO=$(credencial_app "Reto 1" client_secret)
-    case "$SECRETO_DEMO" in ''|'(ya') aviso "No hay client_secret de «Reto 1» en $CREDENCIALES: se omiten los datos de demostración." ;;
+    ID_DEMO=$(credencial_app "Agente Evaluador (Reto 3)" client_id)
+    SECRETO_DEMO=$(credencial_app "Agente Evaluador (Reto 3)" client_secret)
+    case "$SECRETO_DEMO" in ''|'(ya') aviso "No hay client_secret de «Agente Evaluador (Reto 3)» en $CREDENCIALES: se omiten los datos de demostración." ;;
       *)
         info "Enrolando ciudadanos ficticios y simulando tráfico y ataques (≈ 40 s)…"
         "$NODE" --disable-warning=ExperimentalWarning "$PREFIJO/backend/scripts/datos-demo.js" \

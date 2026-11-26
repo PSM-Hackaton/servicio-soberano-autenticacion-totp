@@ -35,7 +35,7 @@
       "ts": "2026-11-26T07:29:00.111Z",
       "actor": "admin",
       "accion": "app.crear",
-      "objetivo": "reto1-evaluador",
+      "objetivo": "reto3-evaluador",
       "detalle": "{\"algoritmo\":\"SHA512\",\"digitos\":8}",
       "prev_hash": "c7e090c888674acb5b924ead647d48395c3a5a4efd6177b087c0c155a420a561",
       "hash": "c6dd19af2aa6be374b87fd8bdf28621e1314d3143253248170edd1c40eb087d5"
@@ -63,7 +63,7 @@
     {
       "id": 7,
       "ts": "2026-11-26T07:47:41.900Z",
-      "actor": "reto1-evaluador",
+      "actor": "reto3-evaluador",
       "accion": "enrolamiento.crear",
       "objetivo": "886a592a-8ee3-431e-ad49-3afb843c37c2",
       "detalle": "{\"estado\":\"pendiente\"}",
@@ -73,7 +73,7 @@
     {
       "id": 8,
       "ts": "2026-11-26T08:02:40.131Z",
-      "actor": "reto1-evaluador",
+      "actor": "reto3-evaluador",
       "accion": "enrolamiento.activar",
       "objetivo": "8975b4aa-6356-450c-a0ec-1833e9d62445",
       "detalle": "{\"codigos_recuperacion\":10}",
@@ -233,7 +233,7 @@
     {
       "id": 24,
       "ts": "2026-11-26T10:16:16.840Z",
-      "actor": "reto1-evaluador",
+      "actor": "reto3-evaluador",
       "accion": "enrolamiento.crear",
       "objetivo": "4d624389-ff24-482f-ad2e-cebce339ba6b",
       "detalle": "{\"estado\":\"pendiente\"}",
@@ -313,7 +313,7 @@
     {
       "id": 32,
       "ts": "2026-11-26T11:30:16.474Z",
-      "actor": "reto1-evaluador",
+      "actor": "reto3-evaluador",
       "accion": "enrolamiento.activar",
       "objetivo": "d3803304-aacf-4189-a906-b436aa409168",
       "detalle": "{\"codigos_recuperacion\":10}",
@@ -323,7 +323,7 @@
     {
       "id": 33,
       "ts": "2026-11-26T11:41:49.599Z",
-      "actor": "reto1-evaluador",
+      "actor": "reto3-evaluador",
       "accion": "enrolamiento.crear",
       "objetivo": "a03a2796-de93-4632-a945-cb8d1e441896",
       "detalle": "{\"estado\":\"pendiente\"}",
@@ -383,7 +383,7 @@
     {
       "id": 39,
       "ts": "2026-11-26T12:45:20.039Z",
-      "actor": "reto1-evaluador",
+      "actor": "reto3-evaluador",
       "accion": "enrolamiento.activar",
       "objetivo": "df865282-275a-42dd-a795-027fb94c0a1e",
       "detalle": "{\"codigos_recuperacion\":10}",
@@ -423,7 +423,7 @@
     {
       "id": 43,
       "ts": "2026-11-26T13:06:16.446Z",
-      "actor": "reto1-evaluador",
+      "actor": "reto3-evaluador",
       "accion": "enrolamiento.crear",
       "objetivo": "9daf39ab-632a-432a-a412-fbb7fb4c4e70",
       "detalle": "{\"estado\":\"pendiente\"}",
@@ -523,7 +523,7 @@
     {
       "id": 53,
       "ts": "2026-11-26T14:32:55.366Z",
-      "actor": "reto1-evaluador",
+      "actor": "reto3-evaluador",
       "accion": "enrolamiento.crear",
       "objetivo": "f87cdb06-1a56-4155-a310-7410c1e4ecea",
       "detalle": "{\"estado\":\"pendiente\"}",
@@ -543,7 +543,7 @@
     {
       "id": 55,
       "ts": "2026-11-26T14:48:26.612Z",
-      "actor": "reto1-evaluador",
+      "actor": "reto3-evaluador",
       "accion": "enrolamiento.activar",
       "objetivo": "554f6778-be95-42e1-a93e-97a07e1f9a2b",
       "detalle": "{\"codigos_recuperacion\":10}",
@@ -553,7 +553,7 @@
     {
       "id": 56,
       "ts": "2026-11-26T14:58:30.549Z",
-      "actor": "reto1-evaluador",
+      "actor": "reto3-evaluador",
       "accion": "enrolamiento.activar",
       "objetivo": "646bc162-4f75-4988-af58-67091883c1d4",
       "detalle": "{\"codigos_recuperacion\":10}",
@@ -573,7 +573,7 @@
     {
       "id": 58,
       "ts": "2026-11-26T15:05:16.117Z",
-      "actor": "reto1-evaluador",
+      "actor": "reto3-evaluador",
       "accion": "enrolamiento.crear",
       "objetivo": "9e181de9-db68-4049-ac72-c5052f160d09",
       "detalle": "{\"estado\":\"pendiente\"}",

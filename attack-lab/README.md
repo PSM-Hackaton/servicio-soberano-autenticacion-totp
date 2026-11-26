@@ -19,7 +19,7 @@ anomalías** reacciona a patrones de ataque. Cumple las secciones 5.5 a 5.7 de
 ```bash
 # 1. Backend (en otra terminal)
 cd backend && npm run env && npm run certs && npm run seed && npm start
-#    La semilla imprime client_id y client_secret de "Portal de Trámites" y "Reto 1" UNA sola vez.
+#    La semilla imprime client_id y client_secret de "Portal de Trámites" y "Agente Evaluador (Reto 3)" UNA sola vez.
 
 # 2. Credenciales de las apps de prueba (argumentos, variables o archivo)
 export ATTACK_CLIENT_ID=app_...            ATTACK_CLIENT_SECRET=...

@@ -58,7 +58,7 @@ El servicio **nunca se ejecuta desde el repositorio**: el instalador copia `back
    `localhost`, `127.0.0.1`, `::1`, el nombre del equipo, `<nombre>.local` y **todas las IP** de
    `hostname -I`. En ejecuciones posteriores solo vuelve a emitir el certificado del servidor, con la
    misma CA, si cambiaron las IP o caduca en menos de 30 días: los teléfonos no tienen que reinstalar la CA.
-6. Ejecuta la semilla (apps «Portal de Trámites» y «Reto 1», administrador inicial con TOTP) **una sola
+6. Ejecuta la semilla (apps «Portal de Trámites» y «Agente Evaluador (Reto 3)», administrador inicial con TOTP) **una sola
    vez** y guarda su salida en `credenciales.txt` (0600) sin imprimirla ni enviarla al diario.
 7. Configura el Portal de Trámites: `portal.env` (0600) con el `client_id`/`client_secret` de su app,
    `TOTP_BASE_URL=https://<IP>:8443`, la CA, HTTPS propio en 8444 con el mismo certificado y

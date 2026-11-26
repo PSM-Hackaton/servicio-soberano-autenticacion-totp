@@ -153,8 +153,8 @@ export async function verificarDespliegue({ guardarInformeDast = null } = {}) {
     });
     const qrAdminPath = join(REPO_ROOT, 'backend', 'data', 'admin-qr.svg');
     if (existsSync(qrAdminPath)) rmSync(qrAdminPath, { force: true });
-    const seedOk = /Portal de Trámites/i.test(seedOut) && /Reto 1/i.test(seedOut) && existsSync(dbPath);
-    registrar('Semilla inicial (Portal de Trámites, Reto 1 y admin)', seedOk, 'BD SQLite WAL inicializada con 8 tablas y apps semilla');
+    const seedOk = /Portal de Trámites/i.test(seedOut) && /Agente Evaluador \(Reto 3\)/i.test(seedOut) && existsSync(dbPath);
+    registrar('Semilla inicial (Portal de Trámites, Reto 3 y admin)', seedOk, 'BD SQLite WAL inicializada con 8 tablas y apps semilla');
 
     // 6. Arrancar el servidor real en modo NODE_ENV=production (deploy/README.md §7)
     const tArranque = Date.now();

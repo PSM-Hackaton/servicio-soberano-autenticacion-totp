@@ -73,7 +73,7 @@ historia, ningún push necesita forzarse y la rama más adelantada contiene todo
 | 5 `servidor` | Diego Landaeta | `diego` | Casos de uso, servidor HTTPS, arranque, scripts y resto de respuestas de ejemplo |
 | 6 `aplicaciones` | Diego Landaeta | `diego` | App autenticadora, consola, SDK, Portal de Trámites, guía de integración y manual |
 | 7 `laboratorio-despliegue` | Diego Landaeta | `diego` | Laboratorio de ataques y caos, su informe, despliegue como servicio y respaldos |
-| 8 `verificacion` | Juan Laya | `laya` | Escaneo dinámico (DAST), verificación del despliegue, sus evidencias, SBOM, guion de demo, guía del Reto 1 |
+| 8 `verificacion` | Juan Laya | `laya` | Escaneo dinámico (DAST), verificación del despliegue, sus evidencias, SBOM, guion de demo, guía del Reto 3 |
 | 9 `documentacion` | Diego Landaeta | `diego` | README de 6 apartados, licencia, matriz de cumplimiento, escalabilidad y presentación |
 
 El reparto sigue la autoría real (`git log --format=%an -- <ruta>`): cuando una parte mezcla autores, cada
