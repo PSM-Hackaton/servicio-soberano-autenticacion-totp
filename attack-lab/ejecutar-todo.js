@@ -19,6 +19,7 @@ import { escribirInforme, resumir } from './lib/informe.js';
 import replay from './escenarios/replay.js';
 import jwt from './escenarios/jwt.js';
 import entradas from './escenarios/entradas.js';
+import dast from './escenarios/dast.js';
 import fuerzaBruta from './escenarios/fuerza-bruta.js';
 import distribuida from './escenarios/fuerza-bruta-distribuida.js';
 import spraying from './escenarios/spraying.js';
@@ -27,7 +28,7 @@ import caos from './caos/escenario-caos.js';
 import reinicio from './caos/reinicio.js';
 
 /** Orden pensado para que los límites que activa un escenario no estropeen los siguientes. */
-export const ESCENARIOS = [replay, jwt, entradas, fuerzaBruta, distribuida, spraying, inundacion, caos, reinicio];
+export const ESCENARIOS = [replay, jwt, entradas, dast, fuerzaBruta, distribuida, spraying, inundacion, caos, reinicio];
 
 async function main() {
   const config = cargarConfig();
