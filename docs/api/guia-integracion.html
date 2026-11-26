@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Guía de integración — Servicio Soberano TOTP</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 18mm 16mm; }
+  :root { --ink:#1b1f24; --muted:#5b6470; --line:#d9dee4; --accent:#0b5c4a; --soft:#eef5f2; --warn:#8a4b00; --warnbg:#fff5e6; }
+  * { box-sizing: border-box; }
+  body { font-family: "Liberation Sans", "DejaVu Sans", Arial, sans-serif; color: var(--ink); font-size: 10.2pt; line-height: 1.45; margin: 0; }
+  h1 { font-size: 21pt; margin: 0 0 4px; color: var(--accent); letter-spacing: -0.3px; }
+  h2 { font-size: 13.5pt; margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 2px solid var(--accent); color: var(--accent); page-break-after: avoid; }
+  h3 { font-size: 11pt; margin: 14px 0 6px; page-break-after: avoid; }
+  p { margin: 0 0 8px; }
+  ul, ol { margin: 0 0 8px; padding-left: 18px; }
+  li { margin-bottom: 3px; }
+  code, .mono { font-family: "DejaVu Sans Mono", "Liberation Mono", monospace; font-size: 8.8pt; }
+  code { background: #f2f4f6; padding: 0 3px; border-radius: 3px; }
+  pre { font-family: "DejaVu Sans Mono", "Liberation Mono", monospace; font-size: 8.3pt; line-height: 1.35; background: #f6f8f9; border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; margin: 6px 0 10px; white-space: pre; page-break-inside: avoid; }
+  table { width: 100%; border-collapse: collapse; margin: 6px 0 12px; font-size: 9.2pt; page-break-inside: avoid; }
+  th, td { border: 1px solid var(--line); padding: 5px 7px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); font-weight: 700; }
+  .sub { color: var(--muted); font-size: 10.5pt; margin-bottom: 14px; }
+  .meta { color: var(--muted); font-size: 9pt; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 6px 0; margin-bottom: 14px; }
+  .box { background: var(--soft); border-left: 4px solid var(--accent); padding: 8px 12px; border-radius: 4px; margin: 8px 0 12px; page-break-inside: avoid; }
+  .warn { background: var(--warnbg); border-left: 4px solid var(--warn); padding: 8px 12px; border-radius: 4px; margin: 8px 0 12px; page-break-inside: avoid; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; page-break-inside: avoid; }
+  .card b { color: var(--accent); }
+  .pb { page-break-before: always; }
+  .small { font-size: 8.8pt; color: var(--muted); }
+  table.larga { page-break-inside: auto; font-size: 8.6pt; } table.larga tr { page-break-inside: avoid; } pre { white-space: pre-wrap; word-break: break-all; }
+</style>
+</head>
+<body>
+<h1>Guía de integración para sistemas institucionales</h1>
+<p>Cómo añadir el segundo factor del <b>Servicio Soberano TOTP</b> a un sistema existente (trámites, datos sensibles, intranets) a nivel HTTP, desde cualquier lenguaje. Quien use Node.js puede ir directo al SDK (sección 3).</p>
+<ul><li>Contrato completo y fuente de verdad: <code>contracts/openapi.yaml</code> (OpenAPI 3.1).</li><li>Respuestas de ejemplo reales: <code>contracts/mocks/</code>.</li><li>SDK JavaScript sin dependencias: <code>sdk/README.md</code> y guía del Reto 1: <code>sdk/INTEGRACION_RETO1.md</code>.</li><li>Integración de referencia completa: <code>demo-portal-tramites/</code>.</li></ul>
+<p>Todos los ejemplos de esta guía se obtuvieron el 26-11-2026 contra el servicio real en <code>https://localhost:8443</code> (secretos sustituidos por marcadores y tokens recortados).</p>
+<h2>1. Antes de empezar</h2>
+<table class="larga"><tr><th>Qué necesita</th><th>De dónde sale</th></tr><tr><td>URL del servicio</td><td><code>https://&lt;servidor&gt;:8443</code> (en desarrollo, <code>https://localhost:8443</code>). Solo HTTPS con TLS 1.3.</td></tr><tr><td>CA que firmó el certificado</td><td>En desarrollo, <code>backend/certs/ca.crt</code> (<code>npm run certs</code>); en producción, la CA institucional.</td></tr><tr><td><code>client_id</code> y <code>client_secret</code> de su aplicación</td><td><code>npm run seed</code> crea las apps <b>"Portal de Trámites"</b> y <b>"Reto 1"</b> y muestra sus secretos <b>una sola vez</b>. Una app nueva se registra con <code>POST /admin/api/apps</code> (sesión de administrador).</td></tr><tr><td>Emisor esperado del JWT (<code>iss</code>)</td><td>El valor de <code>JWT_ISSUER</code> del servicio (por defecto <code>https://totp.soberano.local</code>).</td></tr><tr><td>Audiencia del JWT (<code>aud</code>)</td><td>Su propio <code>client_id</code>.</td></tr></table>
+<p>El secreto de la app se guarda en el servicio solo como hash scrypt. Guárdelo en el servidor del sistema integrador (variable de entorno o archivo con permisos mínimos), <b>nunca</b> en el navegador ni en una app móvil: todas las llamadas son <b>de servidor a servidor</b>.</p>
+<h3>Identificador del usuario (<code>user_ref</code>)</h3>
+<p>Envíe un identificador <b>opaco y estable</b> de su usuario (por ejemplo <code>ptd-d092b2293dad48aad13586dd</code>), no su nombre, documento ni correo. El servicio solo guarda <code>HMAC-SHA256(user_ref, pepper)</code>; el <code>sub</code> del JWT es ese seudónimo, nunca el <code>user_ref</code> en claro.</p>
+<h3>Cabeceras comunes</h3>
+<pre>Content-Type: application/json
+X-Client-Id: app_…
+X-Client-Secret: …
+Idempotency-Key: …            (opcional, recomendado en /verify; 8–128 caracteres [A-Za-z0-9_.:-])</pre>
+<p>Cuerpos JSON de hasta 16 KiB con <b>esquema cerrado</b>: un campo no declarado responde <code>400 INVALID_REQUEST</code>.</p>
+<h2>2. Flujo completo</h2>
+<pre>Alta (una vez por usuario)                      Inicio de sesión (cada vez)
+──────────────────────────                      ───────────────────────────
+1. POST /api/v1/enrollments        → QR         3. POST /api/v1/verify          → JWT (300 s)
+2. POST /api/v1/enrollments/{id}/activate       4. Verificar firma con JWKS (local, sin red)
+   → 10 códigos de recuperación (una vez)       5. POST /api/v1/tokens/validate → consume el jti
+                                                6. Abrir la sesión del sistema</pre>
+<p>En los ejemplos: <code>export CID=app_… CS=…</code> y se ejecutan desde <code>backend/</code> (por la ruta de <code>certs/ca.crt</code>).</p>
+<h3>2.1 Enrolar</h3>
+<pre>curl --cacert certs/ca.crt -X POST https://localhost:8443/api/v1/enrollments \
+  -H "Content-Type: application/json" -H "X-Client-Id: $CID" -H "X-Client-Secret: $CS" \
+  -d '{"user_ref":"ciudadano-0001","account_label":"Portal de Trámites"}'</pre>
+<p>Respuesta <code>201</code>:</p>
+<pre>{
+  "enrollment_id": "b391211a-4062-47df-8be6-91fbd6da2ecf",
+  "estado": "pendiente",
+  "algoritmo": "SHA256",
+  "digitos": 6,
+  "periodo": 30,
+  "otpauth_uri": "otpauth://totp/ServicioSoberanoTOTP:Portal%20de%20Tr%C3%A1mites?secret=…&amp;issuer=ServicioSoberanoTOTP&amp;algorithm=SHA256&amp;digits=6&amp;period=30",
+  "qr_svg": "&lt;svg xmlns=\"http://www.w3.org/2000/svg\" width=\"260\" …&lt;/svg&gt;",
+  "expires_at": "2026-11-26T17:29:36.682Z"
+}</pre>
+<ul><li>Opcionales: <code>algorithm</code> (<code>SHA256</code>, <code>SHA512</code>; <code>SHA1</code> solo si la política de la app lo permite), <code>digits</code> (6/8), <code>period</code> (15–60). Por defecto se usa la política de la app.</li><li>Muestre el QR <b>como imagen</b> (<code>&lt;img src="data:image/svg+xml;base64,…"&gt;</code>), nunca insertando el SVG en el HTML.</li><li>Ofrezca también la clave manual (parámetro <code>secret</code> del URI) y el enlace a la app autenticadora propia: <code>https://&lt;servidor&gt;:8443/app/#add=&lt;otpauth_uri codificado&gt;</code>.</li><li>El enrolamiento pendiente caduca en 10 minutos. La semilla no vuelve a mostrarse.</li></ul>
+<h3>2.2 Activar con el primer código</h3>
+<pre>curl --cacert certs/ca.crt -X POST https://localhost:8443/api/v1/enrollments/$EID/activate \
+  -H "Content-Type: application/json" -H "X-Client-Id: $CID" -H "X-Client-Secret: $CS" \
+  -d '{"code":"494530"}'</pre>
+<pre>{"enrollment_id":"b391211a-4062-47df-8be6-91fbd6da2ecf","estado":"activo","activated_at":"2026-11-26T17:19:37.002Z",
+ "recovery_codes":["6WZT-U2RR","76YC-TB68","M6HM-QGW5","AHEP-T5NN","HXSN-K33M","XUCE-FQB8","DGUF-T4E9","PQB4-S4DQ","MF78-HABA","SA7R-K8WK"]}</pre>
+<p>Muestre los 10 códigos de recuperación <b>una sola vez</b> y no los guarde. El código usado para activar ya no sirve para entrar: el usuario debe esperar al siguiente.</p>
+<h3>2.3 Verificar un código</h3>
+<pre>curl --cacert certs/ca.crt -X POST https://localhost:8443/api/v1/verify \
+  -H "Content-Type: application/json" -H "X-Client-Id: $CID" -H "X-Client-Secret: $CS" \
+  -H "Idempotency-Key: demo-verify-0001" \
+  -d '{"user_ref":"ciudadano-0001","code":"318204"}'</pre>
+<p>Respuesta <code>200</code>:</p>
+<pre>{
+  "verified": true,
+  "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IjdZVDBBMVBqVnVoeEZmVk1tSnBqekEifQ.eyJpc3Mi…",
+  "jti": "7292e436-0a23-4321-b28b-4c34be70414b",
+  "kid": "7YT0A1PjVuhxFfVMmJpjzA",
+  "expires_at": "2026-11-26T17:24:47.000Z",
+  "drift_steps": 1,
+  "risk": { "score": 0, "level": "LOW", "action": "ALLOW", "inference_ms": 0.159,
+            "reasons": ["Comportamiento dentro del patrón habitual"] }
+}</pre>
+<p>Contenido del JWT (cabecera y claims):</p>
+<pre>{ "alg": "EdDSA", "typ": "JWT", "kid": "7YT0A1PjVuhxFfVMmJpjzA" }
+{ "iss": "https://totp.soberano.local",
+  "sub": "3cdff853c3d85747833bedc1bae059bd790a96ded0f907c6026ee52e20bdf330",
+  "aud": "app_3b57117f4df708b7cf7d40388b79892a",
+  "amr": ["otp"], "iat": 1795713587, "nbf": 1795713587, "exp": 1795713887,
+  "jti": "7292e436-0a23-4321-b28b-4c34be70414b" }</pre>
+<p>Respuestas de rechazo reales:</p>
+<table class="larga"><tr><th>Situación</th><th>HTTP</th><th>Cuerpo</th></tr><tr><td>Código incorrecto <b>o</b> usuario sin enrolamiento (misma respuesta)</td><td>401</td><td><code>{"error":"VERIFICATION_FAILED","message":"No se pudo completar la verificación."}</code></td></tr><tr><td>Código ya usado (replay)</td><td>401</td><td><code>{"error":"REPLAY_DETECTED","message":"El código TOTP ya fue utilizado dentro de la ventana temporal activa (ataque de repetición mitigado).","retry_after_seconds":13,…}</code></td></tr><tr><td>Sexto intento tras 5 fallos (bloqueo progresivo 30 s → 2 min → 10 min → 1 h)</td><td>429</td><td><code>{"error":"TOO_MANY_REQUESTS","message":"Demasiados intentos. Intente más tarde.","retry_after_seconds":30}</code> + cabecera <code>Retry-After: 30</code></td></tr><tr><td>Detector local de anomalías</td><td>429</td><td><code>{"error":"ANOMALY_BLOCKED",…,"riskAssessment":{"riskScore":100,"level":"CRITICAL",…}}</code></td></tr><tr><td>Campo no declarado</td><td>400</td><td><code>{"error":"INVALID_REQUEST","message":"Solicitud inválida."}</code></td></tr><tr><td>Credenciales de app incorrectas</td><td>401</td><td><code>{"error":"UNAUTHORIZED","message":"Credenciales inválidas."}</code></td></tr><tr><td>Error interno o base de datos no disponible</td><td>503</td><td><code>{"error":"SERVICE_UNAVAILABLE",…}</code> (nunca 200)</td></tr></table>
+<p><b>Idempotencia.</b> Con <code>Idempotency-Key</code> la respuesta se guarda 5 minutos por (app, clave): si su petición se corta y la repite con la <b>misma</b> clave, recibe la misma respuesta sin que el código se evalúe dos veces (evita un falso <code>REPLAY_DETECTED</code>). Reutilizar la clave con otro cuerpo da 400.</p>
+<h3>2.4 Validar el token</h3>
+<p>Primero, <b>verificación local</b> (sin red) con las claves públicas:</p>
+<pre>curl --cacert certs/ca.crt https://localhost:8443/.well-known/jwks.json
+# {"keys":[{"kty":"OKP","crv":"Ed25519","x":"Ne4_0nRQXn7Yp-q-R4efGUR4vPWHqZVINh8c0QJCLWI","kid":"7YT0A1PjVuhxFfVMmJpjzA","use":"sig","alg":"EdDSA"}]}</pre>
+<p>Acepte solo <code>alg: EdDSA</code>, compruebe la firma con la clave de su <code>kid</code>, <code>iss</code>, <code>aud</code> = su <code>client_id</code>, <code>exp</code>/<code>nbf</code>, <code>amr</code> contiene <code>otp</code> y que existan <code>sub</code> y <code>jti</code>. La JWKS puede guardarse en caché (el servicio envía <code>Cache-Control: public, max-age=300</code>); ante un <code>kid</code> desconocido, vuelva a pedirla (rotación).</p>
+<p>Después, <b>validación en el servicio</b>, que además consume el <code>jti</code> (uso único):</p>
+<pre>curl --cacert certs/ca.crt -X POST https://localhost:8443/api/v1/tokens/validate \
+  -H "Content-Type: application/json" -H "X-Client-Id: $CID" -H "X-Client-Secret: $CS" \
+  -d "{\"token\":\"$TOKEN\"}"
+# 1.ª vez: {"valid":true,"sub":"3cdff853…","aud":"app_3b57117f…","jti":"7292e436-…","kid":"7YT0A1PjVuhxFfVMmJpjzA","amr":["otp"],"exp":1795713887}
+# 2.ª vez: {"valid":false,"reason":"jti_consumido"}</pre>
+<p>Un token inválido responde <code>200</code> con <code>valid: false</code> y <code>reason</code> ∈ <code>formato</code>, <code>alg</code>, <code>kid</code>, <code>firma</code>, <code>iss</code>, <code>aud</code>, <code>exp</code>, <code>nbf</code>, <code>jti_consumido</code>. Con <code>"consume_jti": false</code> solo se consulta.</p>
+<h3>2.5 Operaciones de mantenimiento</h3>
+<pre># Resincronizar un reloj desfasado con dos códigos consecutivos (búsqueda en ±10 pasos)
+curl --cacert certs/ca.crt -X POST https://localhost:8443/api/v1/enrollments/$EID/resync \
+  -H "Content-Type: application/json" -H "X-Client-Id: $CID" -H "X-Client-Secret: $CS" \
+  -d '{"code_1":"…","code_2":"…"}'
+# {"resynced":true,"drift_steps":5}
+
+# Recuperación con un código de recuperación: revoca el factor y obliga a re-enrolar
+curl --cacert certs/ca.crt -X POST https://localhost:8443/api/v1/recovery \
+  -H "Content-Type: application/json" -H "X-Client-Id: $CID" -H "X-Client-Secret: $CS" \
+  -d '{"user_ref":"ciudadano-0001","recovery_code":"6WZT-U2RR"}'
+# {"recovered":true,"must_reenroll":true,"remaining_codes":9}
+
+# Revocar (idempotente)
+curl --cacert certs/ca.crt -X DELETE https://localhost:8443/api/v1/enrollments/$EID \
+  -H "X-Client-Id: $CID" -H "X-Client-Secret: $CS"
+# {"enrollment_id":"b391211a-…","estado":"revocado","revoked_at":"2026-11-26T17:19:57.184Z"}</pre>
+<p>Tras una recuperación <b>no</b> conceda acceso directo: inicie un enrolamiento nuevo y pida un código del autenticador nuevo.</p>
+<h2>3. Con el SDK (Node.js 22, sin dependencias)</h2>
+<p>El SDK envuelve estas mismas llamadas con tiempo de espera, reintento idempotente, errores tipados y validación local del JWT. No se repite aquí:</p>
+<ul><li><b>Guía paso a paso para el equipo del Reto 1:</b> <code>sdk/INTEGRACION_RETO1.md</code> (credenciales de la app "Reto 1", inicialización, flujo de 4 llamadas y pruebas con el servicio falso).</li><li><b>Referencia de métodos y garantías:</b> <code>sdk/README.md</code>.</li><li><b>Ejemplo completo en producción simulada:</b> <code>demo-portal-tramites/src/portal.js</code>.</li></ul>
+<h2>4. Integración desde otros lenguajes</h2>
+<p>El SDK es opcional: cualquier lenguaje con cliente HTTPS y Ed25519 puede integrarse.</p>
+<ol><li>Confíe en la CA del servicio (no desactive la verificación TLS).</li><li>Envíe <code>X-Client-Id</code> y <code>X-Client-Secret</code> en cada llamada a <code>/api/v1/*</code>.</li><li>Ponga un <b>tiempo de espera total</b> corto (3 s) y como mucho <b>un</b> reintento, con la misma <code>Idempotency-Key</code>, solo ante error de red, tiempo agotado o 503.</li><li>Considere aprobado <b>solo</b> un <code>200</code> con <code>verified === true</code>. Cualquier otra cosa (incluida una respuesta mal formada) = sin acceso.</li><li>Verifique el JWT localmente (Ed25519 con la JWKS) y valídelo en el servicio para consumir el <code>jti</code>.</li></ol>
+<h2>5. Buenas prácticas para cualquier integrador</h2>
+<ul><li>Use credenciales propias de su app (el <code>aud</code> del JWT debe ser su <code>client_id</code>); el equipo del Reto 1 usa la app <b>"Reto 1"</b> que crea <code>npm run seed</code>.</li><li>Pida el segundo factor después de su primer factor y antes de crear la sesión; en operaciones sensibles, vuelva a pedir un código (<i>step-up</i>).</li><li>Nunca deje pasar a un usuario porque el servicio no respondió (<b>falla cerrado</b>) y muestre mensajes genéricos.</li><li>La política de su app (algoritmo, dígitos, periodo, ventana, intentos, umbral y modo del detector) se ajusta en <code>/consola/</code> → Aplicaciones.</li></ul>
+<h2>6. Límites y protecciones que verá un integrador</h2>
+<table class="larga"><tr><th>Protección</th><th>Comportamiento</th></tr><tr><td>Límites de tasa</td><td>Global por IP (anti-DDoS, antes de autenticar), por app y por origen; superarlos da <code>429</code> con <code>Retry-After</code>. Configurables con <code>RATE_LIMIT_*</code> (ver <code>README.md</code>).</td></tr><tr><td>Bloqueo progresivo por cuenta</td><td>5 fallos → 30 s, luego 2 min, 10 min y 1 h; persiste tras reiniciar el servicio.</td></tr><tr><td>Detector local de anomalías</td><td>Puede responder <code>429 ANOMALY_BLOCKED</code> (300 s) ante spraying o fuerza bruta distribuida si la app está en modo <code>bloqueo</code>.</td></tr><tr><td>Cabeceras</td><td><code>Strict-Transport-Security</code>, <code>Content-Security-Policy</code>, <code>X-Content-Type-Options</code>, <code>X-Frame-Options</code>, <code>Referrer-Policy</code>, <code>Cache-Control: no-store</code>, entre otras.</td></tr><tr><td>CORS</td><td>Lista blanca (<code>CORS_ALLOWED_ORIGINS</code>); las llamadas de servidor a servidor no lo necesitan.</td></tr></table>
+<p class="small">Generado a partir de <code>docs/api/README.md</code>.</p>
+</body>
+</html>

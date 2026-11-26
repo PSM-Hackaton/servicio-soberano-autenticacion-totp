@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Manual de usuario — Servicio Soberano de Autenticación TOTP</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 18mm 16mm; }
+  :root { --ink:#1b1f24; --muted:#5b6470; --line:#d9dee4; --accent:#0b5c4a; --soft:#eef5f2; --warn:#8a4b00; --warnbg:#fff5e6; }
+  * { box-sizing: border-box; }
+  body { font-family: "Liberation Sans", "DejaVu Sans", Arial, sans-serif; color: var(--ink); font-size: 10.2pt; line-height: 1.45; margin: 0; }
+  h1 { font-size: 21pt; margin: 0 0 4px; color: var(--accent); letter-spacing: -0.3px; }
+  h2 { font-size: 13.5pt; margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 2px solid var(--accent); color: var(--accent); page-break-after: avoid; }
+  h3 { font-size: 11pt; margin: 14px 0 6px; page-break-after: avoid; }
+  p { margin: 0 0 8px; }
+  ul, ol { margin: 0 0 8px; padding-left: 18px; }
+  li { margin-bottom: 3px; }
+  code, .mono { font-family: "DejaVu Sans Mono", "Liberation Mono", monospace; font-size: 8.8pt; }
+  code { background: #f2f4f6; padding: 0 3px; border-radius: 3px; }
+  pre { font-family: "DejaVu Sans Mono", "Liberation Mono", monospace; font-size: 8.3pt; line-height: 1.35; background: #f6f8f9; border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; margin: 6px 0 10px; white-space: pre; page-break-inside: avoid; }
+  table { width: 100%; border-collapse: collapse; margin: 6px 0 12px; font-size: 9.2pt; page-break-inside: avoid; }
+  th, td { border: 1px solid var(--line); padding: 5px 7px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); font-weight: 700; }
+  .sub { color: var(--muted); font-size: 10.5pt; margin-bottom: 14px; }
+  .meta { color: var(--muted); font-size: 9pt; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 6px 0; margin-bottom: 14px; }
+  .box { background: var(--soft); border-left: 4px solid var(--accent); padding: 8px 12px; border-radius: 4px; margin: 8px 0 12px; page-break-inside: avoid; }
+  .warn { background: var(--warnbg); border-left: 4px solid var(--warn); padding: 8px 12px; border-radius: 4px; margin: 8px 0 12px; page-break-inside: avoid; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; page-break-inside: avoid; }
+  .card b { color: var(--accent); }
+  .pb { page-break-before: always; }
+  .small { font-size: 8.8pt; color: var(--muted); }
+  ol.pasos { padding-left: 20px; }
+  ol.pasos li { margin-bottom: 5px; }
+  .tecla { display: inline-block; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; background: #f6f8f9; font-size: 9pt; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<h1>Manual de usuario</h1>
+<div class="sub">App Autenticador Soberano, Portal de Trámites (ciudadano) y Consola administrativa (administrador)</div>
+<div class="meta">Equipo PSM-Hackaton · Servicio Soberano de Autenticación Multifactorial basado en Tiempo (TOTP) · 26 de noviembre de 2026</div>
+
+<div class="box"><b>Qué es.</b> Un segundo factor de autenticación: además de su contraseña, el sistema le
+pide un código de 6 dígitos que su teléfono genera cada 30 segundos. Los códigos los calcula la app
+<b>Autenticador Soberano</b>, que se instala desde el servidor de la institución y funciona sin conexión.
+Nadie fuera de la institución ve sus claves.</div>
+
+<table>
+  <tr><th style="width:30%">Dirección (instalación de demostración)</th><th>Para qué</th></tr>
+  <tr><td><code>https://localhost:8443/app/</code></td><td>App autenticadora (ciudadano y administrador)</td></tr>
+  <tr><td><code>https://localhost:8444</code></td><td>Portal de Trámites del Estado (demostración ficticia)</td></tr>
+  <tr><td><code>https://localhost:8443/consola/</code></td><td>Consola administrativa</td></tr>
+</table>
+<p class="small">En una institución, <code>localhost</code> se sustituye por el nombre del servidor institucional. El navegador debe confiar en la autoridad de certificación de la institución (en la demo, <code>backend/certs/ca.crt</code>; ver README §6.5).</p>
+
+<h2>Parte A · Ciudadano</h2>
+
+<h3>A.1 Instalar la app Autenticador Soberano</h3>
+<ol class="pasos">
+  <li>Abra en el teléfono o en el computador la dirección de la app que le indique la institución (<code>…/app/</code>).</li>
+  <li>Opcional: en el menú del navegador elija <b>Añadir a pantalla de inicio</b> / <b>Instalar</b>. Después funciona sin conexión.</li>
+  <li>Pantalla <b>Crea tu PIN</b>: escriba un PIN de 6 a 12 dígitos (evite fechas, repeticiones y secuencias como 123456), repítalo y pulse <b>Crear PIN y continuar</b>.</li>
+</ol>
+<div class="warn"><b>Importante.</b> El PIN cifra sus claves dentro del dispositivo. Si lo olvida, la única salida es <b>Borrar todo y empezar de nuevo</b> y volver a vincular sus cuentas con los códigos de recuperación. Tras varios PIN incorrectos la app impone esperas crecientes (30 s, 2 min, 10 min, 1 h).</div>
+
+<h3>A.2 Primer ingreso al Portal: vincular el autenticador</h3>
+<ol class="pasos">
+  <li>Entre en el Portal, escriba su <b>Usuario</b> y <b>Contraseña</b> y pulse <b>Continuar</b>.</li>
+  <li>Si todavía no tiene segundo factor, verá <b>Vincule su autenticador</b>. Elija una forma:
+    <ul>
+      <li><b>Abrir en el Autenticador Soberano</b> (si usa el mismo dispositivo): la app se abre con la cuenta lista; desbloquéela con su PIN, revise los datos y pulse <b>Guardar cuenta</b>.</li>
+      <li><b>Escanee el código QR</b>: en la app, <b>Agregar cuenta</b> → pestaña <b>Cámara</b> → <b>Activar cámara</b> (si su navegador lo permite).</li>
+      <li><b>Clave manual</b>: pulse <b>Copiar</b> junto a la clave; en la app, <b>Agregar cuenta</b> → pestaña <b>Manual</b>, péguela y pulse <b>Revisar cuenta</b>.</li>
+    </ul></li>
+  <li>En <b>Confirme con el primer código</b>, escriba el código que muestra la app y pulse <b>Activar segundo factor</b>. El enlace caduca a los 10 minutos.</li>
+  <li><b>Guarde sus códigos de recuperación</b>: son 10 códigos de un solo uso (formato <code>XXXX-XXXX</code>) que se muestran <b>una sola vez</b>. Use <b>Copiar códigos</b> o <b>Imprimir</b> y guárdelos fuera del teléfono. Pulse <b>Continuar al ingreso</b>.</li>
+  <li>Espere a que la app muestre un código <b>nuevo</b> (el usado para activar ya no vale) y entre.</li>
+</ol>
+
+<h3>A.3 Ingresos siguientes</h3>
+<ol class="pasos">
+  <li>Usuario y contraseña → <b>Continuar</b>.</li>
+  <li>En <b>Verificación en dos pasos</b>, abra la app, desbloquéela con el PIN y escriba el código de 6 dígitos de la cuenta del Portal (toque el código para copiarlo). Pulse <b>Verificar y entrar</b>.</li>
+  <li>El anillo alrededor del código indica los segundos que le quedan; si faltan pocos, espere al siguiente.</li>
+</ol>
+
+<h3>A.4 Trámites sensibles</h3>
+<p><b>Solicitud de certificado</b>, <b>Cambio de datos bancarios</b> y <b>Desactivar segundo factor</b> piden
+<b>otro código</b> en el momento (el que usó al entrar ya no es válido). Escríbalo y pulse <b>Confirmar y
+enviar</b>. Recibirá un comprobante que puede imprimir.</p>
+
+<h3>A.5 Mensajes que puede ver</h3>
+<table>
+  <tr><th style="width:32%">Mensaje</th><th>Qué hacer</th></tr>
+  <tr><td>Código incorrecto</td><td>Compruebe que usa la cuenta correcta y un código vigente. Si se repite siempre, revise la hora del teléfono (A.6).</td></tr>
+  <tr><td>Demasiados intentos (cuenta atrás)</td><td>Por seguridad la cuenta queda bloqueada un tiempo creciente (30 s, 2 min, 10 min, 1 h). Espere a que termine la cuenta atrás.</td></tr>
+  <tr><td>No se puede verificar en este momento</td><td>El servicio no respondió. Nadie entra sin verificar: inténtelo más tarde.</td></tr>
+</table>
+
+<h3>A.6 La hora del teléfono</h3>
+<p>Los códigos dependen de la hora. En la app: <b>Ajustes</b> → <b>Hora del dispositivo</b> → <b>Comprobar
+hora</b>. La app consulta solo la hora del servidor que le envió la app y le avisa si su reloj está
+desfasado. Active la hora automática del teléfono.</p>
+
+<h3>A.7 Perdí el teléfono o borré la app</h3>
+<ol class="pasos">
+  <li>En <b>Verificación en dos pasos</b>, pulse <b>¿No tiene su teléfono? Use un código de recuperación</b>.</li>
+  <li>Escriba uno de sus códigos (con el guion) y pulse <b>Usar código</b>. Cada código sirve una vez.</li>
+  <li>El Portal le pedirá <b>vincular un autenticador nuevo</b> (A.2). El autenticador anterior deja de servir.</li>
+</ol>
+<p>Si perdió también los códigos, acuda a la institución para que revoque su factor.</p>
+
+<h3>A.8 Otras funciones de la app</h3>
+<ul>
+  <li><b>Cuenta</b> (tocar una cuenta): copiar el código, cambiar el <b>Nombre visible</b> o <b>Eliminar cuenta</b>.</li>
+  <li><b>Ajustes → Bloqueo</b>: bloquear tras 1, 2 o 5 minutos sin uso (también se bloquea al cambiar de aplicación) y <b>Cambiar PIN</b>.</li>
+  <li><b>Ajustes → Respaldo cifrado</b>: <b>Descargar respaldo</b> protegido con una contraseña (mínimo 10 caracteres) para pasar sus cuentas a otro dispositivo, e <b>Importar cuentas</b> desde ese archivo.</li>
+  <li><b>Bloquear</b> (barra inferior): bloquea la app de inmediato.</li>
+</ul>
+
+<h2 class="pb">Parte B · Administrador</h2>
+
+<h3>B.1 Primer acceso</h3>
+<ol class="pasos">
+  <li>Quien instala el servicio ejecuta <code>npm run seed</code>, que muestra <b>una sola vez</b> el usuario (<code>admin_seguridad</code>), la contraseña, la URI TOTP y los códigos de recuperación del administrador, y deja el QR en <code>backend/data/admin-qr.svg</code>.</li>
+  <li>En su app autenticadora: <b>Agregar cuenta</b> → pestaña <b>Pegar</b> → pegue la URI <code>otpauth://…</code> (o escanee el QR) → <b>Revisar cuenta</b> → <b>Guardar cuenta</b>. Borre después el archivo del QR.</li>
+  <li>Abra <code>/consola/</code>, escriba usuario, contraseña y el código de 6 dígitos y pulse <b>Entrar</b>. Use un código nuevo: el del momento de la semilla ya se consumió.</li>
+</ol>
+<p class="small">La sesión caduca tras 30 minutos sin actividad (aviso con cuenta atrás) y como máximo a las 8 horas. Tras 5 intentos fallidos el usuario se bloquea de forma progresiva.</p>
+
+<h3>B.2 Secciones de la consola</h3>
+<table>
+  <tr><th style="width:20%">Sección</th><th>Qué permite</th></tr>
+  <tr><td><b>Panel</b></td><td>Verificaciones, tasa de éxito, bloqueos, alertas del detector, disponibilidad, latencias y desfase del reloj.</td></tr>
+  <tr><td><b>Aplicaciones</b></td><td>Ver los sistemas integradores y <b>Editar</b> su política: algoritmo (SHA-256/SHA-512/SHA-1), dígitos (6/8), periodo (15–60 s), ventana de tolerancia (0–3 pasos), máximo de intentos (3–15), umbral de riesgo (40–100), modo del detector (Monitorización / Bloqueo), permitir SHA-1 y estado (activo / suspendido). Suspender una app la deja sin acceso al servicio.</td></tr>
+  <tr><td><b>Enrolamientos</b></td><td>Listado filtrable por estado (pendiente, activo, revocado) con usuario seudónimo, algoritmo, deriva, intentos y bloqueos. La revocación la ejecuta el sistema integrador y queda en la bitácora.</td></tr>
+  <tr><td><b>Detector de anomalías</b></td><td>Alertas del detector local con nivel de riesgo y las razones en lenguaje claro (por ejemplo, «Una misma IP probó 20 cuentas distintas…»). Las IP y los usuarios se muestran solo como huellas.</td></tr>
+  <tr><td><b>Llaves de firma</b></td><td><b>Rotar llave de firma</b>: crea una llave Ed25519 nueva; la anterior sigue validando los tokens ya emitidos.</td></tr>
+  <tr><td><b>Auditoría</b></td><td>Bitácora de eventos críticos y <b>Verificar integridad de la cadena</b>: si alguien modificó o borró un registro, se indica en qué registro se rompe.</td></tr>
+</table>
+
+<h3>B.3 Roles</h3>
+<table>
+  <tr><th style="width:20%">Rol</th><th>Puede</th></tr>
+  <tr><td>Administrador</td><td>Todo, incluida la rotación de llaves y la edición de políticas.</td></tr>
+  <tr><td>Operador</td><td>Aplicaciones, enrolamientos, anomalías y métricas.</td></tr>
+  <tr><td>Auditor</td><td>Auditoría y verificación de la cadena, anomalías y métricas (solo lectura).</td></tr>
+</table>
+<p class="small">Pulse sobre su rol en la consola para ver sus permisos. El servidor aplica estos permisos aunque la interfaz se manipule. En esta versión la semilla crea solo la cuenta de Administrador.</p>
+
+<h3>B.4 Tareas frecuentes</h3>
+<ul>
+  <li><b>Un ciudadano dice que sus códigos nunca valen:</b> revise en Enrolamientos su deriva y bloqueos; pida que compruebe la hora del teléfono (A.6). El sistema integrador puede resincronizar con dos códigos consecutivos.</li>
+  <li><b>Un ataque en curso:</b> Detector de anomalías → revise las razones; ponga la app en modo <b>Bloqueo</b> o baje el umbral de riesgo.</li>
+  <li><b>Tras un cambio de personal o un incidente:</b> rote la llave de firma y verifique la cadena de auditoría.</li>
+  <li><b>Rotación de la llave maestra</b> (servicio detenido): añadir <code>MASTER_KEY_V2_HEX</code>, poner <code>MASTER_KEY_VERSION=v2</code> y ejecutar <code>npm run rotar-llave-maestra</code> en <code>backend/</code> (ver <code>deploy/README.md</code>).</li>
+</ul>
+
+<p class="small">Fuente: <code>docs/manual/manual-usuario.html</code>.</p>
+</body>
+</html>
