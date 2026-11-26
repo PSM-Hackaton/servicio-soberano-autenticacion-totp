@@ -23,7 +23,7 @@
 - **AES-256-GCM con AAD:** `AAD = enrollment_id + ":" + key_version` + script `rotar-llave-maestra.js`.
 - **Anti-Replay SQL atómico:** `UPDATE enrollments SET last_step = ?, drift_steps = ? WHERE id = ? AND last_step < ?` + tabla `consumed_jti` de clave primaria única.
 - **Resiliencia *Fail-Closed*:** `/health`, `/health/ready`, `/metrics` (Prometheus) y `/admin/api/metrics` (JSON); `503` si cae SQLite; `Idempotency-Key` en `/api/v1/verify`; SDK con timeout 3 s + 1 reintento idempotente + validación offline de JWT vía caché JWKS.
-- **Anonimización:** `user_ref_hash = HMAC-SHA256(user_ref, USER_REF_PEPPER)` e `ip_hash = HMAC-SHA256(ip, DAILY_IP_PEPPER_SEED + fecha)`.
+- **Anonimización:** `user_ref_hash = HMAC-SHA256(user_ref, USER_REF_PEPPER)` e `ip_hash = HMAC-SHA256(app_id + ":" + (client_ip ?? IP TCP), pepper del día derivado de DAILY_IP_PEPPER_SEED)`: el integrador puede enviar `client_ip` (su ciudadano) en `verify`, `recovery`, `activate` y `resync`; el servidor no confía en `X-Forwarded-For`.
 - **Auditoría inmutable (`audit_log`):** cadena SHA-256 verificable desde `GET /admin/api/audit/verify-chain`.
 - **Trazabilidad:** SBOM CycloneDX 1.5 en `docs/sbom/sbom.cdx.json` con **0 dependencias npm de terceros**.
 
@@ -80,10 +80,14 @@ npm test && npm start
 
 # 2. Pruebas de clientes, SDK, Portal Demo y Attack Lab
 node --test authenticator-app/tests/*.test.mjs
-node --test sdk/tests/sdk.test.js demo-portal-tramites/tests/portal.test.js
-cd attack-lab && npm test
+node --test 'sdk/tests/*.test.js' 'demo-portal-tramites/tests/*.test.js' 'attack-lab/tests/*.test.js'
+
+# 2 bis. Todo junto, como en la integración continua (OpenAPI estricto, 5 suites, SBOM e higiene)
+node scripts/verificar-todo.js
 
 # 3. Smoke tests contra la API HTTPS
 curl --cacert backend/certs/ca.crt https://localhost:8443/health/ready
 curl --cacert backend/certs/ca.crt https://localhost:8443/.well-known/jwks.json
 ```
+
+Cifras vigentes (26-11-2026): **307 pruebas** (backend 211, app 26, SDK 26, portal 16, laboratorio 28); el servidor monta **31 rutas API** (7 de integración v1, 5 de sistema y 19 de la consola), todas en `contracts/openapi.yaml`; laboratorio **11/11** escenarios y **116/116** verificaciones; DAST **12/12**.

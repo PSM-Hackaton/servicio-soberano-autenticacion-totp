@@ -12,7 +12,7 @@ flowchart TD
     ADMIN["admin-console/\n(Servida en /consola/: RBAC + TOTP + Apps + Llaves + Auditoría + Anomalías)"]
     DEMO["demo-portal-tramites/\n(Servidor HTTPS/HTTP propio, cookies __Host-, Step-Up MFA)"]
     RETO3["Reto 3: Evaluador de Propuestas\n(Integración vía sdk/INTEGRACION_RETO3.md)"]
-    ATK["attack-lab/\n(10 escenarios: Replay, JWT, Entradas, DAST, Brute Force, Spraying, Flood + Proxy Caos)"]
+    ATK["attack-lab/\n(11 escenarios + DAST: Replay, JWT, Entradas, Deriva, Fuerza bruta, Distribuida, Spraying, Origen compartido, Inundación, Caos, Reinicio)"]
     SDK["sdk/\n(crearClienteTotp, verificarTokenLocal, crearCacheJwks, servicio-falso.js)"]
 
     %% Contratos y Despliegue

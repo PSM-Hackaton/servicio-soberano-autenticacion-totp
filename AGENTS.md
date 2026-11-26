@@ -52,8 +52,11 @@ servicio-soberano-autenticacion-totp/
 ├── admin-console/                   # Consola administrativa RBAC propia (servida en /consola/)
 ├── sdk/                             # SDK Node 22 nativo (src/, testing/, tests/, INTEGRACION_RETO3.md)
 ├── demo-portal-tramites/            # Portal institucional demo con step-up MFA + tests/
-├── attack-lab/                      # 10 escenarios (ataques, DAST propio y caos) + proxy-caos.js + tests/
-├── deploy/                          # servicio-totp.service (systemd), verificar-despliegue.js y README.md
+├── attack-lab/                      # 11 escenarios de ataque y caos + DAST propio + proxy-caos.js + tests/
+├── deploy/                          # instalar.sh, operar.sh, unidades systemd, verificar-despliegue.js y README.md
+├── mobile-android/                  # ADR-004: base Kotlin nativa (RFC 6238 sin dependencias)
+├── sitio-publico/                   # Inicio ciudadano, guía del certificado /ca.crt y /estado
+├── scripts/                         # verificar-todo.js (CI), capturas.js y herramientas de entrega
 └── docs/                            # reto/, analisis/, cumplimiento/, evidencias/, manual/, presentacion/, sbom/
 ```
 
@@ -65,6 +68,6 @@ servicio-soberano-autenticacion-totp/
 2. **AES-256-GCM con AAD:** Nonce 96 bits + `AAD = enrollment_id + ":" + key_version`; llave maestra versionada + script de rotación (`npm run rotar-llave-maestra`). En la PWA: bóveda cifrada con PIN en IndexedDB.
 3. **Anti-Replay Atómico y `jti` de un solo uso:** `UPDATE enrollments SET last_step = ? ... WHERE last_step < ?` y registro único de `jti` en `consumed_jti` (incluso `consume_jti: false` rechaza `jti` ya usados).
 4. **Resiliencia *Fail-Closed*:** Si SQLite falla, `/health/ready` y `/api/v1/*` responden `503` (0 accesos indebidos). El SDK aplica timeout de `3000 ms`, `1` reintento con la misma `Idempotency-Key` y validación offline de JWT vía caché JWKS.
-5. **Anonimización con Pepper:** `user_ref_hash = HMAC-SHA256(user_ref, USER_REF_PEPPER)` e `ip_hash = HMAC-SHA256(ip, DAILY_IP_PEPPER_SEED + fecha)`.
+5. **Anonimización con Pepper:** `user_ref_hash = HMAC-SHA256(user_ref, USER_REF_PEPPER)` e `ip_hash = HMAC-SHA256(app_id + ":" + (client_ip ?? IP TCP), pepper diario de DAILY_IP_PEPPER_SEED)`.
 6. **Bitácora Encadenada (`audit_log`):** `hash = SHA-256(prev_hash || payload)` verificable desde `/admin/api/audit/verify-chain` y la Consola Admin.
 7. **Trazabilidad:** SBOM CycloneDX 1.5 en `docs/sbom/sbom.cdx.json` con **0 dependencias npm externas**.
