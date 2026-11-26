@@ -1,14 +1,16 @@
 {
-  "errorCode": "REPLAY_DETECTED",
+  "error": "REPLAY_DETECTED",
   "message": "El código TOTP ya fue utilizado dentro de la ventana temporal activa (ataque de repetición mitigado).",
-  "retryAfterSeconds": 30,
+  "retry_after_seconds": 17,
+  "errorCode": "REPLAY_DETECTED",
+  "retryAfterSeconds": 17,
   "riskAssessment": {
-    "riskScore": 68.0,
-    "level": "HIGH",
+    "riskScore": 0,
+    "level": "LOW",
     "action": "WARN",
-    "inferenceMs": 1.2,
+    "inferenceMs": 0.075,
     "reasons": [
-      "Reutilización exacta de código TOTP dentro del mismo time-step"
+      "Comportamiento dentro del patrón habitual"
     ]
   }
 }

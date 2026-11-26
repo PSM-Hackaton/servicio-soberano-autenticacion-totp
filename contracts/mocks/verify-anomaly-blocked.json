@@ -1,16 +1,18 @@
 {
+  "error": "ANOMALY_BLOCKED",
+  "message": "Intento bloqueado preventivamente por el motor local de detección de anomalías.",
+  "retry_after_seconds": 300,
   "errorCode": "ANOMALY_BLOCKED",
-  "message": "Intento bloqueado preventivamente por el motor local de detección de anomalías (patrón de fuerza bruta distribuida).",
   "retryAfterSeconds": 300,
   "riskAssessment": {
-    "riskScore": 91.5,
-    "level": "CRITICAL",
+    "riskScore": 84.2,
+    "level": "HIGH",
     "action": "BLOCK",
-    "inferenceMs": 2.3,
+    "inferenceMs": 0.113,
     "reasons": [
-      "Ráfaga de 14 intentos fallidos en 18 segundos",
-      "Dispersión anómala de 6 hashes de IP sobre la misma cuenta",
-      "Z-Score de velocidad superior a 3.8 desviaciones estándar"
+      "Una misma IP probó 6 cuentas distintas en 15 minutos (patrón de password spraying)",
+      "Ritmo automatizado: 0 s de media entre intentos de la misma IP",
+      "Isolation Forest: comportamiento atípico frente al patrón aprendido (anomalía 0,72, normal ≤ 0,66)"
     ]
   }
 }

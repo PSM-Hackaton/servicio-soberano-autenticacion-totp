@@ -1,0 +1,129 @@
+# HELP totp_uptime_seconds Segundos desde el arranque
+# TYPE totp_uptime_seconds gauge
+totp_uptime_seconds 68
+# HELP totp_start_time_seconds Instante de arranque (epoch)
+# TYPE totp_start_time_seconds gauge
+totp_start_time_seconds 1795711913
+# HELP totp_http_requests_total Peticiones HTTP por ruta
+# TYPE totp_http_requests_total counter
+totp_http_requests_total{ruta="/.well-known/jwks.json"} 2
+totp_http_requests_total{ruta="/admin/api/anomalies"} 1
+totp_http_requests_total{ruta="/admin/api/apps"} 6
+totp_http_requests_total{ruta="/admin/api/audit"} 2
+totp_http_requests_total{ruta="/admin/api/audit/verify-chain"} 1
+totp_http_requests_total{ruta="/admin/api/enrollments"} 1
+totp_http_requests_total{ruta="/admin/api/keys/rotate"} 1
+totp_http_requests_total{ruta="/admin/api/login"} 2
+totp_http_requests_total{ruta="/admin/api/metrics"} 1
+totp_http_requests_total{ruta="/admin/api/session"} 1
+totp_http_requests_total{ruta="/api/v1/enrollments"} 3
+totp_http_requests_total{ruta="/api/v1/enrollments/:id"} 2
+totp_http_requests_total{ruta="/api/v1/enrollments/:id/activate"} 2
+totp_http_requests_total{ruta="/api/v1/enrollments/:id/resync"} 1
+totp_http_requests_total{ruta="/api/v1/recovery"} 2
+totp_http_requests_total{ruta="/api/v1/tokens/validate"} 4
+totp_http_requests_total{ruta="/api/v1/verify"} 15
+totp_http_requests_total{ruta="/health"} 1
+totp_http_requests_total{ruta="/health/ready"} 1
+totp_http_requests_total{ruta="/metrics"} 1
+totp_http_requests_total{ruta="no_encontrada"} 2
+totp_http_requests_total{ruta="preflight"} 1
+# HELP totp_http_errors_5xx_total Respuestas 5xx por ruta
+# TYPE totp_http_errors_5xx_total counter
+totp_http_errors_5xx_total{ruta="/.well-known/jwks.json"} 0
+totp_http_errors_5xx_total{ruta="/admin/api/anomalies"} 0
+totp_http_errors_5xx_total{ruta="/admin/api/apps"} 0
+totp_http_errors_5xx_total{ruta="/admin/api/audit"} 0
+totp_http_errors_5xx_total{ruta="/admin/api/audit/verify-chain"} 0
+totp_http_errors_5xx_total{ruta="/admin/api/enrollments"} 0
+totp_http_errors_5xx_total{ruta="/admin/api/keys/rotate"} 0
+totp_http_errors_5xx_total{ruta="/admin/api/login"} 0
+totp_http_errors_5xx_total{ruta="/admin/api/metrics"} 0
+totp_http_errors_5xx_total{ruta="/admin/api/session"} 0
+totp_http_errors_5xx_total{ruta="/api/v1/enrollments"} 0
+totp_http_errors_5xx_total{ruta="/api/v1/enrollments/:id"} 0
+totp_http_errors_5xx_total{ruta="/api/v1/enrollments/:id/activate"} 0
+totp_http_errors_5xx_total{ruta="/api/v1/enrollments/:id/resync"} 0
+totp_http_errors_5xx_total{ruta="/api/v1/recovery"} 0
+totp_http_errors_5xx_total{ruta="/api/v1/tokens/validate"} 0
+totp_http_errors_5xx_total{ruta="/api/v1/verify"} 0
+totp_http_errors_5xx_total{ruta="/health"} 0
+totp_http_errors_5xx_total{ruta="/health/ready"} 0
+totp_http_errors_5xx_total{ruta="/metrics"} 0
+totp_http_errors_5xx_total{ruta="no_encontrada"} 0
+totp_http_errors_5xx_total{ruta="preflight"} 0
+# HELP totp_http_request_duration_ms Latencia por ruta (reservorio acotado)
+# TYPE totp_http_request_duration_ms summary
+totp_http_request_duration_ms{ruta="/.well-known/jwks.json",quantile="0.5"} 0.35461100000247825
+totp_http_request_duration_ms{ruta="/.well-known/jwks.json",quantile="0.95"} 0.6277770000015153
+totp_http_request_duration_ms{ruta="/admin/api/anomalies",quantile="0.5"} 0.947093999988283
+totp_http_request_duration_ms{ruta="/admin/api/anomalies",quantile="0.95"} 0.947093999988283
+totp_http_request_duration_ms{ruta="/admin/api/apps",quantile="0.5"} 0.3197270000091521
+totp_http_request_duration_ms{ruta="/admin/api/apps",quantile="0.95"} 29.777478999996674
+totp_http_request_duration_ms{ruta="/admin/api/audit",quantile="0.5"} 0.21191600000020117
+totp_http_request_duration_ms{ruta="/admin/api/audit",quantile="0.95"} 0.5090930000005756
+totp_http_request_duration_ms{ruta="/admin/api/audit/verify-chain",quantile="0.5"} 0.8294960000057472
+totp_http_request_duration_ms{ruta="/admin/api/audit/verify-chain",quantile="0.95"} 0.8294960000057472
+totp_http_request_duration_ms{ruta="/admin/api/enrollments",quantile="0.5"} 0.6560039999894798
+totp_http_request_duration_ms{ruta="/admin/api/enrollments",quantile="0.95"} 0.6560039999894798
+totp_http_request_duration_ms{ruta="/admin/api/keys/rotate",quantile="0.5"} 5.336693000004743
+totp_http_request_duration_ms{ruta="/admin/api/keys/rotate",quantile="0.95"} 5.336693000004743
+totp_http_request_duration_ms{ruta="/admin/api/login",quantile="0.5"} 27.955056999999215
+totp_http_request_duration_ms{ruta="/admin/api/login",quantile="0.95"} 35.81188600001042
+totp_http_request_duration_ms{ruta="/admin/api/metrics",quantile="0.5"} 0.5098780000116676
+totp_http_request_duration_ms{ruta="/admin/api/metrics",quantile="0.95"} 0.5098780000116676
+totp_http_request_duration_ms{ruta="/admin/api/session",quantile="0.5"} 0.3065399999904912
+totp_http_request_duration_ms{ruta="/admin/api/session",quantile="0.95"} 0.3065399999904912
+totp_http_request_duration_ms{ruta="/api/v1/enrollments",quantile="0.5"} 8.798816999995324
+totp_http_request_duration_ms{ruta="/api/v1/enrollments",quantile="0.95"} 52.684000000001106
+totp_http_request_duration_ms{ruta="/api/v1/enrollments/:id",quantile="0.5"} 0.24805300000298303
+totp_http_request_duration_ms{ruta="/api/v1/enrollments/:id",quantile="0.95"} 2.7610249999997905
+totp_http_request_duration_ms{ruta="/api/v1/enrollments/:id/activate",quantile="0.5"} 98.36623099999997
+totp_http_request_duration_ms{ruta="/api/v1/enrollments/:id/activate",quantile="0.95"} 136.27269399999932
+totp_http_request_duration_ms{ruta="/api/v1/enrollments/:id/resync",quantile="0.5"} 3.763338000004296
+totp_http_request_duration_ms{ruta="/api/v1/enrollments/:id/resync",quantile="0.95"} 3.763338000004296
+totp_http_request_duration_ms{ruta="/api/v1/recovery",quantile="0.5"} 30.398216000001412
+totp_http_request_duration_ms{ruta="/api/v1/recovery",quantile="0.95"} 113.02325999999448
+totp_http_request_duration_ms{ruta="/api/v1/tokens/validate",quantile="0.5"} 2.197284000001673
+totp_http_request_duration_ms{ruta="/api/v1/tokens/validate",quantile="0.95"} 40.727137000001676
+totp_http_request_duration_ms{ruta="/api/v1/verify",quantile="0.5"} 2.1004439999960596
+totp_http_request_duration_ms{ruta="/api/v1/verify",quantile="0.95"} 27.705830999999307
+totp_http_request_duration_ms{ruta="/health",quantile="0.5"} 2.9471709999997984
+totp_http_request_duration_ms{ruta="/health",quantile="0.95"} 2.9471709999997984
+totp_http_request_duration_ms{ruta="/health/ready",quantile="0.5"} 0.5796239999981481
+totp_http_request_duration_ms{ruta="/health/ready",quantile="0.95"} 0.5796239999981481
+totp_http_request_duration_ms{ruta="/metrics",quantile="0.5"} 5.856356999996933
+totp_http_request_duration_ms{ruta="/metrics",quantile="0.95"} 5.856356999996933
+totp_http_request_duration_ms{ruta="no_encontrada",quantile="0.5"} 0.10893799999757903
+totp_http_request_duration_ms{ruta="no_encontrada",quantile="0.95"} 0.28854900000442285
+totp_http_request_duration_ms{ruta="preflight",quantile="0.5"} 0.28556399999797577
+totp_http_request_duration_ms{ruta="preflight",quantile="0.95"} 0.28556399999797577
+# HELP totp_http_5xx_ratio Proporción de 5xx en la ventana deslizante
+# TYPE totp_http_5xx_ratio gauge
+totp_http_5xx_ratio 0
+# HELP totp_availability_percent Disponibilidad estimada en porcentaje
+# TYPE totp_availability_percent gauge
+totp_availability_percent 100
+# HELP totp_health_up Último chequeo de salud (1 ok, 0 fallo)
+# TYPE totp_health_up gauge
+totp_health_up 1
+# HELP totp_verifications_total Verificaciones por resultado
+# TYPE totp_verifications_total counter
+totp_verifications_total{resultado="ok"} 1
+totp_verifications_total{resultado="invalid_code"} 4
+totp_verifications_total{resultado="replay"} 1
+totp_verifications_total{resultado="locked"} 0
+totp_verifications_total{resultado="anomaly_blocked"} 2
+totp_verifications_total{resultado="rate_limited"} 0
+# HELP totp_db_errors_total Errores de base de datos
+# TYPE totp_db_errors_total counter
+totp_db_errors_total 0
+# HELP totp_db_reconnections_total Reconexiones a la base de datos
+# TYPE totp_db_reconnections_total counter
+totp_db_reconnections_total 0
+# HELP totp_anomaly_inference_ms_avg Latencia media de inferencia del detector
+# TYPE totp_anomaly_inference_ms_avg gauge
+totp_anomaly_inference_ms_avg 0.667
+# HELP totp_clock_skew_ms Desfase de reloj medido
+# TYPE totp_clock_skew_ms gauge
+totp_clock_skew_ms 0

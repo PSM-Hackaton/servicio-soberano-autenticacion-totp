@@ -1,0 +1,20 @@
+{
+  "app": {
+    "id": "b46dd097-e3c5-47ed-9927-d59cd203617d",
+    "nombre": "Registro de Investigadores",
+    "client_id": "app_c0d59804be0f0d0430e8229bccd1dcb1",
+    "algoritmo": "SHA256",
+    "digitos": 6,
+    "periodo": 30,
+    "ventana": 1,
+    "max_intentos": 5,
+    "umbral_riesgo_bloqueo": 75,
+    "modo_heuristica": "monitorizacion",
+    "permitir_sha1": false,
+    "estado": "activo",
+    "created_at": "2026-11-26T16:53:01.108Z",
+    "updated_at": "2026-11-26T16:53:01.108Z"
+  },
+  "client_id": "app_c0d59804be0f0d0430e8229bccd1dcb1",
+  "client_secret": "SECRETO_DE_EJEMPLO_NO_VALIDO_MOSTRADO_UNA_VEZ"
+}

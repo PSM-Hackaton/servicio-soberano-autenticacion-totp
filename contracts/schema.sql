@@ -1,7 +1,17 @@
 -- ==============================================================================
--- Esquema Oficial PostgreSQL 16 (Sección 7 de docs/analisis/analisis-tecnico.html)
--- 8 tablas: apps, enrollments, recovery_codes, attempts, consumed_jti,
---           signing_keys, admins, audit_log (cadena de hashes)
+-- REFERENCIA PARA DESPLIEGUES FUTUROS, NO USADO EN ESTA VERSIÓN.
+-- El backend actual solo usa SQLite (node:sqlite) con el esquema de
+-- backend/migrations/001_esquema.sql (copiado en contracts/schema.sqlite.sql).
+-- Este archivo traduce ese esquema a PostgreSQL 16 con las mismas 8 tablas y las
+-- mismas columnas, en el mismo orden, por si en el futuro se escribe un adaptador
+-- de persistencia para PostgreSQL. No existe hoy ningún adaptador ni dependencia pg.
+-- Diferencias de tipo respecto a SQLite (mismos nombres de columna):
+--   * UUID / TIMESTAMPTZ / BOOLEAN / JSONB nativos en lugar de TEXT / INTEGER 0-1.
+--   * Material cifrado (seed_*, private_*) en TEXT base64, igual que en SQLite,
+--     para que un adaptador futuro pueda reutilizar el formato de los repositorios.
+--   * En SQLite los identificadores los genera la aplicación (randomUUID);
+--     aquí se deja además un DEFAULT gen_random_uuid().
+-- Alineado con el código el 26-11-2026.
 -- ==============================================================================
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -34,9 +44,9 @@ CREATE TABLE IF NOT EXISTS enrollments (
     algoritmo VARCHAR(10) NOT NULL CHECK (algoritmo IN ('SHA256', 'SHA512', 'SHA1')),
     digitos INT NOT NULL CHECK (digitos IN (6, 8)),
     periodo INT NOT NULL DEFAULT 30,
-    seed_ct BYTEA NOT NULL,                        -- AES-256-GCM ciphertext
-    seed_nonce BYTEA NOT NULL,                     -- 96-bit random nonce
-    seed_auth_tag BYTEA NOT NULL,                  -- 128-bit GCM auth tag
+    seed_ct TEXT NOT NULL,                         -- base64 AES-256-GCM ciphertext
+    seed_nonce TEXT NOT NULL,                      -- base64 96-bit nonce
+    seed_auth_tag TEXT NOT NULL,                   -- base64 128-bit GCM auth tag
     key_version VARCHAR(20) NOT NULL DEFAULT 'v1',
     drift_steps INT NOT NULL DEFAULT 0,
     last_step BIGINT NOT NULL DEFAULT -1,          -- Anti-replay atómico: exigir T > last_step
@@ -67,7 +77,7 @@ CREATE TABLE IF NOT EXISTS attempts (
     app_id UUID REFERENCES apps(id) ON DELETE SET NULL,
     user_ref_hash VARCHAR(64),
     ip_hash VARCHAR(64) NOT NULL,                  -- HMAC-SHA256 con pepper rotativo diario
-    resultado VARCHAR(30) NOT NULL,                -- ok, invalid_code, replay, locked, anomaly_blocked, rate_limited
+    resultado VARCHAR(30) NOT NULL,                -- ok, invalid_code, replay, locked, anomaly_blocked
     risk_score REAL,
     reasons_json JSONB,
     inference_ms REAL,
@@ -90,9 +100,9 @@ CREATE INDEX IF NOT EXISTS idx_consumed_jti_exp ON consumed_jti(expira_en);
 CREATE TABLE IF NOT EXISTS signing_keys (
     kid VARCHAR(64) PRIMARY KEY,
     public_jwk JSONB NOT NULL,
-    private_ct BYTEA NOT NULL,                     -- Clave privada Ed25519 cifrada con AES-256-GCM
-    private_nonce BYTEA NOT NULL,
-    private_auth_tag BYTEA NOT NULL,
+    private_ct TEXT NOT NULL,                      -- base64: privada Ed25519 cifrada con AES-256-GCM (AAD 'signing:'+kid)
+    private_nonce TEXT NOT NULL,
+    private_auth_tag TEXT NOT NULL,
     key_version VARCHAR(20) NOT NULL DEFAULT 'v1',
     estado VARCHAR(20) NOT NULL CHECK (estado IN ('activa', 'solo_verificacion', 'retirada')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

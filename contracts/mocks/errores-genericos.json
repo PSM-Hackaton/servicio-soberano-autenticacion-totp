@@ -1,0 +1,43 @@
+{
+  "400": {
+    "error": "INVALID_REQUEST",
+    "message": "Solicitud inválida."
+  },
+  "401": {
+    "error": "UNAUTHORIZED",
+    "message": "Credenciales inválidas."
+  },
+  "403": {
+    "error": "FORBIDDEN",
+    "message": "Acceso denegado."
+  },
+  "404": {
+    "error": "NOT_FOUND",
+    "message": "Recurso no encontrado."
+  },
+  "405": {
+    "error": "METHOD_NOT_ALLOWED",
+    "message": "Método no permitido."
+  },
+  "413": {
+    "error": "PAYLOAD_TOO_LARGE",
+    "message": "Solicitud demasiado grande."
+  },
+  "415": {
+    "error": "UNSUPPORTED_MEDIA_TYPE",
+    "message": "Tipo de contenido no admitido."
+  },
+  "429": {
+    "error": "TOO_MANY_REQUESTS",
+    "message": "Demasiados intentos. Intente más tarde.",
+    "retry_after_seconds": 30
+  },
+  "503": {
+    "error": "SERVICE_UNAVAILABLE",
+    "message": "Servicio no disponible temporalmente."
+  },
+  "401_verificacion": {
+    "error": "VERIFICATION_FAILED",
+    "message": "No se pudo completar la verificación."
+  }
+}
