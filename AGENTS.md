@@ -52,9 +52,9 @@ servicio-soberano-autenticacion-totp/
 ├── admin-console/                   # Consola administrativa RBAC propia (servida en /consola/)
 ├── sdk/                             # SDK Node 22 nativo (src/, testing/, tests/, INTEGRACION_RETO1.md)
 ├── demo-portal-tramites/            # Portal institucional demo con step-up MFA + tests/
-├── attack-lab/                      # 9 escenarios de ataque y caos + proxy-caos.js + tests/
-├── deploy/                          # servicio-totp.service (systemd) + README.md
-└── docs/                            # reto/, analisis/, sbom/ (CycloneDX 1.5), GUION_DEMO.md
+├── attack-lab/                      # 10 escenarios (ataques, DAST propio y caos) + proxy-caos.js + tests/
+├── deploy/                          # servicio-totp.service (systemd), verificar-despliegue.js y README.md
+└── docs/                            # reto/, analisis/, cumplimiento/, evidencias/, manual/, presentacion/, sbom/
 ```
 
 ---

@@ -3,7 +3,7 @@
 > **Regla de Oro:** Solo se marca `[x]` con evidencia real en verde. Prohibido tocar `main`.
 > **Remotos:** Pushes **EXCLUSIVAMENTE a GitHub (`origin`)**. **GitLab BLOQUEADO** hasta `/push gitlab final`.
 > **Stack vigente:** **ADR-002** (26-11-2026) — 100 % Node.js 22.5+ nativo, **0 dependencias npm**, SQLite WAL única, HTML+CSS+JS propios.
-> **Última verificación (26-11-2026, copia limpia del árbol de trabajo, Node.js 22.22.1):** 256 pruebas en verde (backend 171, app 25, SDK 23, portal 12, attack-lab 25); attack-lab contra el servicio real 9/9 escenarios y 89/89 verificaciones; instalación del README §6 ejecutada paso a paso.
+> **Última verificación (26-11-2026, copia limpia del árbol de trabajo, Node.js 22.22.1):** 258 pruebas en verde (backend 171, app 25, SDK 23, portal 12, attack-lab 27 con DAST); escáner DAST propio en vivo 9/9 verificaciones OK (0 hallazgos críticos/altos); verificación institucional `systemd` 10/10 (`systemd-analyze security: 3.0 OK`, `VACUUM INTO`, `SIGTERM` 4 ms).
 
 ---
 
@@ -59,8 +59,9 @@
 - [ ] `PORTAL_STEPUP_MINUTOS` se lee en `demo-portal-tramites/src/config.js` pero no se usa.
 - [ ] `sdk/package.json` declara `"license": "UNLICENSED"`; alinear con AGPL-3.0-or-later.
 - [ ] `npm run certs` solo emite para `localhost`; el README §6 (Paso 6) documenta el certificado con la IP de la red local para el teléfono.
-- [ ] Escaneo dinámico OWASP local (previsto en el análisis técnico).
-- [ ] Probar `deploy/README.md` en un servidor institucional real.
+- [x] `[C6 · #24]` Escaneo dinámico OWASP propio (`attack-lab/escenarios/dast.js` + `dast.test.js`): 9/9 verificaciones OK en vivo contra producción TLS 1.3 (`docs/evidencias/dast-informe-2026-11-26.{html,json}`).
+- [x] `[C7 · #25]` Prueba de despliegue institucional `systemd` (`deploy/verificar-despliegue.js` + `docs/evidencias/prueba-despliegue-systemd.md`): 10/10 controles OK (`systemd-analyze verify`, `security: 3.0 OK`, TLS 1.3, `VACUUM INTO`, `SIGTERM` 4 ms).
+- [x] `[C8 · #26]` Limpieza final: `SYSTEM_GRAPH.md` sin rastros de herramientas/modelos, `AGENTS.md` actualizado, SBOM CycloneDX 1.5 regenerado (128 archivos JS, 0 deps npm) y 258/258 pruebas en verde.
 
 ---
 
