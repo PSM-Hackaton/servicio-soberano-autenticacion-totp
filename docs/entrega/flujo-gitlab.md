@@ -3,7 +3,7 @@
 Servicio Soberano de Autenticación TOTP · Hackatón 2026 · Reto Grupal 1 · Responsables: Diego Landaeta y Juan Laya
 
 Cómo cumple el equipo el *Instructivo de uso de GitLab* (subida progresiva por ramas, Merge Request diario a
-`avance` y final a `terminado`, `README.md` de 6 apartados) y el requisito de **control de versiones
+`avance` y final a `terminado`, `README.md` con la plantilla del evento) y el requisito de **control de versiones
 transparente** de los Términos de Referencia, con autoría real de cada integrante.
 
 ## 1. Regla de oro
@@ -99,7 +99,7 @@ Pull Request aprobado en GitHub. Lo revisa y fusiona **Diego o Juan**, sin *Squa
 
 **Final, hacia `terminado`**: tras el **code freeze** (4 horas antes de la entrega) y el último Merge Request
 diario, Merge Request de `avance` hacia `terminado`, con la misma plantilla. Antes se comprueba que `README.md`
-tiene los 6 apartados y que `node scripts/verificar-todo.js` está en verde. Lo fusiona Diego o Juan.
+tiene los títulos exactos de la plantilla del evento y que `node scripts/verificar-todo.js` está en verde. Lo fusiona Diego o Juan.
 
 ## 6. Configuración del proyecto en GitLab (la hacen Diego o Juan)
 

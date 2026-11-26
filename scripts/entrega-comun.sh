@@ -9,7 +9,14 @@
 #   AUTOR_NOMBRE, AUTOR_CORREO   persona del equipo configurada en el repositorio original
 #   TMP                    carpeta temporal (la crea entrega_temporales y se borra al salir)
 
-LIMITE_PALABRAS='claude|anthropic|gemini|chatgpt|openai|copilot|co-authored-by|\[bot\]|noreply'
+# Menciones a herramientas de generación, líneas de coautoría y cuentas automáticas: nunca se aceptan.
+LIMITE_HERRAMIENTAS='claude|anthropic|gemini|chatgpt|openai|copilot|co-authored-by|\[bot\]'
+# Lista completa (herramientas + cualquier "noreply"), para quien la use directamente con grep.
+LIMITE_PALABRAS="$LIMITE_HERRAMIENTAS|noreply"
+# Correos noreply PERSONALES de GitLab ("<id>-<usuario>@users.noreply.<servidor>", p. ej. los del GitLab del
+# evento) y de GitHub ("<id>+<usuario>@users.noreply.github.com"): son de una persona, se aceptan. Cualquier
+# otro "noreply" (noreply@..., no-reply de servicios) sigue rechazándose.
+NOREPLY_PERSONAL='[0-9]+[-+][A-Za-z0-9._-]+@users\.noreply\.[A-Za-z0-9.-]+[A-Za-z]'
 
 titulo() { printf '\n== %s\n' "$1"; }
 falla() { printf '\nERROR: %s\n' "$1" >&2; exit 1; }
@@ -68,14 +75,27 @@ entrega_preparar_salida() {
 }
 
 # 0 si "$1 $2" (nombre y correo) parece una persona del equipo, no una cuenta automática o una herramienta.
+# Acepta los correos noreply personales de GitLab/GitHub (NOREPLY_PERSONAL).
 entrega_identidad_valida() {
   [ -n "$1" ] && [ -n "$2" ] || return 1
-  ! printf '%s %s\n' "$1" "$2" | grep -Eiq "$LIMITE_PALABRAS"
+  entrega_texto_valido "$1 $2"
 }
 
-# 0 si el texto $1 (mensaje de commit) no contiene autoría o menciones no permitidas.
+# 0 si el texto $1 (mensaje de commit, identidades o un historial "git log") no contiene menciones a
+# herramientas, coautorías, cuentas automáticas ni correos noreply que no sean personales.
+# Las menciones a herramientas se buscan en el texto completo, incluidos los correos noreply personales
+# (así "123-claude@users.noreply..." se rechaza); "noreply" solo después de quitar esos correos.
 entrega_texto_valido() {
-  ! printf '%s\n' "$1" | grep -Eiq "$LIMITE_PALABRAS"
+  printf '%s\n' "$1" | grep -Eiq "$LIMITE_HERRAMIENTAS" && return 1
+  printf '%s\n' "$1" | sed -E "s/$NOREPLY_PERSONAL//g" | grep -Eiq 'no-?reply' && return 1
+  return 0
+}
+
+# 0 si los commits de "git log <resto de argumentos>" en el repositorio $1 (autor, quien confirma y
+# mensaje) son válidos. Ejemplo: entrega_historial_valido "$SALIDA" -1 avance
+entrega_historial_valido() {
+  repo_historial=$1; shift
+  entrega_texto_valido "$(git -C "$repo_historial" log --format='%an <%ae>%n%cn <%ce>%n%B' "$@")"
 }
 
 # Persona del equipo configurada en el repositorio original: AUTOR_NOMBRE y AUTOR_CORREO.
@@ -164,6 +184,21 @@ _ejecutar_pruebas() {
     tail -n 40 "$registro" | sed 's/^/           | /'
     FALLOS_PRUEBAS=$((FALLOS_PRUEBAS + 1))
   fi
+}
+
+# Resumen en una línea de las comprobaciones "  OK  <componente>  N pruebas, ..." de un registro de pruebas
+# (salida de entrega_probar o de _ejecutar_pruebas), para el cuerpo de los commits.
+entrega_resumen_pruebas() {
+  sed -n 's/^  OK  *\([^ ][^ ]*\)  *\([0-9?][0-9?]* pruebas, [0-9?]* correctas, [0-9?]* fallidas\).*/\1: \2/p' "$1" \
+    | paste -sd ';' - | sed 's/;/; /g'
+}
+
+# Mensaje completo de un commit de etapa: título y cuerpo ($1, archivo etapa-N.mensaje), las pruebas
+# ejecutadas ($2, texto ya resumido; vacío si no hubo) y «Closes #<issue>» ($3, vacío si no hay issue).
+entrega_mensaje_etapa() {
+  cat -- "$1"
+  if [ -n "$2" ]; then printf 'Pruebas ejecutadas: %s.\n' "$2"; fi
+  if [ -n "$3" ]; then printf '\nCloses #%s\n' "$3"; fi
 }
 
 # 5. Pruebas de todos los componentes e instalación mínima sobre una COPIA de la carpeta $1

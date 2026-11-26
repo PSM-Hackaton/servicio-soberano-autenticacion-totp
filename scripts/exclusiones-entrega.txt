@@ -29,6 +29,10 @@ scripts/permitidos-entrega.txt
 scripts/etapas-entrega.txt
 scripts/subir-por-etapas.sh
 scripts/sincronizar-gitlab.sh
+scripts/etapa-gitlab.sh
+scripts/mr-gitlab.sh
+scripts/gitlab-evento.txt
+scripts/tests/entrega-*.test.mjs
 # Ganchos de git del equipo: importan entrega-herramientas.mjs (excluido) y se instalan desde el
 # repositorio de trabajo también en la copia de la entrega (sh scripts/instalar-hooks.sh --repo DIR).
 scripts/hooks/

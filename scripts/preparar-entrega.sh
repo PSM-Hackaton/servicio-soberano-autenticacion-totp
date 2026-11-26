@@ -4,7 +4,7 @@
 #   1. Exporta el árbol de una referencia git (sin historial) a una carpeta nueva.
 #   2. Quita el material interno (scripts/exclusiones-entrega.txt).
 #   3. Revisa enlaces y menciones a lo excluido; corrige README.md y ARCHITECTURE.md en la copia.
-#   4. Verifica la copia: cadenas prohibidas, rutas /home/, secretos, tamaño, README de 6 apartados.
+#   4. Verifica la copia: cadenas prohibidas, rutas /home/, secretos, tamaño, README de la plantilla del evento.
 #   5. Ejecuta las pruebas de todos los componentes y la instalación mínima en una copia temporal.
 #   6. Crea en la carpeta de salida un repositorio git nuevo (rama avance; terminado con --final)
 #      con un único commit e imprime los comandos para subirlo. No añade remotos ni hace push.
@@ -148,8 +148,7 @@ git -C "$SALIDA" config user.email "$AUTOR_CORREO"
 # Comprobaciones del repositorio creado.
 N_COMMITS=$(git -C "$SALIDA" rev-list --count avance)
 [ "$N_COMMITS" -eq 1 ] || falla "se esperaba un único commit y hay $N_COMMITS"
-git -C "$SALIDA" log -1 --format='%an%n%ae%n%cn%n%ce%n%B' avance | grep -Eiq "$LIMITE_PALABRAS" \
-  && falla 'el commit contiene autoría o texto no permitido'
+entrega_historial_valido "$SALIDA" -1 avance || falla 'el commit contiene autoría o texto no permitido'
 N_VERSIONADOS=$(git -C "$SALIDA" ls-files | wc -l | tr -d ' ')
 N_ARCHIVOS=$(find "$SALIDA" -path "$SALIDA/.git" -prune -o -type f -print | wc -l | tr -d ' ')
 [ "$N_VERSIONADOS" -eq "$N_ARCHIVOS" ] || falla "hay $N_ARCHIVOS archivos en la copia pero solo $N_VERSIONADOS versionados"

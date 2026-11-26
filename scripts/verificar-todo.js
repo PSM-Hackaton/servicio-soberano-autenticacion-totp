@@ -108,6 +108,77 @@ export function validarOpenApiEstricto(textoYaml) {
 }
 
 /**
+ * Títulos EXACTOS de la plantilla de README del GitLab del evento (los lee el bot evaluador). El título de
+ * nivel 1 es el nombre del proyecto; los de nivel 2 van en este orden, sin numerar y sin cambiar el texto.
+ */
+export const TITULOS_PLANTILLA_README = [
+  'Participantes',
+  'Descripción del proyecto',
+  'Alcance',
+  'Requerimientos del sistema',
+  'Paso a paso de instalación / despliegue',
+];
+
+const normalizarTitulo = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  .replace(/^\d+(?:\.\d+)*[.)]?\s*/, '').replace(/\s+/g, ' ').trim();
+
+/**
+ * Comprueba que el README sigue la plantilla del evento: un único "# <título>" como primer título y,
+ * después, exactamente los cinco títulos "## ..." de TITULOS_PLANTILLA_README, en orden, una vez cada uno.
+ * Ignora los bloques de código (``` o ~~~), donde "# " es un comentario. Los subapartados van con "###".
+ * @param {string} texto contenido de README.md
+ * @returns {{ ok: boolean, errores: string[] }}
+ */
+export function verificarReadmePlantilla(texto) {
+  const errores = [];
+  const titulos = [];
+  let valla = null;
+  texto.split(/\r?\n/).forEach((linea, i) => {
+    const v = /^\s{0,3}(`{3,}|~{3,})/.exec(linea);
+    if (v) {
+      if (!valla) valla = v[1][0];
+      else if (v[1][0] === valla) valla = null;
+      return;
+    }
+    if (valla) return;
+    const m = /^(#{1,2})(?:\s+(.*?))?\s*#*\s*$/.exec(linea);
+    if (m && !/^#{3,}/.test(linea)) titulos.push({ nivel: m[1].length, texto: (m[2] ?? '').trim(), linea: i + 1 });
+  });
+
+  const nivel1 = titulos.filter((t) => t.nivel === 1);
+  if (!nivel1.length) errores.push('Falta el título "# <nombre del proyecto>" en la primera línea con título.');
+  else {
+    if (titulos[0].nivel !== 1) errores.push(`README.md:${titulos[0].linea}: el primer título debe ser "# <nombre del proyecto>".`);
+    if (!nivel1[0].texto) errores.push(`README.md:${nivel1[0].linea}: el título "#" está vacío.`);
+    for (const t of nivel1.slice(1)) errores.push(`README.md:${t.linea}: solo puede haber un título "#" (use "###" para "${t.texto}").`);
+  }
+
+  const nivel2 = titulos.filter((t) => t.nivel === 2);
+  let siguiente = 0;
+  for (const t of nivel2) {
+    const esperado = TITULOS_PLANTILLA_README[siguiente];
+    if (t.texto === esperado) { siguiente += 1; continue; }
+    const norma = normalizarTitulo(t.texto);
+    if (norma.startsWith('nombre del proyecto')) {
+      errores.push(`README.md:${t.linea}: "## ${t.texto}" sobra: el nombre del proyecto va en el título "# <título>".`);
+      continue;
+    }
+    const parecido = TITULOS_PLANTILLA_README.find((x) => norma.startsWith(normalizarTitulo(x)))
+      ?? (/instalacion|despliegue/.test(norma) ? TITULOS_PLANTILLA_README[4] : undefined);
+    if (parecido && TITULOS_PLANTILLA_README.indexOf(parecido) === siguiente) {
+      errores.push(`README.md:${t.linea}: "## ${t.texto}" debe ser exactamente "## ${parecido}" (sin numerar ni cambiar el texto).`);
+      siguiente += 1;
+    } else if (parecido) {
+      errores.push(`README.md:${t.linea}: "## ${t.texto}" está repetido o fuera del orden de la plantilla.`);
+    } else {
+      errores.push(`README.md:${t.linea}: "## ${t.texto}" no es un título de la plantilla (use "###" para los subapartados).`);
+    }
+  }
+  for (const falta of TITULOS_PLANTILLA_README.slice(siguiente)) errores.push(`Falta el título "## ${falta}".`);
+  return { ok: errores.length === 0, errores };
+}
+
+/**
  * Escanea archivos rastreados del repositorio en busca de secretos, rutas locales o rastros prohibidos.
  */
 // Línea de coautoría al inicio de línea (trailer de commit). Se compone por partes para que este archivo,
@@ -200,9 +271,16 @@ function main() {
     { nombre: 'SDK', cwd: RAIZ, args: ['--test', ...flagCov, 'sdk/tests/*.test.js'] },
     { nombre: 'Portal de Trámites Demo', cwd: RAIZ, args: ['--test', ...flagCov, 'demo-portal-tramites/tests/*.test.js'] },
     { nombre: 'Attack Lab y DAST', cwd: join(RAIZ, 'attack-lab'), args: ['--test', ...flagCov, 'tests/*.test.js'] },
+    // Opcional: en la subida por etapas al GitLab del evento, scripts/tests/ llega después que este archivo.
+    { nombre: 'Herramientas de verificación', cwd: RAIZ, args: ['--test', ...flagCov, 'scripts/tests/*.test.mjs'],
+      opcional: join(RAIZ, 'scripts', 'tests') },
   ];
 
   for (const s of suites) {
+    if (s.opcional && !(existsSync(s.opcional) && readdirSync(s.opcional).some((f) => f.endsWith('.test.mjs')))) {
+      console.log(`\n▶ Pruebas: ${s.nombre}: omitidas (no hay ${relative(RAIZ, s.opcional)}/*.test.mjs)`);
+      continue;
+    }
     const r = ejecutarPaso(`Pruebas: ${s.nombre}`, process.execPath, s.args, { cwd: s.cwd, capturar: conCobertura });
     if (r.status !== 0) fallos.push(`Pruebas ${s.nombre}`);
     if (conCobertura) {
@@ -254,9 +332,22 @@ function main() {
     fallos.push('Higiene del repositorio');
   }
 
+  // 5. README.md con los títulos exactos de la plantilla del GitLab del evento
+  console.log('\n=== 5. README.md con los títulos de la plantilla del evento ===');
+  const readme = join(RAIZ, 'README.md');
+  const revisionReadme = existsSync(readme)
+    ? verificarReadmePlantilla(readFileSync(readme, 'utf8'))
+    : { ok: false, errores: ['No existe README.md en la raíz.'] };
+  if (revisionReadme.ok) {
+    console.log(`OK: README.md con "# <título>" y ${TITULOS_PLANTILLA_README.map((t) => `"## ${t}"`).join(', ')}.`);
+  } else {
+    for (const e of revisionReadme.errores) console.error(`ERROR README: ${e}`);
+    fallos.push('README.md (plantilla del evento)');
+  }
+
   console.log('\n=== RESUMEN FINAL ===');
   if (fallos.length === 0) {
-    console.log('TODO VERDE: OpenAPI estricto, 5 suites de pruebas, SBOM (0 deps) e higiene OK.');
+    console.log('TODO VERDE: OpenAPI estricto, suites de pruebas, SBOM (0 deps), higiene y README de la plantilla OK.');
   } else {
     console.error(`FALLOS (${fallos.length}): ${fallos.join(', ')}`);
     process.exitCode = 1;

@@ -87,6 +87,16 @@ const PALABRAS_CASTELLANO = new Set(('de la el los las del con para por en y o q
   + 'desde hasta como más').split(' '));
 const RE_TIPO = /^([a-z]+)(\([^)]*\))?!?:\s+/;
 
+const MINIMO_LINEAS_CUERPO = 2;
+const RE_SOLO_REFERENCIA = /^(?:[-*]\s*)?(?:(?:closes|close|closed|fixes|fix|fixed|resolves|resolve|resolved|refs|ref|cierra|relacionado con)\s*:?\s*)?(?:[\w./-]*#\d+[\s,]*)+$/i;
+
+/** Línea del cuerpo que describe algo: al menos 3 palabras y 15 caracteres, y no solo una referencia a un issue. */
+function esLineaDescriptiva(linea) {
+  const t = linea.trim();
+  if (!t || RE_SOLO_REFERENCIA.test(t)) return false;
+  return [...t].length >= 15 && (t.match(/[\p{L}\p{N}]+/gu) || []).length >= 3;
+}
+
 function limpiarMensaje(texto) {
   const lineas = [];
   for (const l of texto.split(/\r?\n/)) {
@@ -119,6 +129,14 @@ function mensaje(archivo) {
   else if (largo > 72) avisos.push(`el título tiene ${largo} caracteres; se recomiendan 72 como máximo.`);
   if (lineas.length > 1 && lineas[1]) avisos.push('deje una línea en blanco entre el título y el cuerpo.');
 
+  // Commits detallados: cuerpo con al menos 2 líneas descriptivas (qué incluye, qué requisito cubre, qué
+  // pruebas se ejecutaron). No cuentan las referencias sueltas («Closes #3», «Refs #3») ni las líneas cortas.
+  const descriptivas = lineas.slice(1).filter(esLineaDescriptiva);
+  if (descriptivas.length < MINIMO_LINEAS_CUERPO) {
+    fallos.push(`el cuerpo tiene ${descriptivas.length} línea(s) descriptiva(s); se exigen al menos ${MINIMO_LINEAS_CUERPO}: `
+      + 'tras una línea en blanco, explique qué módulos o archivos cambian, qué requisito o issue cubre y qué pruebas se ejecutaron y con qué resultado.');
+  }
+
   const tipo = RE_TIPO.exec(asunto);
   const descripcion = tipo ? asunto.slice(tipo[0].length) : asunto;
   const palabras = descripcion.toLowerCase().match(/[a-záéíóúüñ]+/g) || [];
@@ -141,7 +159,7 @@ function informarMensaje(fallos, avisos) {
   else if (avisos.length) console.error('\ncommit-msg: mensaje aceptado, con recomendaciones:');
   for (const f of fallos) error(f);
   for (const a of avisos) aviso(a);
-  if (fallos.length) console.error('\n  Ejemplo: feat(backend): añadir ventana de deriva configurable (#12)\n  (el mensaje escrito sigue en .git/COMMIT_EDITMSG)\n');
+  if (fallos.length) console.error('\n  Ejemplo:\n    feat(backend): añadir ventana de deriva configurable (#12)\n\n    Añade TOTP_DRIFT_MAX a la configuración y la aplica en verificarCodigo (backend/src/core/totp).\n    Cubre el requisito de tolerancia de reloj del reto; pruebas: npm test en backend, 50/50 correctas.\n    Closes #12\n  (el mensaje escrito sigue en .git/COMMIT_EDITMSG)\n');
   else if (avisos.length) console.error('');
   return fallos.length ? 1 : 0;
 }

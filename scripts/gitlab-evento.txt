@@ -1,0 +1,18 @@
+# Datos del proyecto del Reto 1 en el GitLab del evento. Los usan scripts/etapa-gitlab.sh y
+# scripts/mr-gitlab.sh. No contiene secretos: el token de GitLab se pasa solo por la variable de entorno
+# GITLAB_TOKEN al crear un Merge Request, nunca se guarda en archivos ni en remotos.
+#
+# Formato: "clave valor". "identidad <rama> Nombre <correo>" fija el autor de los commits de esa rama
+# personal (la identidad de la persona en el GitLab del evento); "revisor <rama> <id>" es el id numérico de
+# GitLab de quien revisa los Merge Request de esa rama.
+
+url        https://gitlab.nube.gob.ve
+proyecto   1409
+ruta       grupo/chuao/chuao_grupo4/reto_otp
+destino    desarrollo
+
+identidad  diego  Diego Landaeta <diego.landaeta.g@gmail.com>
+identidad  laya   Juan Laya <1016-juanluislaya@users.noreply.gitlab.nube.gob.ve>
+
+revisor    diego  1016
+revisor    laya   1013

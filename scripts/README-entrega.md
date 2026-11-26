@@ -14,6 +14,9 @@ modifica**. A GitLab va solo la versión limpia, sin el material interno de `scr
 | :--- | :--- |
 | `scripts/preparar-entrega.sh` | Copia limpia verificada y probada en **un único commit** (`avance`; `terminado` con `--final`). Sirve para revisar la entrega y para la comprobación final. |
 | `scripts/subir-por-etapas.sh` | **Día 1**: reconstruye la copia limpia como **9 commits por etapas** (`scripts/etapas-entrega.txt`), con autor por etapa, en las ramas `diego` y `laya`; prepara `avance`. |
+| `scripts/etapa-gitlab.sh` | **Modelo real del evento**: prepara **una** etapa encima de lo que ya hay en GitLab (`desarrollo` y la rama personal del autor), con la identidad GitLab del autor, en una rama local; no sube nada. |
+| `scripts/mr-gitlab.sh` | Merge Request de la rama personal hacia `desarrollo` por la API, siempre con `remove_source_branch=false` (sin `--ejecutar` solo muestra la petición). |
+| `scripts/gitlab-evento.txt` | Datos del proyecto en GitLab (URL, id, rama de destino), identidades GitLab por rama personal y revisores. Sin secretos. |
 | `scripts/sincronizar-gitlab.sh` | **Día 2 en adelante**: lleva a la copia de entrega los commits nuevos de GitHub, **uno por commit original** (mismo mensaje y autor, hora real). |
 | `scripts/entrega-comun.sh` | Funciones compartidas por los tres (exportar, excluir, ajustar, verificar, probar, confirmar y subir). |
 | `scripts/entrega-herramientas.mjs` | Apoyo en Node.js: exclusiones, enlaces, verificaciones, reparto en etapas y copia de archivos. |
@@ -56,8 +59,8 @@ Qué hace:
    etapa, si una etapa queda vacía, si una ruta no coincide con nada o si se colara algo excluido.
 3. Crea un repositorio git nuevo en `--salida` y aplica cada etapa como un commit **acumulativo** (añade sus
    archivos a lo ya subido) con su autor y su mensaje. Antes de cada commit verifica el árbol (rastros,
-   rutas `/home/`, secretos, archivos sensibles, tamaño; el README de 6 apartados desde la etapa que lo
-   incorpora). Quien confirma (*committer*) es la persona que ejecuta el script.
+   rutas `/home/`, secretos, archivos sensibles, tamaño; el README de la plantilla del evento desde la etapa
+   que lo incorpora). Quien confirma (*committer*) es la persona que ejecuta el script.
 4. Comprueba que hay 9 commits, que ningún autor o mensaje lleva texto no permitido y que el árbol final es
    **idéntico** a la copia limpia (mismo árbol git que `preparar-entrega.sh`).
 5. Prepara la rama local `avance` como merge `--no-ff` de las ramas de trabajo, guarda el estado de
@@ -78,7 +81,7 @@ historia, ningún push necesita forzarse y la rama más adelantada contiene todo
 | 6 `aplicaciones` | Diego Landaeta | `diego` | App autenticadora, consola, SDK, Portal de Trámites, guía de integración y manual |
 | 7 `laboratorio-despliegue` | Diego Landaeta | `diego` | Laboratorio de ataques y caos, su informe, despliegue como servicio y respaldos |
 | 8 `verificacion` | Juan Laya | `laya` | Escaneo dinámico (DAST), verificación del despliegue, sus evidencias, SBOM, guion de demo, guía del Reto 3 |
-| 9 `documentacion` | Diego Landaeta | `diego` | README de 6 apartados, licencia, matriz de cumplimiento, escalabilidad y presentación |
+| 9 `documentacion` | Diego Landaeta | `diego` | README con la plantilla del evento, licencia, matriz de cumplimiento, escalabilidad y presentación |
 
 El reparto sigue la autoría real (`git log --format=%an -- <ruta>`): cuando una parte mezcla autores, cada
 archivo va a la etapa de quien lo creó o lo dejó en su forma actual. Por eso los temas del issue #55 se
@@ -93,6 +96,42 @@ despliegue (de Diego) se sube junto al laboratorio en la 7. Para cambiar el plan
 2. *Code > Merge requests > New merge request*: origen `diego` (la rama más adelantada, que contiene también
    las etapas de `laya`), destino `avance`. Sin *Squash commits*, para no perder el historial por etapas.
 3. Comparar el diff con la rama local `avance` (es el resultado esperado) y hacer el merge.
+
+### Modelo del evento: etapa a etapa sobre `desarrollo` (scripts/etapa-gitlab.sh)
+
+En el GitLab del evento `desarrollo` ya existe y está protegida: contiene el commit del organizador (la
+plantilla del `README.md`) y lo que se va fusionando. Cada persona sube a **su rama personal** (`diego`,
+`laya`) y abre un Merge Request hacia `desarrollo`. Nada se reescribe: cada etapa es un commit nuevo
+encima de lo ya subido.
+
+```sh
+git -C ../reto_otp fetch gitlab                     # clon del proyecto en GitLab (remoto "gitlab", sin token)
+sh scripts/etapa-gitlab.sh --clon ../reto_otp --etapa 3
+#   -> rama local diego-etapa3 = gitlab/diego + archivos de la etapa 3, autor Diego Landaeta <correo GitLab>
+git -C ../reto_otp push gitlab diego-etapa3:diego     # lo ejecuta la persona autora, con su cuenta
+sh scripts/mr-gitlab.sh --origen diego --titulo "Etapa 3 · ..." --issue 3              # muestra la petición
+GITLAB_TOKEN=<token> sh scripts/mr-gitlab.sh --origen diego --titulo "Etapa 3 · ..." --issue 3 --ejecutar
+```
+
+- **Base**: `--sobre`, o `gitlab/<rama del autor>` si existe, o `gitlab/desarrollo`. Debe contener
+  `gitlab/desarrollo` y `gitlab/<rama>` (así el push es de avance rápido; nunca se fuerza).
+- **Etapas anteriores que faltan** (por ejemplo, la 2 de Juan aún sin fusionar cuando Diego prepara la 3):
+  el script avisa y explica cómo actualizar. Si la etapa aún no se subió, se rehace encima de `desarrollo`
+  actualizado (`--sobre gitlab/desarrollo --forzar`); si ya se subió, se fusiona `desarrollo` en la rama
+  personal (`git merge --no-ff gitlab/desarrollo`) antes de la siguiente.
+- **Comprobaciones**: copia limpia completa verificada; árbol de la etapa (base + sus archivos) verificado,
+  incluido el README de la plantilla (el del organizador ya la cumple); pruebas de los componentes que
+  contiene, sobre una copia; el commit solo cambia archivos de la etapa; autor y mensaje sin texto no
+  permitido. Se aceptan los correos noreply **personales** de GitLab (`<id>-<usuario>@users.noreply.<servidor>`);
+  cualquier otro `noreply` y las menciones a herramientas se siguen rechazando.
+- **Commits detallados**: cada etapa de `etapas-entrega.txt` lleva un cuerpo (`cuerpo`, mínimo 2 líneas:
+  qué módulos o archivos incluye y qué requisito del reto cubre) y su issue de GitLab (`issue`). Los scripts
+  componen el mensaje: título, cuerpo, `Pruebas ejecutadas: <componente>: N pruebas, N correctas, 0 fallidas`
+  y `Closes #<issue>`. `subir-por-etapas.sh` usa el mismo cuerpo (con el resultado de las pruebas de la copia
+  limpia). El gancho `commit-msg` exige también un cuerpo de al menos 2 líneas descriptivas (no cuentan
+  las referencias sueltas como `Closes #3`).
+- **Merge Request**: `mr-gitlab.sh` envía `remove_source_branch=false` y `squash=false` (el proyecto borra la
+  rama de origen al fusionar si no se indica) y no crea otro si ya hay uno abierto de la misma rama.
 
 ### Día 2 en adelante: subida continua
 
@@ -173,9 +212,10 @@ Pasos (los mismos que usan los otros dos scripts, desde `entrega-comun.sh`):
      prueba y el código que genera llaves en tiempo de ejecución no cuentan);
    - archivos sensibles por nombre (`.env` reales, llaves, certificados, bases de datos, `node_modules`);
    - archivos de más de 5 MB;
-   - un `README.md` sin los 6 apartados del instructivo como títulos `## N. Nombre`, en este orden:
-     1 Nombre del proyecto, 2 Participantes, 3 Descripción del proyecto, 4 Alcance,
-     5 Requerimientos del sistema, 6 Instalación y despliegue.
+   - un `README.md` sin los títulos exactos de la plantilla del GitLab del evento, sin numerar y en este
+     orden: `# <título>`, `## Participantes`, `## Descripción del proyecto`, `## Alcance`,
+     `## Requerimientos del sistema`, `## Paso a paso de instalación / despliegue` (la regla está en
+     `verificar-todo.js`, `verificarReadmePlantilla`, y la comparten la integración continua y estos scripts).
 5. **Prueba que funciona aislada**, en una copia temporal: `cd backend && npm test`; `node --test` con los
    `tests/*.test.js|mjs` de `authenticator-app`, `sdk`, `demo-portal-tramites` y `attack-lab`; e instalación
    mínima con `node scripts/generar-env.js --salida <temporal>` (sin `CHANGE_ME`, permisos 600, llave de 256 bits).
@@ -289,9 +329,9 @@ siguiente push de la misma rama incluye lo omitido.
 - [ ] **Al final de cada día: Merge Request hacia `avance`** desde la rama más adelantada, sin *Squash commits*.
 - [ ] Code freeze 4 horas antes de la entrega.
 - [ ] **Al terminar el proyecto: Merge Request final de `avance` hacia `terminado`.**
-- [ ] `README.md` en la raíz **antes del merge a `terminado`**, con los 6 apartados, en orden: 1 Nombre del proyecto ·
-      2 Participantes (nombre completo y rol) · 3 Descripción del proyecto · 4 Alcance (funcionalidades y límites) ·
-      5 Requerimientos del sistema (lenguajes, versiones, dependencias, servicios, variables de entorno) ·
-      6 Instalación y despliegue (clonar, configurar, ejecutar).
+- [ ] `README.md` en la raíz **antes del merge a `terminado`**, con los títulos exactos de la plantilla del evento:
+      `# <título>` · `## Participantes` (nombre completo y rol) · `## Descripción del proyecto` · `## Alcance`
+      (funcionalidades y límites) · `## Requerimientos del sistema` (lenguajes, versiones, dependencias, servicios,
+      variables de entorno) · `## Paso a paso de instalación / despliegue` (clonar, configurar, ejecutar).
 - [ ] Verificaciones y pruebas en verde en cada preparación; avisos de enlaces revisados.
 - [ ] Autores de los commits: personas del equipo; hora real; ningún `--force`.

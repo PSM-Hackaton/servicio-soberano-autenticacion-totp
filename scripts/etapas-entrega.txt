@@ -5,11 +5,19 @@
 # partes de Juan Laya son las de sus commits en GitHub; el resto, de Diego Landaeta. Cuando una parte
 # mezcla autores, cada archivo va a la etapa de quien lo creó o lo dejó en su forma actual.
 #
+# En el GitLab real del evento cada etapa se prepara de una en una, encima de lo que ya hay en la rama
+# personal del autor y en "desarrollo", con su identidad de GitLab: scripts/etapa-gitlab.sh --etapa <n>
+# (ver scripts/README-entrega.md, «Modelo del evento»). subir-por-etapas.sh rehace todo en un repositorio
+# nuevo y sirve para ensayar el reparto completo.
+#
 # Formato: una línea "clave valor"; "etapa <id>" abre una etapa nueva.
 #   etapa    identificador corto (único)
 #   mensaje  mensaje del commit, en castellano
 #   autor    "Nombre Apellido <correo>"; AUTOR_LAYA se sustituye por el valor de --autor-laya (obligatorio)
 #   rama     rama de trabajo de GitLab que recibe el commit: diego o laya
+#   cuerpo   una línea del cuerpo del mensaje (repetible, mínimo 2): qué módulos/archivos incluye y qué
+#            requisito del reto cubre. Los scripts añaden después las pruebas ejecutadas y su resultado.
+#   issue    número del issue de GitLab de la etapa; se añade «Closes #<n>» al final del mensaje
 #   ruta     archivos que incorpora (repetible). Misma sintaxis que exclusiones-entrega.txt:
 #            sin "/" coincide en cualquier carpeta, por eso los archivos de la raíz llevan "/" delante;
 #            "carpeta/" es todo su contenido; "*" no cruza carpetas; "!patrón" lo quita de ESTA etapa.
@@ -22,6 +30,11 @@ etapa    estructura
 mensaje  Estructura del repositorio, material del reto y análisis técnico
 autor    Diego Landaeta <diego.a.programmer@gmail.com>
 rama     diego
+cuerpo   Incluye .gitignore, SECURITY.md (política de reporte de vulnerabilidades), el material oficial del reto
+cuerpo   en docs/reto/ (especificaciones y términos) y el análisis técnico inicial en docs/analisis/ (HTML y PDF).
+cuerpo   Cubre el punto de partida del control de versiones transparente y el criterio 1 (buenas prácticas y
+cuerpo   limpieza): sin secretos, sin rutas locales y con exclusiones de archivos sensibles desde el primer commit.
+issue    1
 ruta     /.gitignore
 ruta     /SECURITY.md
 ruta     docs/reto/
@@ -31,6 +44,13 @@ etapa    arquitectura
 mensaje  Arquitectura hexagonal, contratos de la API (OpenAPI y esquema SQLite) y reglas de trabajo del equipo
 autor    AUTOR_LAYA
 rama     laya
+cuerpo   Incluye ARCHITECTURE.md (arquitectura hexagonal: núcleo, casos de uso, puertos y adaptadores),
+cuerpo   CONTRIBUTING.md (reglas de ramas, revisión y code freeze), .env.example y los contratos de la API:
+cuerpo   contracts/openapi.yaml, contracts/schema.sql y schema.sqlite.sql y las respuestas de ejemplo (mocks)
+cuerpo   de activación, enrolamiento, verificación, auditoría, JWKS y panel administrativo.
+cuerpo   Cubre el diseño del servicio independiente en infraestructura propia y el contrato que siguen backend,
+cuerpo   SDK y aplicaciones cliente (Reto 3).
+issue    2
 ruta     /ARCHITECTURE.md
 ruta     /CONTRIBUTING.md
 ruta     /.env.example
@@ -51,35 +71,77 @@ etapa    nucleo
 mensaje  Núcleo criptográfico propio: motor TOTP (RFC 6238/4226), bóveda AES-256-GCM, tokens Ed25519 y generador QR, con pruebas
 autor    Diego Landaeta <diego.a.programmer@gmail.com>
 rama     diego
+cuerpo   Incluye backend/package.json (sin dependencias npm) y backend/src/core/: motor TOTP/HOTP con SHA-1,
+cuerpo   SHA-256 y SHA-512, ventana de deriva y anti repetición (totp/), Base32 RFC 4648, bóveda AES-256-GCM
+cuerpo   con AAD y versiones de llave (vault/), tokens firmados Ed25519 con JWKS y rotación (tokens/), generador
+cuerpo   QR propio con Reed-Solomon (qr/) y normalización de la cédula para el user_ref (identidad/).
+cuerpo   Cubre el objetivo específico «Desarrollo del Núcleo Criptográfico» (HMAC-SHA256/SHA512, semillas
+cuerpo   CSPRNG), el cifrado en reposo AES-256 de las semillas y los tokens firmados con claves asimétricas locales.
+cuerpo   La prueba de la cédula, que compara con la copia del SDK, llega con el SDK en la etapa 6.
+issue    3
 ruta     backend/package.json
 ruta     backend/src/core/
+# La prueba de la cédula compara con la copia del SDK (etapa aplicaciones): va con él para que cada etapa
+# quede con sus pruebas en verde.
+ruta     !backend/src/core/identidad/cedula.test.js
 
 etapa    persistencia
 mensaje  Persistencia SQLite, seguridad, auditoría encadenada y detector de anomalías local, con pruebas
 autor    Diego Landaeta <diego.a.programmer@gmail.com>
 rama     diego
+cuerpo   Incluye backend/migrations/, la persistencia SQLite (backend/src/infrastructure/persistence/), la capa
+cuerpo   de seguridad (backend/src/security/: límites de intentos, bloqueo temporal, validación de entradas),
+cuerpo   la auditoría encadenada con hash (backend/src/audit/) y el detector local de anomalías
+cuerpo   (backend/src/heuristics/), con sus pruebas.
+cuerpo   Cubre la soberanía de datos (todo local y cifrado), la protección contra fuerza bruta y repetición y el
+cuerpo   análisis heurístico local opcional de intentos fallidos. La prueba de rotación de la llave maestra
+cuerpo   ejecuta backend/scripts/ y llega con ellos en la etapa 5.
+issue    4
 ruta     backend/migrations/
 ruta     backend/src/infrastructure/persistence/
 ruta     backend/src/security/
 ruta     backend/src/audit/
 ruta     backend/src/heuristics/
+# La prueba de rotación ejecuta backend/scripts/rotar-llave-maestra.js (etapa servidor): va con él.
+ruta     !backend/src/infrastructure/persistence/rotacion.test.js
 
 etapa    servidor
 mensaje  Casos de uso, servidor HTTPS con TLS 1.3, arranque, scripts de instalación y respuestas de ejemplo de la API
 autor    Diego Landaeta <diego.a.programmer@gmail.com>
 rama     diego
+cuerpo   Incluye los casos de uso (backend/src/application/), la API HTTPS con TLS 1.3 (backend/src/api/), el
+cuerpo   arranque (backend/src/main.js), la configuración validada (backend/src/infrastructure/config/), los
+cuerpo   scripts de instalación (generar .env, certificados, semilla, rotación de la llave maestra) y el resto de
+cuerpo   respuestas de ejemplo de contracts/mocks/.
+cuerpo   Cubre la ejecución técnica del servicio (enrolar, activar, verificar, revocar, auditar) y la protección
+cuerpo   OWASP de los endpoints de autenticación (cabeceras, caducidad, límites de tamaño y de frecuencia).
+issue    5
 ruta     backend/src/application/
+ruta     !backend/src/application/use-cases/admin-gestion.test.js
 ruta     backend/src/api/
+# api.test.js lo dejó en su forma actual Juan Laya al añadir el sitio público (#57) y prueba sitio-publico/:
+# va en su etapa sitio-android-ci.
+ruta     !backend/src/api/api.test.js
 ruta     backend/src/main.js
 ruta     backend/src/infrastructure/config/
 ruta     backend/scripts/
+ruta     backend/src/infrastructure/persistence/rotacion.test.js
 ruta     contracts/mocks/
 
 etapa    aplicaciones
 mensaje  App autenticadora, consola administrativa, SDK para integradores y Portal de Trámites de demostración
 autor    Diego Landaeta <diego.a.programmer@gmail.com>
 rama     diego
+cuerpo   Incluye la app autenticadora PWA (authenticator-app/), la consola administrativa (admin-console/), el SDK
+cuerpo   para integradores (sdk/) y el Portal de Trámites de demostración (demo-portal-tramites/), con la API
+cuerpo   documentada (docs/api/), el manual (docs/manual/) y las pruebas del backend que importan el SDK.
+cuerpo   Cubre la sustitución de autenticadores extranjeros por uno propio, la integración por terceros y el
+cuerpo   diseño y la experiencia de usuario (criterio 6).
+issue    6
 ruta     authenticator-app/
+# Pruebas del backend que importan el SDK.
+ruta     backend/src/core/identidad/cedula.test.js
+ruta     backend/src/application/use-cases/admin-gestion.test.js
 ruta     admin-console/
 ruta     sdk/
 ruta     !sdk/INTEGRACION_RETO3.md
@@ -91,6 +153,12 @@ etapa    laboratorio-despliegue
 mensaje  Laboratorio de ataques y pruebas de caos; despliegue como servicio y respaldos cifrados
 autor    Diego Landaeta <diego.a.programmer@gmail.com>
 rama     diego
+cuerpo   Incluye el laboratorio de ataques y pruebas de caos (attack-lab/: fuerza bruta, repetición, deriva,
+cuerpo   manipulación de tokens) con su informe en docs/evidencias/, y el despliegue como servicio del sistema
+cuerpo   con respaldos cifrados (deploy/).
+cuerpo   Cubre la seguridad y resiliencia del reto con evidencia reproducible y la viabilidad de la operación
+cuerpo   en infraestructura propia (criterio 4).
+issue    7
 ruta     attack-lab/
 ruta     !attack-lab/escenarios/dast.js
 ruta     !attack-lab/tests/dast.test.js
@@ -102,6 +170,12 @@ etapa    verificacion
 mensaje  Escaneo dinámico de seguridad, verificación del despliegue, SBOM CycloneDX, guion de demostración y guía de integración del Reto 3
 autor    AUTOR_LAYA
 rama     laya
+cuerpo   Incluye el escaneo dinámico de seguridad (attack-lab/escenarios/dast.js y su prueba), la verificación
+cuerpo   del despliegue (deploy/verificar-despliegue.js) con sus evidencias, el SBOM CycloneDX (docs/sbom/), el
+cuerpo   guion de la demostración y la guía de integración del Reto 3 (sdk/INTEGRACION_RETO3.md).
+cuerpo   Cubre la mitigación verificada del OWASP Top 10, la transparencia de componentes (cero dependencias) y
+cuerpo   la integración con el equipo del Reto 3.
+issue    8
 ruta     attack-lab/escenarios/dast.js
 ruta     attack-lab/tests/dast.test.js
 ruta     deploy/verificar-despliegue.js
@@ -115,7 +189,14 @@ etapa    sitio-android-ci
 mensaje  Sitio público con instalación del certificado y página de estado, base de la app Android (RFC 6238 en Kotlin), integración continua (GitLab CI y GitHub Actions) y evidencias de cobertura, accesibilidad, usabilidad y compatibilidad
 autor    AUTOR_LAYA
 rama     laya
+cuerpo   Incluye el sitio público con instalación del certificado y página de estado (sitio-publico/ y la prueba
+cuerpo   backend/src/api/api.test.js que lo sirve), la base de la app Android con RFC 6238 en Kotlin
+cuerpo   (mobile-android/), la integración continua (.gitlab-ci.yml y GitHub Actions), scripts/verificar-todo.js
+cuerpo   y las evidencias de cobertura, accesibilidad, usabilidad y compatibilidad con clientes TOTP.
+cuerpo   Cubre la experiencia de usuario y accesibilidad (criterio 6) y la verificación automática de cada cambio.
+issue    9
 ruta     sitio-publico/
+ruta     backend/src/api/api.test.js
 ruta     mobile-android/
 ruta     /.gitlab-ci.yml
 ruta     .github/workflows/
@@ -127,9 +208,14 @@ ruta     docs/evidencias/guion-usabilidad.md
 ruta     docs/evidencias/compatibilidad-clientes-totp.md
 
 etapa    documentacion
-mensaje  Documentación de entrega: README de 6 apartados, licencia, matriz de cumplimiento, escalabilidad, presentación, lista de entrega y flujo del equipo en GitLab (plantilla de MR y responsables)
+mensaje  Documentación de entrega: README con la plantilla del evento, licencia, matriz de cumplimiento, escalabilidad, presentación, lista de entrega y flujo del equipo en GitLab (plantilla de MR y responsables)
 autor    Diego Landaeta <diego.a.programmer@gmail.com>
 rama     diego
+cuerpo   Incluye README.md con los títulos de la plantilla del evento, LICENSE (AGPL-3.0), la matriz de
+cuerpo   cumplimiento, el análisis de escalabilidad, la presentación, la lista de entrega, el flujo del equipo en
+cuerpo   GitLab (plantilla de MR y CODEOWNERS) y las pruebas de scripts/tests/ que validan el README.
+cuerpo   Cubre la documentación exigida por el instructivo de GitLab y la presentación (criterio 7).
+issue    10
 ruta     /README.md
 ruta     /LICENSE
 ruta     docs/cumplimiento/
@@ -138,3 +224,4 @@ ruta     docs/presentacion/
 ruta     docs/entrega/
 ruta     .github/CODEOWNERS
 ruta     .gitlab/merge_request_templates/
+ruta     scripts/tests/

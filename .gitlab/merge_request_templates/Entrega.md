@@ -9,7 +9,7 @@
 ## Lista de comprobación de quien abre el MR
 
 - [ ] Todo lo incluido se aprobó antes en GitHub por Diego Landaeta o Juan Laya (enlaces arriba) y no se añadió nada después de esa aprobación.
-- [ ] `README.md` en la raíz con los 6 apartados intactos y en orden: 1 Nombre del proyecto · 2 Participantes · 3 Descripción del proyecto · 4 Alcance · 5 Requerimientos del sistema · 6 Instalación y despliegue.
+- [ ] `README.md` en la raíz con los títulos exactos de la plantilla del evento, sin numerar y en orden: `# <título>` · `## Participantes` · `## Descripción del proyecto` · `## Alcance` · `## Requerimientos del sistema` · `## Paso a paso de instalación / despliegue`.
 - [ ] `node scripts/verificar-todo.js` en verde (pipeline del MR o, si no hay runners, salida del gancho pre-push pegada abajo).
 - [ ] Sin secretos: ni `.env` reales, ni llaves, ni certificados (`.pem`, `.key`, `.crt`), ni bases `.db`/`.sqlite`, ni tokens.
 - [ ] Sin rastros de herramientas: ni líneas de coautoría en los commits ni menciones a herramientas de generación de contenido.

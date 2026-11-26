@@ -4,8 +4,6 @@
 
 ---
 
-## 1. Nombre del proyecto
-
 **Servicio Soberano de Autenticación Multifactorial basado en Tiempo (TOTP)**
 *(Repositorio: `servicio-soberano-autenticacion-totp`)*
 
@@ -15,7 +13,7 @@ servicio deben seguir siendo abiertas.
 
 ---
 
-## 2. Participantes
+## Participantes
 
 - Juan Laya — C.I. 31.902.000 — Líder técnico: arquitectura, contratos e integración
 - Diego Landaeta — C.I. 30.613.562 — Backend, criptografía y seguridad
@@ -28,7 +26,7 @@ El equipo del **Reto 3** consume el servicio como aplicación cliente (`Agente E
 
 ---
 
-## 3. Descripción del proyecto
+## Descripción del proyecto
 
 **Problema.** Las instituciones públicas suelen depender de autenticadores comerciales y servicios MFA en
 nubes extranjeras, cediendo la custodia de las semillas, limitándose en la práctica a SHA-1 y dependiendo
@@ -101,7 +99,7 @@ docs/                   Reto, análisis, API, SBOM, cumplimiento, manual, presen
 
 ---
 
-## 4. Alcance
+## Alcance
 
 ### Funcionalidades cubiertas en esta versión
 
@@ -129,7 +127,7 @@ docs/                   Reto, análisis, API, SBOM, cumplimiento, manual, presen
 
 ---
 
-## 5. Requerimientos del sistema
+## Requerimientos del sistema
 
 | Requisito | Detalle |
 | :--- | :--- |
@@ -198,7 +196,7 @@ El laboratorio acepta `ATTACK_URL`, `ATTACK_CLIENT_ID`, `ATTACK_CLIENT_SECRET`, 
 
 ---
 
-## 6. Instalación y despliegue
+## Paso a paso de instalación / despliegue
 
 Pasos ejecutados y comprobados el 26-11-2026 en una copia limpia del repositorio (Linux, Node.js 22.22.1).
 No necesitan Internet después de clonar. Node.js 22 imprime `ExperimentalWarning: SQLite is an

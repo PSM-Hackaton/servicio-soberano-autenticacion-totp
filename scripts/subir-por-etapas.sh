@@ -108,7 +108,10 @@ printf '  %s archivos en la copia limpia (%s excluidos)\n' \
   "$(find "$LIMPIA" -type f | wc -l | tr -d ' ')" "$(wc -l < "$LIMPIA.excluidos" | tr -d ' ')"
 grep -E 'AVISO|CORREGIDO' "$LIMPIA.registro" || true
 entrega_verificar "$LIMPIA" || falla 'la copia limpia no pasa las verificaciones; corrija el repositorio de trabajo'
-entrega_probar "$LIMPIA" "$TMP/pruebas" || falla "$FALLOS_PRUEBAS comprobación(es) de pruebas fallaron sobre la copia limpia"
+entrega_probar "$LIMPIA" "$TMP/pruebas" > "$TMP/pruebas-limpia.log" \
+  || { cat "$TMP/pruebas-limpia.log"; falla "$FALLOS_PRUEBAS comprobación(es) de pruebas fallaron sobre la copia limpia"; }
+cat "$TMP/pruebas-limpia.log"
+RESUMEN_PRUEBAS="copia limpia completa en verde ($(entrega_resumen_pruebas "$TMP/pruebas-limpia.log"))"
 
 # ------------------------------------------------------------------ 2. plan de etapas
 
@@ -140,7 +143,7 @@ exec 3<&0
 while IFS="$TAB" read -r N ID RAMA NOMBRE CORREO N_ARCH MENSAJE; do
   printf '\n  -- Etapa %s/%s: %s (%s, rama %s, %s archivos)\n' "$N" "$N_ETAPAS" "$ID" "$NOMBRE" "$RAMA" "$N_ARCH"
   node "$HERRAMIENTAS" copiar "$LIMPIA" "$PLAN/etapa-$N.lista" "$SALIDA" || falla "no se pudieron copiar los archivos de la etapa $ID"
-  # El README de 6 apartados entra en una etapa concreta; antes de ella no se exige.
+  # El README de la plantilla del evento entra en una etapa concreta; antes de ella no se exige.
   OPCION_README=--sin-readme
   [ -f "$SALIDA/README.md" ] && OPCION_README=
   entrega_verificar "$SALIDA" "$OPCION_README" > "$TMP/verificacion.log" \
@@ -148,7 +151,8 @@ while IFS="$TAB" read -r N ID RAMA NOMBRE CORREO N_ARCH MENSAJE; do
   printf '  Verificaciones: OK%s\n' "$([ -n "$OPCION_README" ] && printf ' (README aún no incorporado)' || true)"
   entrega_git "$SALIDA" add --all --force .
   if entrega_git "$SALIDA" diff --cached --quiet; then falla "la etapa $ID no añade cambios"; fi
-  entrega_confirmar_commit "$SALIDA" "$MENSAJE" "$NOMBRE" "$CORREO"
+  # Commit detallado: título y cuerpo de etapas-entrega.txt, pruebas ejecutadas y «Closes #<issue>».
+  entrega_confirmar_commit "$SALIDA" "$(entrega_mensaje_etapa "$PLAN/etapa-$N.mensaje" "$RESUMEN_PRUEBAS" "$(cat "$PLAN/etapa-$N.issue")")" "$NOMBRE" "$CORREO"
   entrega_git "$SALIDA" branch --force "$RAMA" HEAD
   # Orden en que cada rama recibió su último commit (para preparar avance).
   ORDEN_RAMAS="$(printf '%s\n' $ORDEN_RAMAS | grep -vx "$RAMA" || true) $RAMA"
@@ -167,8 +171,7 @@ done < "$PLAN/plan.tsv"
 titulo '4. Comprobaciones del repositorio'
 N_COMMITS=$(git -C "$SALIDA" rev-list --count integracion)
 [ "$N_COMMITS" -eq "$N_ETAPAS" ] || falla "se esperaban $N_ETAPAS commits y hay $N_COMMITS"
-git -C "$SALIDA" log --format='%an%n%ae%n%cn%n%ce%n%B' integracion | grep -Eiq "$LIMITE_PALABRAS" \
-  && falla 'algún commit contiene autoría o texto no permitido'
+entrega_historial_valido "$SALIDA" integracion || falla 'algún commit contiene autoría o texto no permitido'
 [ -z "$(git -C "$SALIDA" status --porcelain)" ] || falla 'el repositorio de la entrega quedó con cambios sin confirmar'
 # Árbol final idéntico a la copia limpia (contenido y permisos), comparado como árbol git.
 ARBOL_LIMPIO=$(GIT_INDEX_FILE="$TMP/indice" git -C "$LIMPIA" --git-dir="$SALIDA/.git" --work-tree="$LIMPIA" add --all --force . \

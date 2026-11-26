@@ -18,6 +18,9 @@ import {
 import { join, relative, dirname, resolve, sep, basename } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+// Única definición de la regla del README (plantilla del GitLab del evento): la comparte verificar-todo.js,
+// que se publica y la ejecuta también la integración continua.
+import { verificarReadmePlantilla, TITULOS_PLANTILLA_README } from './verificar-todo.js';
 
 export const LIMITE_TAMANO = 5 * 1024 * 1024; // 5 MB
 
@@ -250,16 +253,7 @@ const NOMBRES_SENSIBLES = [
   /(^|\/)id_(?:rsa|ecdsa|ed25519|dsa)(?:\.pub)?$/, /(^|\/)node_modules\//,
 ];
 
-const SECCIONES_README = [
-  ['1', 'Nombre del proyecto'],
-  ['2', 'Participantes'],
-  ['3', 'Descripción del proyecto'],
-  ['4', 'Alcance'],
-  ['5', 'Requerimientos del sistema'],
-  ['6', 'Instalación y despliegue'],
-];
-
-const sinAcentos = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+export { verificarReadmePlantilla, TITULOS_PLANTILLA_README };
 
 export function cargarPermitidos(archivo) {
   const permitidos = { marcas: new Set(), rutas: new Set(), secretos: new Set() };
@@ -346,26 +340,12 @@ function cmdVerificar(copia, archivoPermitidos, { sinReadme = false } = {}) {
     for (const [cat, texto] of r.hallazgos) anotar(cat, archivo, texto);
   }
 
-  // README.md: seis apartados obligatorios, en orden, como títulos de nivel 2.
-  // Con --sin-readme (etapas intermedias de la subida progresiva) el README aún no se ha incorporado.
+  // README.md: títulos exactos de la plantilla del GitLab del evento ("# <título>" y los cinco "## ...").
+  // Con --sin-readme (etapas intermedias sin README) no se comprueba.
   const readme = join(copia, 'README.md');
   if (sinReadme) { /* se comprueba en la etapa que lo incorpora y en la copia completa */ }
   else if (!existsSync(readme)) hallazgos.readme.push('No existe README.md en la raíz.');
-  else {
-    const titulos = readFileSync(readme, 'utf8').split('\n')
-      .map((l, i) => ({ l, i: i + 1 }))
-      .filter(({ l }) => /^##\s+/.test(l) && !/^###/.test(l))
-      .map(({ l, i }) => ({ t: sinAcentos(l.replace(/^##\s+/, '').trim()), i }));
-    let ultimo = 0;
-    for (const [n, nombre] of SECCIONES_README) {
-      const objetivo = sinAcentos(nombre);
-      const h = titulos.find(({ t }) => t.replace(/^\d+[.)]?\s*/, '').startsWith(objetivo));
-      if (!h) { hallazgos.readme.push(`Falta el apartado ${n}. ${nombre} (título "## ${n}. ${nombre}")`); continue; }
-      if (!new RegExp(`^${n}[.)]?\\s`).test(h.t)) hallazgos.readme.push(`README.md:${h.i}: el apartado "${nombre}" no lleva el número ${n}`);
-      if (h.i < ultimo) hallazgos.readme.push(`README.md:${h.i}: "${nombre}" está fuera del orden del instructivo`);
-      ultimo = Math.max(ultimo, h.i);
-    }
-  }
+  else hallazgos.readme.push(...verificarReadmePlantilla(readFileSync(readme, 'utf8')).errores);
 
   const informe = [
     ['marcas', 'Menciones a herramientas externas de generación o coautoría'],
@@ -373,7 +353,7 @@ function cmdVerificar(copia, archivoPermitidos, { sinReadme = false } = {}) {
     ['secretos', 'Secretos (tokens, llaves privadas PEM)'],
     ['nombres', 'Archivos sensibles por nombre (.env, llaves, bases, node_modules)'],
     ['tamano', 'Archivos de más de 5 MB'],
-    ['readme', 'README.md con los 6 apartados del instructivo, en orden'],
+    ['readme', `README.md con los títulos de la plantilla del evento (# <título>, ${TITULOS_PLANTILLA_README.map((t) => `## ${t}`).join(', ')})`],
   ].filter(([cat]) => !(sinReadme && cat === 'readme'));
   let fallos = 0;
   for (const [cat, titulo] of informe) {
@@ -415,10 +395,12 @@ function cmdEnv(archivo) {
 const RE_IDENTIDAD = /^(\S(?:.*\S)?)\s*<([^<>\s@]+@[^<>\s@]+\.[^<>\s@]+)>$/;
 const RAMAS_TRABAJO = new Set(['diego', 'laya']);
 const MARCADOR_LAYA = 'AUTOR_LAYA';
+/** Commits detallados: mínimo de líneas del cuerpo (la misma regla que el gancho commit-msg). */
+const MINIMO_LINEAS_CUERPO = 2;
 
 /**
  * Lee scripts/etapas-entrega.txt. Formato: líneas "clave valor"; cada "etapa <id>" abre una etapa nueva.
- * Claves: etapa, mensaje, autor, rama, ruta (repetible; admite "!patrón").
+ * Claves: etapa, mensaje, autor, rama, cuerpo (repetible), issue, ruta (repetible; admite "!patrón").
  */
 function leerEtapas(archivo) {
   const etapas = [];
@@ -429,11 +411,12 @@ function leerEtapas(archivo) {
     const m = /^(\S+)\s+(.+)$/.exec(linea);
     if (!m) { errores.push(`${basename(archivo)}:${i + 1}: línea sin valor: "${linea}"`); return; }
     const [, clave, valor] = m;
-    if (clave === 'etapa') { etapas.push({ id: valor, linea: i + 1, rutas: [] }); return; }
+    if (clave === 'etapa') { etapas.push({ id: valor, linea: i + 1, rutas: [], cuerpo: [] }); return; }
     const actual = etapas.at(-1);
     if (!actual) { errores.push(`${basename(archivo)}:${i + 1}: "${clave}" antes de la primera "etapa"`); return; }
     if (clave === 'ruta') actual.rutas.push(valor);
-    else if (['mensaje', 'autor', 'rama'].includes(clave)) {
+    else if (clave === 'cuerpo') actual.cuerpo.push(valor);
+    else if (['mensaje', 'autor', 'rama', 'issue'].includes(clave)) {
       if (actual[clave] !== undefined) errores.push(`${basename(archivo)}:${i + 1}: "${clave}" repetido en la etapa ${actual.id}`);
       actual[clave] = valor;
     } else errores.push(`${basename(archivo)}:${i + 1}: clave desconocida "${clave}"`);
@@ -446,6 +429,8 @@ function leerEtapas(archivo) {
  * la última regla que coincide decide, como en las exclusiones). Escribe en <dirPlan>:
  *   plan.tsv        n, id, rama, nombre, correo, nº de archivos, mensaje (separados por tabulador)
  *   etapa-N.lista   archivos que incorpora la etapa N (uno por línea)
+ *   etapa-N.mensaje mensaje completo: título, línea en blanco y cuerpo (sin pruebas ni «Closes», que añade el script)
+ *   etapa-N.issue   número del issue de GitLab de la etapa (vacío si no tiene)
  * Falla si un archivo queda sin etapa, si una etapa queda vacía, si una regla no coincide con nada,
  * si falta un dato o si se incluye algo que las exclusiones prohíben.
  */
@@ -475,6 +460,8 @@ function cmdEtapas(copia, archivoEtapas, archivoExclusiones, dirPlan, opciones) 
     if (e.autor && e.autor !== MARCADOR_LAYA && !id) errores.push(`${donde}: autor sin formato "Nombre <correo>": "${e.autor}"`);
     if (id) { e.nombre = id[1]; e.correo = id[2]; }
     if (!e.rutas.length) errores.push(`${donde}: no tiene rutas`);
+    if (e.cuerpo.length < MINIMO_LINEAS_CUERPO) errores.push(`${donde}: el cuerpo del mensaje tiene ${e.cuerpo.length} línea(s); se exigen al menos ${MINIMO_LINEAS_CUERPO} ("cuerpo ..."): qué incluye y qué requisito cubre`);
+    if (e.issue !== undefined && !/^\d+$/.test(e.issue)) errores.push(`${donde}: "issue" debe ser un número: "${e.issue}"`);
     e.reglas = e.rutas.map((linea) => {
       const negado = linea.startsWith('!');
       return { linea, negado, re: patronARegex(negado ? linea.slice(1) : linea) };
@@ -503,7 +490,11 @@ function cmdEtapas(copia, archivoEtapas, archivoExclusiones, dirPlan, opciones) 
   const tsv = etapas.map((e, i) => [i + 1, e.id, e.rama, e.nombre, e.correo, e.archivos.length, e.mensaje].map((c) => limpiar(String(c))).join('\t'));
   mkdirSync(dirPlan, { recursive: true });
   writeFileSync(join(dirPlan, 'plan.tsv'), `${tsv.join('\n')}\n`);
-  etapas.forEach((e, i) => writeFileSync(join(dirPlan, `etapa-${i + 1}.lista`), `${e.archivos.join('\n')}\n`));
+  etapas.forEach((e, i) => {
+    writeFileSync(join(dirPlan, `etapa-${i + 1}.lista`), `${e.archivos.join('\n')}\n`);
+    writeFileSync(join(dirPlan, `etapa-${i + 1}.mensaje`), `${e.mensaje}\n\n${e.cuerpo.join('\n')}\n`);
+    writeFileSync(join(dirPlan, `etapa-${i + 1}.issue`), `${e.issue ?? ''}\n`);
+  });
 
   const ancho = Math.max(...etapas.map((e) => e.id.length));
   etapas.forEach((e, i) => {

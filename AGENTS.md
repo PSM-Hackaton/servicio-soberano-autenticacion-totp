@@ -44,7 +44,7 @@ servicio-soberano-autenticacion-totp/
 ├── CONTRIBUTING.md                  # Reglas GitHub, bloqueo GitLab y Code Freeze
 ├── SECURITY.md                      # Política de seguridad y principios
 ├── TASKS.md                         # Pizarrón vivo de tareas verificadas
-├── README.md                        # Documentación oficial de entrega (6 apartados)
+├── README.md                        # Documentación oficial de entrega (plantilla del evento)
 ├── .env.example                     # Variables de entorno sin secretos
 ├── contracts/                       # OpenAPI 3.1, schema.sqlite.sql (8 tablas) y mocks/
 ├── backend/                         # API HTTPS TLS 1.3 + motor TOTP + vault + tokens + QR + SQLite + seguridad + auditoría + IA + scripts/

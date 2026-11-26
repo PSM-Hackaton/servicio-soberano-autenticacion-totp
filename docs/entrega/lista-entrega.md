@@ -34,18 +34,18 @@ Leyenda: **[x]** hecho, con su evidencia en el repositorio · **[ ]** pendiente 
   trabajo antes de la última sincronización. **Líder técnico.**
 - [ ] Orden explícita del líder técnico para el push final a GitLab. **Líder técnico.**
 
-### 1.3 README.md en la raíz con los seis apartados, en orden
+### 1.3 README.md en la raíz con los títulos de la plantilla del evento, en orden
 
-| Apartado | Dónde | Estado |
+| Título (exacto, como en la plantilla del GitLab del evento) | Dónde | Estado |
 | --- | --- | --- |
-| 1. Nombre del proyecto | `README.md` §1 (título oficial, repositorio y licencia AGPL-3.0) | [x] |
-| 2. Participantes | `README.md` §2 (nombre completo y rol de los cinco integrantes) | [x] |
-| 3. Descripción del proyecto | `README.md` §3 (problema, propósito, funcionamiento con diagrama, módulos, estructura y documentación) | [x] |
-| 4. Alcance | `README.md` §4 (funcionalidades cubiertas y límites de la entrega) | [x] |
-| 5. Requerimientos del sistema | `README.md` §5 (Node.js 22.5+, SQLite nativa, 0 dependencias npm, servicios y variables de entorno) | [x] |
-| 6. Instalación y despliegue | `README.md` §6 (instalador `deploy/instalar.sh` y Pasos 1–11: clonar, sin `npm install`, `.env`, certificados, semilla, ejecución, pruebas, laboratorio, SBOM y producción) | [x] |
+| `# <título>` | `README.md`, título de nivel 1 (nombre oficial, repositorio y licencia AGPL-3.0) | [x] |
+| `## Participantes` | `README.md` (nombre completo y rol de los cinco integrantes) | [x] |
+| `## Descripción del proyecto` | `README.md` (problema, propósito, funcionamiento con diagrama, módulos, estructura y documentación) | [x] |
+| `## Alcance` | `README.md` (funcionalidades cubiertas y límites de la entrega) | [x] |
+| `## Requerimientos del sistema` | `README.md` (Node.js 22.5+, SQLite nativa, 0 dependencias npm, servicios y variables de entorno) | [x] |
+| `## Paso a paso de instalación / despliegue` | `README.md` (instalador `deploy/instalar.sh` y Pasos 1–11: clonar, sin `npm install`, `.env`, certificados, semilla, ejecución, pruebas, laboratorio, SBOM y producción) | [x] |
 
-La comprobación automática de la entrega verifica estos seis encabezados y su orden.
+La comprobación automática (`node scripts/verificar-todo.js`, paso 5) exige estos títulos exactos, sin numerar y en este orden.
 
 ---
 
@@ -109,7 +109,7 @@ La comprobación final de la copia limpia (herramienta interna del equipo, sin e
 - [x] Sin material interno de coordinación ni herramientas de preparación de la entrega.
 - [x] Sin secretos (`.env`, llaves, certificados, bases de datos) ni rutas locales de las máquinas del equipo.
 - [x] Sin marcas de herramientas de terceros ni líneas de coautoría en commits o archivos.
-- [x] README con los seis apartados en orden.
+- [x] README con los títulos de la plantilla del evento, en orden.
 - [x] Todas las pruebas en verde dentro de la copia limpia.
 
 ---

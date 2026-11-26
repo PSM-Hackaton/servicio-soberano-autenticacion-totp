@@ -28,4 +28,4 @@
 - Usa `.env.example` para documentar cualquier nueva variable de entorno.
 
 ## 4. Code Freeze
-- **Code Freeze obligatorio:** 4 horas antes de la entrega final. Después del freeze solo se permiten correcciones críticas de bloqueo, actualización de `README.md` (6 apartados) y ensayos de demo.
+- **Code Freeze obligatorio:** 4 horas antes de la entrega final. Después del freeze solo se permiten correcciones críticas de bloqueo, actualización de `README.md` (títulos de la plantilla del evento) y ensayos de demo.

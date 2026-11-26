@@ -12,7 +12,7 @@
 #          commits de la rama integrada; después, si el merge añade algo más, un commit con su mensaje.
 #      Los commits que solo tocan material excluido no generan commit en la entrega.
 #   3. Antes de cada commit verifica el árbol resultante (rastros de herramientas, rutas /home/,
-#      secretos, archivos sensibles, tamaño, README de 6 apartados) y ejecuta todas las pruebas.
+#      secretos, archivos sensibles, tamaño, README de la plantilla del evento) y ejecuta todas las pruebas.
 #   4. Cada commit mueve la rama de trabajo de su autor (diego, laya, javier, enggel o giovani) por
 #      avance rápido, igual que en subir-por-etapas.sh. Con --subir ofrece "git push gitlab <rama>" y
 #      solo lo ejecuta si se escribe SI.
@@ -292,5 +292,5 @@ cat <<'FIN'
   Al cierre del día: Merge Request de la rama de trabajo más adelantada hacia avance en GitLab
   (Code > Merge requests > New merge request; sin "Squash commits").
   Entrega final, tras el code freeze: Merge Request de avance hacia terminado, con el README de
-  6 apartados verificado (sh scripts/preparar-entrega.sh --final lo comprueba).
+  la plantilla del evento verificado (sh scripts/preparar-entrega.sh --final lo comprueba).
 FIN
