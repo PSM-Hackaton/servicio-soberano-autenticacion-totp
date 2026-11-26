@@ -65,11 +65,11 @@ Nadie fuera de la institución ve sus claves.</div>
 
 <h3>A.2 Primer ingreso al Portal: vincular el autenticador</h3>
 <ol class="pasos">
-  <li>Entre en el Portal, escriba su <b>Usuario</b> y <b>Contraseña</b> y pulse <b>Continuar</b>.</li>
+  <li>Entre en el Portal (<b>Ingresar al portal</b>), elija la nacionalidad (<b>V</b> o <b>E</b>), escriba su <b>Número de cédula</b> y su <b>Contraseña</b> y pulse <b>Continuar</b>. El Portal no envía su cédula al servicio de autenticación: solo un seudónimo calculado a partir de ella.</li>
   <li>Si todavía no tiene segundo factor, verá <b>Vincule su autenticador</b>. Elija una forma:
     <ul>
       <li><b>Abrir en el Autenticador Soberano</b> (si usa el mismo dispositivo): la app se abre con la cuenta lista; desbloquéela con su PIN, revise los datos y pulse <b>Guardar cuenta</b>.</li>
-      <li><b>Escanee el código QR</b>: en la app, <b>Agregar cuenta</b> → pestaña <b>Cámara</b> → <b>Activar cámara</b> (si su navegador lo permite).</li>
+      <li><b>Escanee el código QR</b>: en la app, <b>Agregar cuenta</b> → pestaña <b>Cámara</b> → <b>Activar cámara</b> y acepte el permiso. La lectura usa el lector de QR del navegador (Chrome y Edge lo incluyen); si su navegador no lo tiene, use otra de las formas. El QR también sirve con cualquier otra app autenticadora estándar.</li>
       <li><b>Clave manual</b>: pulse <b>Copiar</b> junto a la clave; en la app, <b>Agregar cuenta</b> → pestaña <b>Manual</b>, péguela y pulse <b>Revisar cuenta</b>.</li>
     </ul></li>
   <li>En <b>Confirme con el primer código</b>, escriba el código que muestra la app y pulse <b>Activar segundo factor</b>. El enlace caduca a los 10 minutos.</li>
@@ -79,7 +79,7 @@ Nadie fuera de la institución ve sus claves.</div>
 
 <h3>A.3 Ingresos siguientes</h3>
 <ol class="pasos">
-  <li>Usuario y contraseña → <b>Continuar</b>.</li>
+  <li>Cédula y contraseña → <b>Continuar</b>.</li>
   <li>En <b>Verificación en dos pasos</b>, abra la app, desbloquéela con el PIN y escriba el código de 6 dígitos de la cuenta del Portal (toque el código para copiarlo). Pulse <b>Verificar y entrar</b>.</li>
   <li>El anillo alrededor del código indica los segundos que le quedan; si faltan pocos, espere al siguiente.</li>
 </ol>
@@ -108,7 +108,7 @@ desfasado. Active la hora automática del teléfono.</p>
   <li>Escriba uno de sus códigos (con el guion) y pulse <b>Usar código</b>. Cada código sirve una vez.</li>
   <li>El Portal le pedirá <b>vincular un autenticador nuevo</b> (A.2). El autenticador anterior deja de servir.</li>
 </ol>
-<p>Si perdió también los códigos, acuda a la institución para que revoque su factor.</p>
+<p>Si perdió también los códigos, acuda a la institución: el equipo de soporte revoca su factor desde la consola (B.4) y usted vuelve a vincular un autenticador nuevo al entrar al Portal.</p>
 
 <h3>A.8 Otras funciones de la app</h3>
 <ul>
@@ -118,7 +118,7 @@ desfasado. Active la hora automática del teléfono.</p>
   <li><b>Bloquear</b> (barra inferior): bloquea la app de inmediato.</li>
 </ul>
 
-<h2 class="pb">Parte B · Administrador</h2>
+<h2>Parte B · Administrador</h2>
 
 <h3>B.1 Primer acceso</h3>
 <ol class="pasos">
@@ -126,31 +126,36 @@ desfasado. Active la hora automática del teléfono.</p>
   <li>En su app autenticadora: <b>Agregar cuenta</b> → pestaña <b>Pegar</b> → pegue la URI <code>otpauth://…</code> (o escanee el QR) → <b>Revisar cuenta</b> → <b>Guardar cuenta</b>. Borre después el archivo del QR.</li>
   <li>Abra <code>/consola/</code>, escriba usuario, contraseña y el código de 6 dígitos y pulse <b>Entrar</b>. Use un código nuevo: el del momento de la semilla ya se consumió.</li>
 </ol>
+<p>Las demás cuentas (Operador, Auditor u otros Administradores) se crean desde la sección <b>Administradores</b> (B.2): cada cuenta nueva recibe <b>una sola vez</b> su contraseña aleatoria y su TOTP propio ya activado, que la persona añade a su app igual que en el paso 2.</p>
 <p class="small">La sesión caduca tras 30 minutos sin actividad (aviso con cuenta atrás) y como máximo a las 8 horas. Tras 5 intentos fallidos el usuario se bloquea de forma progresiva.</p>
 
 <h3>B.2 Secciones de la consola</h3>
 <table>
   <tr><th style="width:20%">Sección</th><th>Qué permite</th></tr>
   <tr><td><b>Panel</b></td><td>Verificaciones, tasa de éxito, bloqueos, alertas del detector, disponibilidad, latencias y desfase del reloj.</td></tr>
-  <tr><td><b>Aplicaciones</b></td><td>Ver los sistemas integradores y <b>Editar</b> su política: algoritmo (SHA-256/SHA-512/SHA-1), dígitos (6/8), periodo (15–60 s), ventana de tolerancia (0–3 pasos), máximo de intentos (3–15), umbral de riesgo (40–100), modo del detector (Monitorización / Bloqueo), permitir SHA-1 y estado (activo / suspendido). Suspender una app la deja sin acceso al servicio.</td></tr>
-  <tr><td><b>Enrolamientos</b></td><td>Listado filtrable por estado (pendiente, activo, revocado) con usuario seudónimo, algoritmo, deriva, intentos y bloqueos. La revocación la ejecuta el sistema integrador y queda en la bitácora.</td></tr>
+  <tr><td><b>Aplicaciones</b></td><td><b>Registrar aplicación</b> (muestra su <code>client_secret</code> una sola vez), <b>Regenerar secreto</b> (el anterior deja de valer al instante) y <b>Editar</b> la política de cada sistema integrador: algoritmo (SHA-256/SHA-512/SHA-1), dígitos (6/8), periodo (15–60 s), ventana de tolerancia (0–3 pasos), máximo de intentos (3–15), umbral de riesgo (40–100), modo del detector (Monitorización / Bloqueo), permitir SHA-1 y estado (activo / suspendido). Suspender una app la deja sin acceso al servicio.</td></tr>
+  <tr><td><b>Enrolamientos</b></td><td>Listado filtrable por estado (pendiente, activo, suspendido, revocado) y por aplicación, con usuario seudónimo, algoritmo, deriva, intentos y bloqueos. <b>Buscar</b> el factor de un ciudadano por <b>cédula</b> (en las aplicaciones que derivan el identificador de la cédula; la cédula no se guarda y la búsqueda queda auditada) o por <code>user_ref</code> exacto. Acciones: <b>Suspender</b> (deja de valer hasta reactivarlo), <b>Reactivar</b> y <b>Revocar</b> (definitivo; el ciudadano debe vincular un autenticador nuevo). Todo queda en la bitácora.</td></tr>
   <tr><td><b>Detector de anomalías</b></td><td>Alertas del detector local con nivel de riesgo y las razones en lenguaje claro (por ejemplo, «Una misma IP probó 20 cuentas distintas…»). Las IP y los usuarios se muestran solo como huellas.</td></tr>
-  <tr><td><b>Llaves de firma</b></td><td><b>Rotar llave de firma</b>: crea una llave Ed25519 nueva; la anterior sigue validando los tokens ya emitidos.</td></tr>
+  <tr><td><b>Llaves de firma</b></td><td>Inventario de llaves (identificador, estado y fechas, nunca material privado) y <b>Rotar llave de firma</b>: crea una llave Ed25519 nueva; la anterior sigue validando los tokens ya emitidos.</td></tr>
+  <tr><td><b>Administradores</b></td><td>Solo Administrador. <b>Crear cuenta</b> con usuario y rol (Administrador, Operador o Auditor) y <b>Deshabilitar</b> cuentas (cierra sus sesiones). No se puede deshabilitar la propia cuenta ni al último Administrador activo.</td></tr>
   <tr><td><b>Auditoría</b></td><td>Bitácora de eventos críticos y <b>Verificar integridad de la cadena</b>: si alguien modificó o borró un registro, se indica en qué registro se rompe.</td></tr>
 </table>
 
 <h3>B.3 Roles</h3>
 <table>
   <tr><th style="width:20%">Rol</th><th>Puede</th></tr>
-  <tr><td>Administrador</td><td>Todo, incluida la rotación de llaves y la edición de políticas.</td></tr>
-  <tr><td>Operador</td><td>Aplicaciones, enrolamientos, anomalías y métricas.</td></tr>
-  <tr><td>Auditor</td><td>Auditoría y verificación de la cadena, anomalías y métricas (solo lectura).</td></tr>
+  <tr><td>Administrador</td><td>Todo, incluida la rotación de llaves, la regeneración de secretos de apps y la gestión de cuentas de la consola.</td></tr>
+  <tr><td>Operador</td><td>Registrar y editar aplicaciones; buscar, suspender, reactivar y revocar enrolamientos; inventario de llaves, anomalías y métricas.</td></tr>
+  <tr><td>Auditor</td><td>Auditoría y verificación de la cadena, inventario de llaves, anomalías y métricas (solo lectura).</td></tr>
 </table>
-<p class="small">Pulse sobre su rol en la consola para ver sus permisos. El servidor aplica estos permisos aunque la interfaz se manipule. En esta versión la semilla crea solo la cuenta de Administrador.</p>
+<p class="small">Pulse sobre su rol en la consola para ver sus permisos. El servidor aplica estos permisos aunque la interfaz se manipule. La semilla crea solo la cuenta de Administrador; el resto se crea desde <b>Administradores</b>.</p>
 
 <h3>B.4 Tareas frecuentes</h3>
 <ul>
   <li><b>Un ciudadano dice que sus códigos nunca valen:</b> revise en Enrolamientos su deriva y bloqueos; pida que compruebe la hora del teléfono (A.6). El sistema integrador puede resincronizar con dos códigos consecutivos.</li>
+  <li><b>Un ciudadano perdió el teléfono y los códigos de recuperación:</b> tras comprobar su identidad, Enrolamientos → buscar por cédula (o por <code>user_ref</code> si la aplicación no deriva el identificador de la cédula) → <b>Revocar</b>. En su próximo ingreso el Portal le pedirá vincular un autenticador nuevo.</li>
+  <li><b>Sospecha de que alguien usa el factor de un ciudadano:</b> <b>Suspender</b> mientras se investiga y <b>Reactivar</b> después.</li>
+  <li><b>Se filtró el secreto de una aplicación:</b> Aplicaciones → <b>Regenerar secreto</b> y entregar el nuevo al equipo del sistema integrador.</li>
   <li><b>Un ataque en curso:</b> Detector de anomalías → revise las razones; ponga la app en modo <b>Bloqueo</b> o baje el umbral de riesgo.</li>
   <li><b>Tras un cambio de personal o un incidente:</b> rote la llave de firma y verifique la cadena de auditoría.</li>
   <li><b>Rotación de la llave maestra</b> (servicio detenido): añadir <code>MASTER_KEY_V2_HEX</code>, poner <code>MASTER_KEY_VERSION=v2</code> y ejecutar <code>npm run rotar-llave-maestra</code> en <code>backend/</code> (ver <code>deploy/README.md</code>).</li>

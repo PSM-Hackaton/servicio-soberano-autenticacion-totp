@@ -16,7 +16,7 @@
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- 1. Aplicaciones integradoras (Portal de Trámites, Reto 1, Consola Admin, etc.)
+-- 1. Aplicaciones integradoras (Portal de Trámites, Reto 3, Consola Admin, etc.)
 CREATE TABLE IF NOT EXISTS apps (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nombre VARCHAR(120) NOT NULL,

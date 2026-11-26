@@ -103,10 +103,6 @@ export function crearCliente({ url, ca = null, inseguro = false, clientId, clien
   };
 }
 
-/** ¿La respuesta es un error interno del servidor (5xx)? */
-export const esErrorInterno = (r) => r.status >= 500;
-/** ¿La respuesta es un rechazo controlado (4xx)? */
-export const esRechazo = (r) => r.status >= 400 && r.status < 500;
 /** Código de error del cuerpo genérico (GenericError.error) o del mock (errorCode). */
 export const codigoError = (r) => r?.cuerpo?.error ?? r?.cuerpo?.errorCode ?? null;
 /** Segundos de reintento: cuerpo.retry_after_seconds o cabecera Retry-After. */

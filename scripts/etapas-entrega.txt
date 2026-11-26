@@ -82,7 +82,7 @@ rama     diego
 ruta     authenticator-app/
 ruta     admin-console/
 ruta     sdk/
-ruta     !sdk/INTEGRACION_RETO1.md
+ruta     !sdk/INTEGRACION_RETO3.md
 ruta     demo-portal-tramites/
 ruta     docs/api/
 ruta     docs/manual/
@@ -99,7 +99,7 @@ ruta     deploy/
 ruta     !deploy/verificar-despliegue.js
 
 etapa    verificacion
-mensaje  Escaneo dinámico de seguridad, verificación del despliegue, SBOM CycloneDX, guion de demostración y guía de integración del Reto 1
+mensaje  Escaneo dinámico de seguridad, verificación del despliegue, SBOM CycloneDX, guion de demostración y guía de integración del Reto 3
 autor    AUTOR_LAYA
 rama     laya
 ruta     attack-lab/escenarios/dast.js
@@ -109,10 +109,25 @@ ruta     docs/evidencias/dast-informe-*
 ruta     docs/evidencias/prueba-despliegue-systemd.md
 ruta     docs/sbom/
 ruta     docs/GUION_DEMO.md
-ruta     sdk/INTEGRACION_RETO1.md
+ruta     sdk/INTEGRACION_RETO3.md
+
+etapa    sitio-android-ci
+mensaje  Sitio público con instalación del certificado y página de estado, base de la app Android (RFC 6238 en Kotlin), integración continua (GitLab CI y GitHub Actions) y evidencias de cobertura, accesibilidad, usabilidad y compatibilidad
+autor    AUTOR_LAYA
+rama     laya
+ruta     sitio-publico/
+ruta     mobile-android/
+ruta     /.gitlab-ci.yml
+ruta     .github/workflows/
+ruta     scripts/verificar-todo.js
+ruta     scripts/capturas.js
+ruta     docs/evidencias/cobertura-*
+ruta     docs/evidencias/accesibilidad.md
+ruta     docs/evidencias/guion-usabilidad.md
+ruta     docs/evidencias/compatibilidad-clientes-totp.md
 
 etapa    documentacion
-mensaje  Documentación de entrega: README de 6 apartados, licencia, matriz de cumplimiento, escalabilidad y presentación
+mensaje  Documentación de entrega: README de 6 apartados, licencia, matriz de cumplimiento, escalabilidad, presentación, lista de entrega y flujo del equipo en GitLab (plantilla de MR y responsables)
 autor    Diego Landaeta <diego.a.programmer@gmail.com>
 rama     diego
 ruta     /README.md
@@ -120,3 +135,6 @@ ruta     /LICENSE
 ruta     docs/cumplimiento/
 ruta     docs/escalabilidad/
 ruta     docs/presentacion/
+ruta     docs/entrega/
+ruta     .github/CODEOWNERS
+ruta     .gitlab/merge_request_templates/

@@ -211,38 +211,6 @@ function normalizarEvento(e) {
   };
 }
 
-/** Convierte el texto Prometheus de GET /metrics en la misma forma que la instantánea JSON. */
-export function parsearPrometheus(texto) {
-  const muestras = [];
-  for (const linea of String(texto).split('\n')) {
-    if (!linea || linea.startsWith('#')) continue;
-    const m = linea.match(/^([a-zA-Z_:][\w:]*)(?:\{(.*)\})?\s+(\S+)/);
-    if (!m) continue;
-    const etiquetas = {};
-    if (m[2]) for (const p of m[2].matchAll(/(\w+)="((?:[^"\\]|\\.)*)"/g)) etiquetas[p[1]] = p[2].replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-    muestras.push({ nombre: m[1], etiquetas, valor: Number(m[3]) });
-  }
-  const valor = (n) => muestras.find((x) => x.nombre === n)?.valor;
-  const resultados = {};
-  for (const x of muestras.filter((y) => y.nombre === 'totp_verifications_total')) resultados[x.etiquetas.resultado] = x.valor;
-  const latenciaPorRuta = {};
-  for (const x of muestras.filter((y) => y.nombre === 'totp_http_request_duration_ms')) {
-    const r = (latenciaPorRuta[x.etiquetas.ruta] ??= { total: 0, errores5xx: 0, p50Ms: null, p95Ms: null });
-    if (x.etiquetas.quantile === '0.5') r.p50Ms = Number.isFinite(x.valor) ? x.valor : null;
-    if (x.etiquetas.quantile === '0.95') r.p95Ms = Number.isFinite(x.valor) ? x.valor : null;
-  }
-  for (const x of muestras.filter((y) => y.nombre === 'totp_http_requests_total')) if (latenciaPorRuta[x.etiquetas.ruta]) latenciaPorRuta[x.etiquetas.ruta].total = x.valor;
-  return {
-    uptimeSegundos: valor('totp_uptime_seconds'),
-    totales: { verificaciones: Object.values(resultados).reduce((a, b) => a + (b || 0), 0) },
-    disponibilidadPct: valor('totp_availability_percent'),
-    resultadosVerificacion: resultados,
-    latenciaPorRuta,
-    inferencia: { mediaMs: valor('totp_anomaly_inference_ms_avg') },
-    desfaseRelojMs: valor('totp_clock_skew_ms'),
-  };
-}
-
 // --------------------------------------------------------------------- operaciones
 export const api = {
   async sesion() {

@@ -17,13 +17,13 @@
 - **Base de datos:** SQLite única (`contracts/schema.sqlite.sql` / `backend/migrations/001_esquema.sql`). PostgreSQL y Docker quedan fuera.
 - **TLS y Despliegue:** Node HTTPS directo con TLS 1.3 (`TLS_MODE=node`, certificados vía `openssl` o CA institucional) + unidad `systemd` endurecida en `deploy/servicio-totp.service`.
 - **Frontends (`authenticator-app/`, `admin-console/`, `demo-portal-tramites/`):** HTML + CSS + JavaScript propios, sin React, Vite ni CDNs. El propio servidor backend sirve la PWA en `/app/` y la consola administrativa en `/consola/`.
-- **Integración con Reto 1:** `backend/scripts/semilla.js` registra automáticamente la app `Reto 1`, integrable con `sdk/src/index.js` (ver `sdk/INTEGRACION_RETO1.md`).
+- **Integración con Reto 3:** `backend/scripts/semilla.js` registra automáticamente la app `Agente Evaluador (Reto 3)`, integrable con `sdk/src/index.js` (ver `sdk/INTEGRACION_RETO3.md`).
 
 ### ADR-003: Controles Criptográficos, de Integridad y Resiliencia
 - **AES-256-GCM con AAD:** `AAD = enrollment_id + ":" + key_version` + script `rotar-llave-maestra.js`.
 - **Anti-Replay SQL atómico:** `UPDATE enrollments SET last_step = ?, drift_steps = ? WHERE id = ? AND last_step < ?` + tabla `consumed_jti` de clave primaria única.
 - **Resiliencia *Fail-Closed*:** `/health`, `/health/ready`, `/metrics` (Prometheus) y `/admin/api/metrics` (JSON); `503` si cae SQLite; `Idempotency-Key` en `/api/v1/verify`; SDK con timeout 3 s + 1 reintento idempotente + validación offline de JWT vía caché JWKS.
-- **Anonimización:** `user_ref_hash = HMAC-SHA256(user_ref, USER_REF_PEPPER)` e `ip_hash = HMAC-SHA256(ip, DAILY_IP_PEPPER_SEED + fecha)`.
+- **Anonimización:** `user_ref_hash = HMAC-SHA256(user_ref, USER_REF_PEPPER)` e `ip_hash = HMAC-SHA256(app_id + ":" + (client_ip ?? IP TCP), pepper del día derivado de DAILY_IP_PEPPER_SEED)`: el integrador puede enviar `client_ip` (su ciudadano) en `verify`, `recovery`, `activate` y `resync`; el servidor no confía en `X-Forwarded-For`.
 - **Auditoría inmutable (`audit_log`):** cadena SHA-256 verificable desde `GET /admin/api/audit/verify-chain`.
 - **Trazabilidad:** SBOM CycloneDX 1.5 en `docs/sbom/sbom.cdx.json` con **0 dependencias npm de terceros**.
 
@@ -40,10 +40,10 @@
 
 ---
 
-## 2. Flujo de Integración (Portal de Trámites & Reto 1)
+## 2. Flujo de Integración (Portal de Trámites & Reto 3)
 
 ```text
-[App Integradora: Portal Trámites / Reto 1]
+[App Integradora: Portal Trámites / Reto 3]
     |  (Auth: X-Client-Id + X-Client-Secret sobre TLS 1.3 + Idempotency-Key en verify)
     |
     +--> 1. POST /api/v1/enrollments              --> enrollment_id + QR SVG + otpauth:// (pendiente 10 min)
@@ -80,10 +80,14 @@ npm test && npm start
 
 # 2. Pruebas de clientes, SDK, Portal Demo y Attack Lab
 node --test authenticator-app/tests/*.test.mjs
-node --test sdk/tests/sdk.test.js demo-portal-tramites/tests/portal.test.js
-cd attack-lab && npm test
+node --test 'sdk/tests/*.test.js' 'demo-portal-tramites/tests/*.test.js' 'attack-lab/tests/*.test.js'
+
+# 2 bis. Todo junto, como en la integración continua (OpenAPI estricto, 5 suites, SBOM e higiene)
+node scripts/verificar-todo.js
 
 # 3. Smoke tests contra la API HTTPS
 curl --cacert backend/certs/ca.crt https://localhost:8443/health/ready
 curl --cacert backend/certs/ca.crt https://localhost:8443/.well-known/jwks.json
 ```
+
+Cifras vigentes (26-11-2026): **309 pruebas** (backend 211, app 26, SDK 28, portal 16, laboratorio 28); el servidor monta **31 rutas API** (7 de integración v1, 5 de sistema y 19 de la consola), todas en `contracts/openapi.yaml`; laboratorio **11/11** escenarios y **116/116** verificaciones; DAST **12/12**.

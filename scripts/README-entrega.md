@@ -4,6 +4,9 @@ Herramientas internas (no se publican) para llevar al GitLab del Hackatón 2026 
 proyecto, de forma **progresiva**, como pide el instructivo: commits y pushes frecuentes en las ramas de
 trabajo durante la jornada, Merge Request diario hacia `avance` y Merge Request final hacia `terminado`.
 
+Flujo del equipo (quién sube qué, aprobación de Diego o Juan, Merge Request, ramas protegidas):
+[`docs/entrega/flujo-gitlab.md`](../docs/entrega/flujo-gitlab.md).
+
 GitHub sigue siendo el repositorio de trabajo del equipo (historial completo, revisiones, issues) y **no se
 modifica**. A GitLab va solo la versión limpia, sin el material interno de `scripts/exclusiones-entrega.txt`.
 
@@ -14,6 +17,7 @@ modifica**. A GitLab va solo la versión limpia, sin el material interno de `scr
 | `scripts/sincronizar-gitlab.sh` | **Día 2 en adelante**: lleva a la copia de entrega los commits nuevos de GitHub, **uno por commit original** (mismo mensaje y autor, hora real). |
 | `scripts/entrega-comun.sh` | Funciones compartidas por los tres (exportar, excluir, ajustar, verificar, probar, confirmar y subir). |
 | `scripts/entrega-herramientas.mjs` | Apoyo en Node.js: exclusiones, enlaces, verificaciones, reparto en etapas y copia de archivos. |
+| `scripts/instalar-hooks.sh`, `scripts/hooks/` | Ganchos de git `pre-commit`, `commit-msg` y `pre-push` con las mismas reglas de `entrega-herramientas.mjs` (ver más abajo). |
 
 Requisitos: `sh` POSIX, `git` y Node.js 22 o superior. Sin dependencias externas. Si `pdftotext` está
 instalado, también se revisa el texto de los PDF; si no, solo sus bytes.
@@ -29,7 +33,7 @@ Merge Request. Los commits llevan siempre la hora real.
 1. Configurar la persona que ejecuta en el repositorio de GitHub: `git config user.name "Nombre Apellido"` y
    `git config user.email "correo"` (los scripts fallan si falta o si parece una cuenta automática).
 2. Tener la URL del proyecto en GitLab (botón *Clone*) y comprobar qué ramas existen ya (`avance`, `terminado`).
-3. Probar sin subir nada: `sh scripts/preparar-entrega.sh --salida /tmp/revision --permitidos scripts/permitidos-entrega.txt`.
+3. Probar sin subir nada: `sh scripts/preparar-entrega.sh --salida /tmp/revision` (ya no necesita `--permitidos`).
 
 ### Día 1: poner al día lo ya hecho, por etapas
 
@@ -73,7 +77,7 @@ historia, ningún push necesita forzarse y la rama más adelantada contiene todo
 | 5 `servidor` | Diego Landaeta | `diego` | Casos de uso, servidor HTTPS, arranque, scripts y resto de respuestas de ejemplo |
 | 6 `aplicaciones` | Diego Landaeta | `diego` | App autenticadora, consola, SDK, Portal de Trámites, guía de integración y manual |
 | 7 `laboratorio-despliegue` | Diego Landaeta | `diego` | Laboratorio de ataques y caos, su informe, despliegue como servicio y respaldos |
-| 8 `verificacion` | Juan Laya | `laya` | Escaneo dinámico (DAST), verificación del despliegue, sus evidencias, SBOM, guion de demo, guía del Reto 1 |
+| 8 `verificacion` | Juan Laya | `laya` | Escaneo dinámico (DAST), verificación del despliegue, sus evidencias, SBOM, guion de demo, guía del Reto 3 |
 | 9 `documentacion` | Diego Landaeta | `diego` | README de 6 apartados, licencia, matriz de cumplimiento, escalabilidad y presentación |
 
 El reparto sigue la autoría real (`git log --format=%an -- <ruta>`): cuando una parte mezcla autores, cada
@@ -116,8 +120,10 @@ sh scripts/sincronizar-gitlab.sh --entrega ../entrega-gitlab --hasta diego \
   cambios llegan con el del merge. Los commits que solo tocan material excluido no generan commit.
 - **Antes de cada commit**: verificaciones completas (incluido el README) y todas las pruebas; si algo falla,
   se deshace el cambio y no se confirma nada.
-- **Autor y rama**: el del commit original (sin líneas de coautoría). Los commits de Juan Laya (nombre o correo
-  con `laya` o `lya0509`) van a la rama `laya`; el resto, a `diego`. `--autor-laya "Nombre <correo>"` firma los
+- **Autor y rama**: el del commit original (sin líneas de coautoría). Cada commit va a la rama de su autor según
+  su nombre o correo: `laya`/`lya0509` → `laya`; `javier`/`jarviscott` → `javier`; `enggel`/`metagamingprohd` →
+  `enggel`; `giovani` → `giovani`; el resto, a `diego`. Quien ejecuta con `--subir` responde `SI` solo al push
+  de su propia rama. `--autor-laya "Nombre <correo>"` firma los
   de Juan con su nombre completo.
 - Al final comprueba que la entrega coincide con la versión limpia de `--hasta` y guarda el estado.
 
@@ -127,8 +133,7 @@ Cierre de cada día: Merge Request de la rama más adelantada hacia `avance`, co
 ### Entrega final
 
 1. Tras el code freeze, última sincronización y Merge Request diario hacia `avance`.
-2. Comprobar la versión final con `sh scripts/preparar-entrega.sh --ref <rama-final> --final --salida /tmp/final
-   --permitidos scripts/permitidos-entrega.txt`: debe terminar sin errores y su árbol debe coincidir con el de
+2. Comprobar la versión final con `sh scripts/preparar-entrega.sh --ref <rama-final> --final --salida /tmp/final`: debe terminar sin errores y su árbol debe coincidir con el de
    la copia de entrega (`git -C ../entrega-gitlab rev-parse integracion^{tree}` frente a
    `git -C /tmp/final rev-parse avance^{tree}`).
 3. En GitLab: Merge Request de `avance` hacia `terminado` (si `terminado` no existe, crearla desde `avance`
@@ -204,7 +209,7 @@ La lista completa y comentada está en `scripts/exclusiones-entrega.txt`. En res
 | Excluido | Motivo |
 | :--- | :--- |
 | `AGENTS.md`, `TASKS.md`, `ANALISIS_FASE0.md`, `SYSTEM_GRAPH.md` | Coordinación interna del equipo (pizarrón, guía de ramas, auditoría inicial, grafo de trabajo). El producto ya se documenta en `README.md`, `ARCHITECTURE.md` y `docs/`. |
-| `scripts/preparar-entrega.sh`, `subir-por-etapas.sh`, `sincronizar-gitlab.sh`, `entrega-comun.sh`, `entrega-herramientas.mjs`, `exclusiones-entrega.txt`, `etapas-entrega.txt`, `permitidos-entrega.txt`, este archivo | Herramientas internas de preparación y subida. |
+| `scripts/preparar-entrega.sh`, `subir-por-etapas.sh`, `sincronizar-gitlab.sh`, `entrega-comun.sh`, `entrega-herramientas.mjs`, `exclusiones-entrega.txt`, `etapas-entrega.txt`, `permitidos-entrega.txt`, `instalar-hooks.sh`, `hooks/`, este archivo | Herramientas internas de preparación, verificación y subida. |
 | `.claude/`, `.vscode/`, `.idea/` | Carpetas locales de editores y herramientas. |
 | `attack-lab/resultados/*` (salvo `.gitkeep`) | Resultados de cada ejecución, con datos de la máquina local. El informe oficial está en `docs/evidencias/`. |
 | `.env` y variantes (salvo `.env.example`) | Llaves maestras y peppers reales. Solo se publican las plantillas. |
@@ -225,8 +230,32 @@ rutas        deploy/instalar.sh
 ```
 
 Categorías: `marcas` (nombres de herramientas o coautoría), `rutas` (`/home/`), `secretos`. Los hallazgos
-aceptados se listan igualmente en la salida. Hoy la lista contiene solo `deploy/instalar.sh`, cuyo
-`case "$NODE" in /root/*|/home/*)` es una comprobación del instalador, no una ruta local.
+aceptados se listan igualmente en la salida. La versión actual del repositorio pasa **sin** `--permitidos`:
+`deploy/instalar.sh` ya compara la ruta de Node.js con las carpetas personales reales (de root y de quien
+ejecuta `sudo`) en lugar de un patrón literal. La lista conserva esa única línea para `sincronizar-gitlab.sh`
+cuando recorre commits anteriores a ese cambio, cuyo instalador tenía el patrón
+`case "$NODE" in /root/*|/home/*)`.
+
+## Ganchos de git (`scripts/hooks/`)
+
+```sh
+sh scripts/instalar-hooks.sh                              # este repositorio (core.hooksPath=scripts/hooks)
+sh scripts/instalar-hooks.sh --repo ../entrega-gitlab     # copia de la entrega (ruta absoluta a estos ganchos)
+sh scripts/instalar-hooks.sh --quitar [--repo DIR]        # desinstalar
+```
+
+Idempotente. La lógica está en `scripts/hooks/revisar.mjs`, que importa las reglas de `entrega-herramientas.mjs`
+(`revisarArchivo`, la lista de cadenas prohibidas, exclusiones y permitidos): no hay una segunda copia.
+
+| Gancho | Qué revisa | Bloquea |
+| :--- | :--- | :--- |
+| `pre-commit` | Solo lo preparado (`git add`), leído del índice | `.env` reales, llaves, certificados, bases `.db`, `node_modules`, archivos de más de 5 MB, secretos; rutas `/home/` y cadenas prohibidas salvo en material interno (`exclusiones-entrega.txt`) y `.gitignore`; respeta `permitidos-entrega.txt` |
+| `commit-msg` | El mensaje (sin comentarios de git) | Inglés, título de menos de 10 o más de 100 caracteres, coautorías y menciones. Avisa (sin bloquear) si falta `tipo:`, el `#issue` o la línea en blanco, o si el título pasa de 72 |
+| `pre-push` | Autor, quien confirma y mensaje de cada commit nuevo; después `node scripts/verificar-todo.js` | Coautorías, menciones, autores `[bot]`; verificación en rojo. Restaura `docs/sbom/` si la verificación solo lo regeneró |
+
+Emergencias: `SALTAR_VERIFICACION=1 git push …` omite solo `verificar-todo.js` (con visto bueno de Diego o Juan y
+anotado en el Merge Request). Los commits de los scripts de entrega usan `--no-verify` porque ya verifican y
+prueban cada árbol antes de confirmarlo.
 
 ## Pruebas de los scripts sin GitLab
 
@@ -252,7 +281,9 @@ siguiente push de la misma rama incluye lo omitido.
       2.º nombre + cédula + `hackathon2026`) cambiada por una robusta (12+ caracteres, mayúsculas, minúsculas,
       números y símbolos).
 - [ ] Proyecto asignado localizado en el panel de GitLab y su URL a mano; cada persona sube con su propia cuenta.
-- [ ] Ramas: `diego` y `laya` (trabajo), `avance` (merge diario), `terminado` (merge final). Comprobar cuáles existen ya.
+- [ ] Ramas: `diego`, `laya`, `javier`, `enggel`, `giovani` (trabajo), `avance` (merge diario), `terminado` (merge final),
+      protegidas como indica `docs/entrega/flujo-gitlab.md`. Comprobar cuáles existen ya.
+- [ ] Ganchos instalados (`sh scripts/instalar-hooks.sh`, también con `--repo ../entrega-gitlab`).
 - [ ] Día 1: `subir-por-etapas.sh` sin `--subir`, revisión del plan y del historial; después con `--subir`.
 - [ ] Durante la jornada: commits y pushes frecuentes a la rama de trabajo (`sincronizar-gitlab.sh --subir` al cerrar cada tarea).
 - [ ] **Al final de cada día: Merge Request hacia `avance`** desde la rama más adelantada, sin *Squash commits*.

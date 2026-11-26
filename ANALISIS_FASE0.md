@@ -2,7 +2,7 @@
 
 - **Reto:** Servicio Soberano de Autenticación Multifactorial basado en Tiempo (TOTP)
 - **Repositorio GitHub:** `https://github.com/PSM-Hackaton/servicio-soberano-autenticacion-totp`
-- **Base:** `docs/analisis/analisis-tecnico.html` (commit `95c0fbd` en `main`, Diego Landaeta) + integración con el sub-equipo de **Reto 1**.
+- **Base:** `docs/analisis/analisis-tecnico.html` (commit `95c0fbd` en `main`, Diego Landaeta) + integración con el sub-equipo de **Reto 3**.
 - **Política de remotos:** trabajo y pushes **exclusivamente en GitHub (`origin`)**. **GitLab BLOQUEADO** hasta la orden literal `/push gitlab final`. Nunca tocar `main`.
 - **Actualizado el 26-11-2026** para reflejar el stack realmente implementado (ver `ARCHITECTURE.md`).
 
@@ -38,5 +38,5 @@ El análisis de `docs/analisis/analisis-tecnico.html` y la auditoría coinciden 
 ## 3. Corte Quirúrgico (Jue 26 → Vie 27) y Prioridades
 
 1. **P0 (Jue tarde–noche):** motor RFC 6238 con vectores oficiales en verde → bóveda AES-256-GCM (AAD) → esquema SQLite → endpoints `enrollments`, `activate`, `verify`, `tokens/validate`, `jwks.json` → anti replay + deriva + límites → PWA mostrando códigos (QR + manual). *Backend completado y probado (156 pruebas).*
-2. **P1 (Vie mañana):** consola admin (RBAC + TOTP propio, políticas, rotación de llaves, verificador de cadena) → `sdk/` + `demo-portal-tramites/` + integración con Reto 1 → `attack-lab/`.
+2. **P1 (Vie mañana):** consola admin (RBAC + TOTP propio, políticas, rotación de llaves, verificador de cadena) → `sdk/` + `demo-portal-tramites/` + integración con Reto 3 → `attack-lab/`.
 3. **P2 (Vie tarde — Code Freeze):** guía de despliegue institucional (`deploy/`), SBOM, `README.md` final (6 apartados) y ensayo de demo.

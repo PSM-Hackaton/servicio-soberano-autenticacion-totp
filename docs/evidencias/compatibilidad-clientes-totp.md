@@ -20,5 +20,5 @@ El Servicio Soberano emite URIs conformes al estándar abierto **Key URI (`otpau
 ## 2. Política Recomendada por Aplicación (`permitir_sha1`)
 
 1. **Política institucional por defecto (`SHA256`, 6 dígitos, `permitir_sha1: false`):** recomendada para todos los portales ciudadanos que despliegan el **Autenticador Soberano PWA** o apps libres compatibles (Aegis, FreeOTP+).
-2. **Sistemas de alta sensibilidad (`SHA512`, 8 dígitos, `permitir_sha1: false`):** recomendada para el **Reto 1** y trámites administrativos críticos.
+2. **Sistemas de alta sensibilidad (`SHA512`, 8 dígitos, `permitir_sha1: false`):** recomendada para el **Reto 3** y trámites administrativos críticos.
 3. **Modo de compatibilidad heredado (`permitir_sha1: true`):** solo debe habilitarse por aplicación desde la Consola Administrativa (rol `Administrador`) cuando un grupo de usuarios dependa temporalmente de clientes comerciales que ignoran `algorithm=SHA256`, documentando el riesgo en la auditoría (`app.politica_actualizada`).
