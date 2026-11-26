@@ -1,6 +1,6 @@
 # Inventario de software (SBOM)
 
-Generado por `node docs/sbom/generar-sbom.js` el 2026-11-26T18:47:47.499Z con Node.js v22.22.1 sobre la copia de trabajo del commit `7fea5e0629c3`.
+Generado por `node docs/sbom/generar-sbom.js` el 2026-11-26T19:16:10.632Z con Node.js v22.22.1 sobre la copia de trabajo del commit `96b94ca3daf0`.
 No edite estos archivos a mano: vuelva a ejecutar el script tras cualquier cambio.
 
 | Archivo | Contenido |
@@ -11,7 +11,7 @@ No edite estos archivos a mano: vuelva a ejecutar el script tras cualquier cambi
 ## Resultado
 
 - **Dependencias npm declaradas: 0** en 4 archivos `package.json` (campos `dependencies`, `devDependencies`, `peerDependencies`, `optionalDependencies`, `bundleDependencies`, `bundledDependencies`).
-- **Importaciones de paquetes externos: 0** en 145 archivos JavaScript escaneados.
+- **Importaciones de paquetes externos: 0** en 152 archivos JavaScript escaneados.
 - **Módulos nativos de Node.js usados: 18.** Vienen con el entorno de ejecución; no se descarga nada de Internet.
 - **Recursos externos en los frontends (CDN, fuentes, scripts remotos): 0.**
 - No hay `package-lock.json` porque no hay nada que instalar: `npm install` no es necesario.
@@ -29,14 +29,14 @@ No edite estos archivos a mano: vuelva a ejecutar el script tras cualquier cambi
 
 | Componente | Versión | Archivos | SHA-256 (resumen) | Módulos nativos |
 | --- | --- | ---: | --- | --- |
-| `backend/` | 0.1.0 | 62 | `7e69cb69c8de129e…` | `node:assert/strict`, `node:child_process`, `node:crypto`, `node:fs`, `node:fs/promises`, `node:http`, `node:https`, `node:net`, `node:os`, `node:path`, `node:perf_hooks`, `node:sqlite`, `node:test`, `node:url`, `node:util` |
-| `authenticator-app/` | 0.0.0+git.7fea5e0629c3 | 18 | `9bb192d82b67dfb5…` | `node:assert/strict`, `node:test` |
-| `admin-console/` | 0.0.0+git.7fea5e0629c3 | 35 | `6f9a771c130e519e…` | — (código de navegador) |
-| `sdk/` | 1.0.0 | 12 | `77843bc5fb1c1ce8…` | `node:assert/strict`, `node:crypto`, `node:http`, `node:https`, `node:net`, `node:test`, `node:url`, `node:util` |
-| `demo-portal-tramites/` | 1.0.0 | 17 | `bf1863eb7c09323f…` | `node:assert/strict`, `node:async_hooks`, `node:crypto`, `node:fs`, `node:http`, `node:https`, `node:os`, `node:path`, `node:test`, `node:url` |
+| `backend/` | 0.1.0 | 66 | `e44a9e2a269b18ac…` | `node:assert/strict`, `node:child_process`, `node:crypto`, `node:fs`, `node:fs/promises`, `node:http`, `node:https`, `node:net`, `node:os`, `node:path`, `node:perf_hooks`, `node:sqlite`, `node:test`, `node:url`, `node:util` |
+| `authenticator-app/` | 0.0.0+git.96b94ca3daf0 | 19 | `1d42ea34debae19a…` | `node:assert/strict`, `node:test` |
+| `admin-console/` | 0.0.0+git.96b94ca3daf0 | 38 | `6b92775e69636fbc…` | — (código de navegador) |
+| `sdk/` | 1.0.0 | 14 | `21f738b6868b6b10…` | `node:assert/strict`, `node:crypto`, `node:http`, `node:https`, `node:net`, `node:test`, `node:url`, `node:util` |
+| `demo-portal-tramites/` | 1.0.0 | 20 | `c7d91a18598fe900…` | `node:assert/strict`, `node:async_hooks`, `node:crypto`, `node:fs`, `node:http`, `node:https`, `node:os`, `node:path`, `node:test`, `node:url` |
 | `attack-lab/` | 1.0.0 | 29 | `0aef535da5d32b81…` | `node:assert/strict`, `node:child_process`, `node:crypto`, `node:fs`, `node:http`, `node:https`, `node:net`, `node:os`, `node:path`, `node:test`, `node:tls`, `node:url` |
-| `contracts/` | 0.0.0+git.7fea5e0629c3 | 34 | `0c032584a09c71be…` | — (sin JavaScript) |
-| `deploy/` | 0.0.0+git.7fea5e0629c3 | 14 | `584cd14bfd031aa3…` | `node:child_process`, `node:crypto`, `node:fs`, `node:https`, `node:os`, `node:path`, `node:sqlite`, `node:url` |
+| `contracts/` | 0.0.0+git.96b94ca3daf0 | 34 | `89291c8bcfb84200…` | — (sin JavaScript) |
+| `deploy/` | 0.0.0+git.96b94ca3daf0 | 14 | `584cd14bfd031aa3…` | `node:child_process`, `node:crypto`, `node:fs`, `node:https`, `node:os`, `node:path`, `node:sqlite`, `node:url` |
 
 El hash de cada componente es el SHA-256 de su lista `"<sha256>  <ruta>\n"` (la de `hashes-sha256.txt`) en orden alfabético.
 
@@ -44,11 +44,11 @@ El hash de cada componente es el SHA-256 de su lista `"<sha256>  <ruta>\n"` (la 
 
 | Módulo | Archivos que lo importan | Uso |
 | --- | ---: | --- |
-| `node:assert/strict` | 22 | solo pruebas |
+| `node:assert/strict` | 24 | solo pruebas |
 | `node:async_hooks` | 1 | ejecución |
 | `node:child_process` | 9 | ejecución |
-| `node:crypto` | 34 | ejecución |
-| `node:fs` | 34 | ejecución |
+| `node:crypto` | 39 | ejecución |
+| `node:fs` | 35 | ejecución |
 | `node:fs/promises` | 1 | ejecución |
 | `node:http` | 10 | ejecución |
 | `node:https` | 9 | ejecución |
@@ -57,7 +57,7 @@ El hash de cada componente es el SHA-256 de su lista `"<sha256>  <ruta>\n"` (la 
 | `node:path` | 31 | ejecución |
 | `node:perf_hooks` | 3 | ejecución |
 | `node:sqlite` | 4 | ejecución |
-| `node:test` | 22 | solo pruebas |
+| `node:test` | 24 | solo pruebas |
 | `node:timers/promises` | 1 | ejecución |
 | `node:tls` | 1 | ejecución |
 | `node:url` | 18 | ejecución |

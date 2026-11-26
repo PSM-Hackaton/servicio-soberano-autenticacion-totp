@@ -2,10 +2,10 @@
   "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:113cd1d1-edd5-455f-9b53-bffafea3ab3a",
+  "serialNumber": "urn:uuid:40261f7d-5cb3-46b7-bb54-8766bedc3103",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-11-26T18:47:47.499Z",
+    "timestamp": "2026-11-26T19:16:10.632Z",
     "lifecycles": [
       {
         "phase": "build"
@@ -48,7 +48,7 @@
       "properties": [
         {
           "name": "git:commit",
-          "value": "7fea5e0629c30e33793fb0cabafb28855437f0cd"
+          "value": "96b94ca3daf0cb26e8659f2c10a8395bc049c271"
         }
       ]
     },
@@ -67,7 +67,7 @@
       },
       {
         "name": "sbom:archivos-js-escaneados",
-        "value": "145"
+        "value": "152"
       },
       {
         "name": "sbom:node-usado-al-generar",
@@ -135,7 +135,7 @@
       "properties": [
         {
           "name": "usado-en-archivos",
-          "value": "22"
+          "value": "24"
         }
       ]
     },
@@ -180,7 +180,7 @@
       "properties": [
         {
           "name": "usado-en-archivos",
-          "value": "34"
+          "value": "39"
         }
       ]
     },
@@ -195,7 +195,7 @@
       "properties": [
         {
           "name": "usado-en-archivos",
-          "value": "34"
+          "value": "35"
         }
       ]
     },
@@ -330,7 +330,7 @@
       "properties": [
         {
           "name": "usado-en-archivos",
-          "value": "22"
+          "value": "24"
         }
       ]
     },
@@ -410,7 +410,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "7e69cb69c8de129e34c7045adbb9297e71052756410aaa98c6ac45585c1ccfe4"
+          "content": "e44a9e2a269b18ac7427af081cf72cdd00fcacebbc5b47e12d285176e07c0ad0"
         }
       ],
       "properties": [
@@ -420,11 +420,11 @@
         },
         {
           "name": "archivos",
-          "value": "62"
+          "value": "66"
         },
         {
           "name": "bytes",
-          "value": "508792"
+          "value": "578341"
         },
         {
           "name": "hash",
@@ -442,9 +442,9 @@
     },
     {
       "type": "application",
-      "bom-ref": "propio:authenticator-app@0.0.0+git.7fea5e0629c3",
+      "bom-ref": "propio:authenticator-app@0.0.0+git.96b94ca3daf0",
       "name": "authenticator-app",
-      "version": "0.0.0+git.7fea5e0629c3",
+      "version": "0.0.0+git.96b94ca3daf0",
       "description": "App autenticadora PWA (HTML/CSS/JS propios, sin conexión, PIN)",
       "licenses": [
         {
@@ -456,7 +456,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "9bb192d82b67dfb5da4f43a7ef52c6cab52cb5690aefb3b3c03f0524de6e61e4"
+          "content": "1d42ea34debae19aa1ea4b67a32d28dbdd0255397d080f3a4d29dace4ee116da"
         }
       ],
       "properties": [
@@ -466,11 +466,11 @@
         },
         {
           "name": "archivos",
-          "value": "18"
+          "value": "19"
         },
         {
           "name": "bytes",
-          "value": "200016"
+          "value": "201851"
         },
         {
           "name": "hash",
@@ -484,9 +484,9 @@
     },
     {
       "type": "application",
-      "bom-ref": "propio:admin-console@0.0.0+git.7fea5e0629c3",
+      "bom-ref": "propio:admin-console@0.0.0+git.96b94ca3daf0",
       "name": "admin-console",
-      "version": "0.0.0+git.7fea5e0629c3",
+      "version": "0.0.0+git.96b94ca3daf0",
       "description": "Consola administrativa (HTML/CSS/JS propios, RBAC, auditoría)",
       "licenses": [
         {
@@ -498,7 +498,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "6f9a771c130e519e95ec0e60c1b77c103f44ecb5a8d7ef5c075615597e50ec88"
+          "content": "6b92775e69636fbcca84365c7dd34c5972edc77618bf83f472d1e7b8f65121e0"
         }
       ],
       "properties": [
@@ -508,11 +508,11 @@
         },
         {
           "name": "archivos",
-          "value": "35"
+          "value": "38"
         },
         {
           "name": "bytes",
-          "value": "319695"
+          "value": "372020"
         },
         {
           "name": "hash",
@@ -540,7 +540,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "77843bc5fb1c1ce85f57d09f12ad9bff1c5822cc26f3d34ca916da05c9ced1ef"
+          "content": "21f738b6868b6b1035ed6d135cf58a267f49013f13a4b3114090b9b2fe897150"
         }
       ],
       "properties": [
@@ -550,11 +550,11 @@
         },
         {
           "name": "archivos",
-          "value": "12"
+          "value": "14"
         },
         {
           "name": "bytes",
-          "value": "84353"
+          "value": "89939"
         },
         {
           "name": "hash",
@@ -586,7 +586,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "bf1863eb7c09323f6c798dd5174d66a1883973bfafabf181c946cd3b64865fc1"
+          "content": "c7d91a18598fe900605dd22e0c9c4e8438b86a1f08fb4d4310913e16c3e693aa"
         }
       ],
       "properties": [
@@ -596,11 +596,11 @@
         },
         {
           "name": "archivos",
-          "value": "17"
+          "value": "20"
         },
         {
           "name": "bytes",
-          "value": "121461"
+          "value": "166944"
         },
         {
           "name": "hash",
@@ -664,9 +664,9 @@
     },
     {
       "type": "data",
-      "bom-ref": "propio:contracts@0.0.0+git.7fea5e0629c3",
+      "bom-ref": "propio:contracts@0.0.0+git.96b94ca3daf0",
       "name": "contracts",
-      "version": "0.0.0+git.7fea5e0629c3",
+      "version": "0.0.0+git.96b94ca3daf0",
       "description": "Contratos: OpenAPI 3.1, esquema SQL y respuestas de ejemplo",
       "licenses": [
         {
@@ -678,7 +678,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "0c032584a09c71bed8615562df0e6b31d538ba118ee67a699825ba41cbc0dc07"
+          "content": "89291c8bcfb8420074abede857083c50852c66bfd070dce564394fba1675dd79"
         }
       ],
       "properties": [
@@ -692,7 +692,7 @@
         },
         {
           "name": "bytes",
-          "value": "125171"
+          "value": "140718"
         },
         {
           "name": "hash",
@@ -706,9 +706,9 @@
     },
     {
       "type": "data",
-      "bom-ref": "propio:deploy@0.0.0+git.7fea5e0629c3",
+      "bom-ref": "propio:deploy@0.0.0+git.96b94ca3daf0",
       "name": "deploy",
-      "version": "0.0.0+git.7fea5e0629c3",
+      "version": "0.0.0+git.96b94ca3daf0",
       "description": "Unidad systemd y guía de despliegue institucional",
       "licenses": [
         {
@@ -753,13 +753,13 @@
       "dependsOn": [
         "runtime:nodejs@22.22.1",
         "propio:backend@0.1.0",
-        "propio:authenticator-app@0.0.0+git.7fea5e0629c3",
-        "propio:admin-console@0.0.0+git.7fea5e0629c3",
+        "propio:authenticator-app@0.0.0+git.96b94ca3daf0",
+        "propio:admin-console@0.0.0+git.96b94ca3daf0",
         "propio:sdk@1.0.0",
         "propio:demo-portal-tramites@1.0.0",
         "propio:attack-lab@1.0.0",
-        "propio:contracts@0.0.0+git.7fea5e0629c3",
-        "propio:deploy@0.0.0+git.7fea5e0629c3"
+        "propio:contracts@0.0.0+git.96b94ca3daf0",
+        "propio:deploy@0.0.0+git.96b94ca3daf0"
       ]
     },
     {
@@ -785,7 +785,7 @@
       ]
     },
     {
-      "ref": "propio:authenticator-app@0.0.0+git.7fea5e0629c3",
+      "ref": "propio:authenticator-app@0.0.0+git.96b94ca3daf0",
       "dependsOn": [
         "runtime:nodejs@22.22.1",
         "nodejs-builtin:node:assert/strict",
@@ -793,7 +793,7 @@
       ]
     },
     {
-      "ref": "propio:admin-console@0.0.0+git.7fea5e0629c3",
+      "ref": "propio:admin-console@0.0.0+git.96b94ca3daf0",
       "dependsOn": []
     },
     {
@@ -845,11 +845,11 @@
       ]
     },
     {
-      "ref": "propio:contracts@0.0.0+git.7fea5e0629c3",
+      "ref": "propio:contracts@0.0.0+git.96b94ca3daf0",
       "dependsOn": []
     },
     {
-      "ref": "propio:deploy@0.0.0+git.7fea5e0629c3",
+      "ref": "propio:deploy@0.0.0+git.96b94ca3daf0",
       "dependsOn": [
         "runtime:nodejs@22.22.1",
         "nodejs-builtin:node:child_process",

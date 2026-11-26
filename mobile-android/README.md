@@ -13,16 +13,25 @@ mobile-android/
 └── app/src/
     ├── main/
     │   ├── AndroidManifest.xml                                    # allowBackup="false", cleartext="false"
-    │   └── java/ve/gob/totpsoberano/core/TotpEngine.kt            # Motor RFC 4226/6238 (SHA-1/256/512, 6/8d)
+    │   └── java/ve/gob/totpsoberano/
+    │       ├── core/TotpEngine.kt                                 # Motor RFC 4226/6238 (SHA-1/256/512, 6/8d)
+    │       ├── core/CedulaValidator.kt                            # Cédula V/E con/sin puntos → V12345678 / V-12.345.678
+    │       ├── core/OtpAuthParser.kt                              # Validación estricta otpauth://totp/
+    │       └── security/
+    │           ├── KeystoreVault.kt                               # AES-256-GCM en Android Keystore / StrongBox con AAD
+    │           └── PinManager.kt                                  # PIN ≥ 6 dígitos (sin secuencias), PBKDF2 y bloqueo progresivo
     └── test/
-        └── java/ve/gob/totpsoberano/core/TotpEngineTest.kt        # Vectores oficiales RFC 6238 Apéndice B
+        └── java/ve/gob/totpsoberano/core/TotpEngineTest.kt        # Vectores RFC 6238 + Cédula + OtpAuth + PIN
 ```
 
 ---
 
-## 2. Flujo de Vinculación Segura con Usuario y Contraseña (Issue `#40` · M1)
+## 2. Flujo de Vinculación Segura con Cédula y Contraseña (Issue `#40` · M1)
 
-> **Invariante criptográfica:** el código TOTP **jamás** se deriva del usuario ni de la contraseña. Las credenciales institucionales únicamente autorizan la vinculación del dispositivo ante el portal; la semilla la genera el servicio TOTP con CSPRNG y queda almacenada exclusivamente en **Android Keystore (StrongBox/TEE)**.
+> **Invariantes de privacidad y criptografía:**
+> 1. El ciudadano ingresa su **cédula de identidad** (`V`/`E` + número, con o sin puntos, normalizada a `V12345678` con `CedulaValidator`) y su contraseña institucional; la lista muestra la cuenta como `V-12.345.678` + nombre de la institución.
+> 2. La cédula se envía **únicamente al portal institucional**; el servicio TOTP **nunca** recibe la cédula en claro, solo un seudónimo HMAC (`user_ref`).
+> 3. El código TOTP **jamás** se deriva de la cédula ni de la contraseña: la semilla la genera el servicio TOTP con CSPRNG y queda almacenada exclusivamente en **Android Keystore (StrongBox/TEE)**.
 
 ```mermaid
 sequenceDiagram

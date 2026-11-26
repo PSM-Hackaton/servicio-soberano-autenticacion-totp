@@ -125,7 +125,9 @@ export async function iniciar({ config = cargarConfig(), registro = crearRegistr
     tls,
     certificadoCa,
     registro,
+    sitioPublico: resolve(CARPETA_REPO, 'sitio-publico'),
     estaticos: [
+      { prefijo: '/sitio', carpeta: resolve(CARPETA_REPO, 'sitio-publico') },
       { prefijo: '/app', carpeta: resolve(CARPETA_REPO, 'authenticator-app') },
       { prefijo: '/consola', carpeta: resolve(CARPETA_REPO, 'admin-console') },
     ],
