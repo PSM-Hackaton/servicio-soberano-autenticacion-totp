@@ -57,6 +57,30 @@ sequenceDiagram
 
 ---
 
+## 2 bis. Vinculación del dispositivo con el servicio (Issue `#47` · M8)
+
+El portal institucional (no la app) llama al servicio TOTP con sus credenciales de integrador:
+
+1. `POST /api/v1/enrollments` con `device: { name, platform: "android" }`. `name` es el nombre visible
+   que el ciudadano elige en la app ("Teléfono de trabajo"); el servicio lo sanea y le asigna un
+   seudónimo aleatorio `device_id` (`dev_…`). **La app no envía ni el servicio guarda IMEI, MAC,
+   Android ID ni ningún otro identificador de hardware.**
+2. La respuesta trae, además del QR, `provisioning { otpauth_uri, expires_at, device_id,
+   ca_fingerprint_sha256? }`. El portal la reenvía **una sola vez** a la app: la app valida el URI con
+   `OtpAuthParser`, guarda la semilla en `KeystoreVault` y borra la copia en memoria. Si no se activa
+   antes de `expires_at`, el enrolamiento caduca y hay que repetir la vinculación.
+3. **Fijación de certificado:** `ca_fingerprint_sha256` (formato `AA:BB:…`, SHA-256 del certificado
+   de la CA publicada en `/ca.crt`, solo si el despliegue configura `TLS_CA_PUBLIC_PATH`) se compara
+   con la huella de la CA incluida en el APK firmado; si no coincide, la app aborta la vinculación.
+4. El primer código activa el enrolamiento (`POST …/activate`); desde entonces cada código aceptado
+   actualiza `last_used_at` del dispositivo.
+5. **Revocación:** el integrador llama a `DELETE /api/v1/enrollments/{id}/device` (o el soporte pulsa
+   **Revocar dispositivo** en la consola). El enrolamiento queda revocado: los códigos de ese teléfono
+   fallan igual que uno incorrecto. `GET /api/v1/enrollments/{id}/device` informa nombre, plataforma,
+   alta, último uso y `unlinked_at`.
+
+La PWA (`authenticator-app/`) sigue el mismo flujo con `platform: "pwa"`.
+
 ## 3. Controles de Seguridad Obligatorios
 
 - **Almacenamiento hardware:** semillas cifradas con clave AES-256-GCM no exportable en `AndroidKeyStore` (`setIsStrongBoxBacked(true)` con fallback a TEE) y `setUserAuthenticationRequired(true)`.

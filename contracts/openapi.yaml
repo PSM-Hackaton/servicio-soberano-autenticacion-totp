@@ -1,9 +1,11 @@
 openapi: 3.1.0
 info:
   title: Servicio Soberano de Autenticación TOTP API (v1)
-  version: 1.2.0
+  version: 1.3.0
   description: |
-    Contrato alineado con el código del backend el 26-11-2026 (v1.2.0: correcciones del laboratorio
+    Contrato alineado con el código del backend el 26-11-2026 (v1.3.0: vinculación y revocación de
+    dispositivos, `GET|DELETE /api/v1/enrollments/{id}/device` y `provisioning` en el enrolamiento;
+    v1.2.0: correcciones del laboratorio
     de ataques — origen por usuario final con `client_ip`, replay y bloqueo del detector
     indistinguibles, deriva acotada, `user_ref` estricto, bloqueo persistente de cuentas inexistentes). La fuente de verdad es la
     implementación: `backend/src/api/servidor.js` (rutas, cabeceras, límites, sesiones),
@@ -64,6 +66,10 @@ tags:
     description: Salud, métricas y claves públicas.
   - name: MFA v1
     description: API para sistemas integradores (autenticación con X-Client-Id / X-Client-Secret).
+  - name: Dispositivos v1
+    description: |
+      Vinculación y revocación del dispositivo (app móvil Android, PWA u otro autenticador) asociado a
+      un enrolamiento (issue #47). Mismas credenciales que MFA v1.
   - name: Admin
     description: Consola administrativa (cookie de sesión sst_admin + X-CSRF-Token + RBAC).
 
@@ -181,6 +187,16 @@ paths:
         La política por defecto (algoritmo, dígitos, periodo) es la de la app que llama. `SHA1` solo se
         admite si la app tiene `permitir_sha1 = true` (si no, 400). La semilla se cifra con AES-256-GCM
         (AAD = enrollment_id + ':' + key_version) y no vuelve a mostrarse.
+
+        Vinculación de dispositivo (opcional, issue #47): con `device { name, platform }` el
+        enrolamiento queda asociado a un dispositivo con seudónimo aleatorio (`device_id`, nunca un
+        identificador de hardware) y la respuesta añade `device_id` y `provisioning`: el mismo URI
+        `otpauth://` del QR en formato estructurado para la app móvil, su caducidad y, si el
+        despliegue publica la CA (`TLS_CA_PUBLIC_PATH`, ver `/ca.crt`), la huella SHA-256 del
+        certificado (`ca_fingerprint_sha256`) para fijarlo en la app. La semilla se entrega solo en
+        esta respuesta (`Cache-Control: no-store`); si no se activa antes de `expires_at`, caduca.
+        `device.name` se sanea (NFC, sin controles ni caracteres invisibles, espacios colapsados);
+        si no queda texto imprimible → 400.
       security:
         - appClientId: []
           appClientSecret: []
@@ -455,6 +471,56 @@ paths:
                   enrollment_id: { type: string, format: uuid }
                   estado: { type: string, enum: [revocado] }
                   revoked_at: { type: string, format: date-time }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/v1/enrollments/{id}/device:
+    get:
+      tags: [Dispositivos v1]
+      summary: Consulta el dispositivo vinculado al enrolamiento (nombre, plataforma, alta y último uso)
+      operationId: dispositivo
+      description: |
+        `last_used_at` es el último código aceptado (activación o verificación). `unlinked_at` es la
+        fecha de desvinculación o, si el enrolamiento se revocó por otra vía (consola, recuperación,
+        re-enrolamiento), su fecha de revocación. Un enrolamiento de otra app o sin dispositivo → 404.
+      security:
+        - appClientId: []
+          appClientSecret: []
+      parameters:
+        - $ref: '#/components/parameters/EnrollmentId'
+      responses:
+        '200':
+          description: Dispositivo vinculado (Cache-Control no-store)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeviceResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    delete:
+      tags: [Dispositivos v1]
+      summary: Desvincula el dispositivo y revoca el enrolamiento (idempotente)
+      operationId: desvincularDispositivo
+      description: |
+        Revoca el enrolamiento en la misma transacción: los códigos de ese dispositivo dejan de valer
+        y `POST /api/v1/verify` responde exactamente igual que ante un código incorrecto. Repetir
+        devuelve las fechas originales. Sin cuerpo (si llega, se descarta).
+      security:
+        - appClientId: []
+          appClientSecret: []
+      parameters:
+        - $ref: '#/components/parameters/EnrollmentId'
+      responses:
+        '200':
+          description: Dispositivo desvinculado y enrolamiento revocado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeviceUnlinkResponse' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -1305,6 +1371,16 @@ components:
         algorithm: { type: string, enum: [SHA256, SHA512, SHA1] }
         digits: { type: integer, enum: [6, 8] }
         period: { type: integer, minimum: 15, maximum: 60 }
+        device: { $ref: '#/components/schemas/DeviceLinkRequest' }
+
+    DeviceLinkRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      description: Dispositivo a vincular (issue #47). Sin identificadores de hardware ni datos personales.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64, description: 'Nombre visible que elige el usuario ("Teléfono de trabajo"). Se sanea; recomendación: no usar el nombre de la persona.' }
+        platform: { type: string, enum: [android, pwa, otro], default: otro }
 
     ActivateRequest:
       type: object
@@ -1422,6 +1498,66 @@ components:
         otpauth_uri: { type: string, description: 'otpauth://totp/<TOTP_ISSUER>:<cuenta>?secret=…&issuer=…&algorithm=…&digits=…&period=… (ejemplo con TOTP_ISSUER=ServicioSoberanoTOTP)' }
         qr_svg: { type: string, description: QR del URI generado por el codificador propio (core/qr). }
         expires_at: { type: string, format: date-time }
+        device_id: { $ref: '#/components/schemas/DeviceId' }
+        provisioning: { $ref: '#/components/schemas/Provisioning' }
+
+    DeviceId:
+      type: string
+      pattern: '^dev_[A-Za-z0-9_-]{22}$'
+      description: Seudónimo aleatorio del dispositivo (128 bits en base64url). No deriva del hardware.
+
+    Provisioning:
+      type: object
+      additionalProperties: false
+      required: [otpauth_uri, expires_at, device_id]
+      description: |
+        Aprovisionamiento para la app móvil (solo si se envió `device`). Contiene la semilla dentro del
+        URI y se entrega una sola vez: el servicio nunca vuelve a mostrarla.
+      properties:
+        otpauth_uri: { type: string, description: Igual que `otpauth_uri` del nivel superior (mismo contenido que el QR). }
+        expires_at: { type: string, format: date-time, description: Caducidad del enrolamiento pendiente. }
+        device_id: { $ref: '#/components/schemas/DeviceId' }
+        ca_fingerprint_sha256:
+          type: string
+          pattern: '^([0-9A-F]{2}:){31}[0-9A-F]{2}$'
+          description: Huella SHA-256 del certificado de la CA publicada en `/ca.crt` (formato de `openssl x509 -fingerprint -sha256`). Solo si el despliegue configura `TLS_CA_PUBLIC_PATH`.
+
+    Device:
+      type: object
+      additionalProperties: false
+      required: [device_id, name, platform, created_at, last_used_at, unlinked_at]
+      properties:
+        device_id: { $ref: '#/components/schemas/DeviceId' }
+        name: { type: string, minLength: 1, maxLength: 64 }
+        platform: { type: string, enum: [android, pwa, otro] }
+        created_at: { type: string, format: date-time }
+        last_used_at: { type: [string, 'null'], format: date-time }
+        unlinked_at: { type: [string, 'null'], format: date-time }
+
+    DeviceResponse:
+      type: object
+      additionalProperties: false
+      required: [enrollment_id, enrollment_estado, device_id, name, platform, created_at, last_used_at, unlinked_at]
+      properties:
+        enrollment_id: { type: string, format: uuid }
+        enrollment_estado: { type: string, enum: [pendiente, activo, suspendido, revocado] }
+        device_id: { $ref: '#/components/schemas/DeviceId' }
+        name: { type: string, minLength: 1, maxLength: 64 }
+        platform: { type: string, enum: [android, pwa, otro] }
+        created_at: { type: string, format: date-time }
+        last_used_at: { type: [string, 'null'], format: date-time }
+        unlinked_at: { type: [string, 'null'], format: date-time }
+
+    DeviceUnlinkResponse:
+      type: object
+      additionalProperties: false
+      required: [enrollment_id, device_id, estado, revoked_at, unlinked_at]
+      properties:
+        enrollment_id: { type: string, format: uuid }
+        device_id: { $ref: '#/components/schemas/DeviceId' }
+        estado: { type: string, enum: [revocado] }
+        revoked_at: { type: string, format: date-time }
+        unlinked_at: { type: string, format: date-time }
 
     ActivateResponse:
       type: object
@@ -1557,6 +1693,12 @@ components:
         created_at: { type: string, format: date-time }
         activated_at: { type: [string, 'null'], format: date-time }
         revoked_at: { type: [string, 'null'], format: date-time }
+        device:
+          description: Dispositivo vinculado (issue #47) o null si el enrolamiento no tiene.
+          oneOf:
+            - $ref: '#/components/schemas/Device'
+            - type: 'null'
+        last_used_at: { type: [string, 'null'], format: date-time, description: Último código aceptado (del dispositivo). }
 
     AuditEvent:
       type: object

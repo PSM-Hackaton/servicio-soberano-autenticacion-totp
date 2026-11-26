@@ -218,6 +218,48 @@ curl --cacert certs/ca.crt -X DELETE https://localhost:8443/api/v1/enrollments/$
 Tras una recuperación **no** conceda acceso directo: inicie un enrolamiento nuevo y pida un código del
 autenticador nuevo.
 
+### 2.5 bis Vincular y revocar el dispositivo (app móvil y PWA)
+
+Si el ciudadano usa la app Android soberana o la PWA, envíe `device` al enrolar. El servicio guarda
+solo un **seudónimo aleatorio** (`device_id`, `dev_` + 128 bits), el **nombre visible** que eligió el
+usuario (saneado: sin controles ni caracteres invisibles, máx. 64) y la **plataforma**
+(`android` | `pwa` | `otro`). Nunca IMEI, MAC, Android ID ni datos personales.
+
+```bash
+curl --cacert certs/ca.crt https://localhost:8443/api/v1/enrollments \
+  -H "X-Client-Id: $CID" -H "X-Client-Secret: $CS" -H "Content-Type: application/json" \
+  -d '{"user_ref":"ciudadano-1","device":{"name":"Teléfono de trabajo","platform":"android"}}'
+# {..., "device_id":"dev_34g7vp2bh6Dc_-W1artEUA",
+#  "provisioning":{"otpauth_uri":"otpauth://totp/…?secret=…","expires_at":"…","device_id":"dev_…",
+#                  "ca_fingerprint_sha256":"DF:F8:D9:…:A7:20"}}
+```
+
+- `provisioning` entrega la semilla **una sola vez** en formato estructurado para la app (además del
+  QR) con `Cache-Control: no-store`; si no se activa antes de `expires_at`, caduca. No hay ninguna
+  ruta que vuelva a mostrarla.
+- `ca_fingerprint_sha256` aparece si el despliegue publica la CA (`TLS_CA_PUBLIC_PATH`, descargable en
+  `/ca.crt`): la app la usa para **fijar el certificado** del servicio. Compruébela además fuera de
+  banda (sitio público `/instalar-certificado`).
+- Cada activación o verificación correcta actualiza `last_used_at` del dispositivo.
+
+```bash
+# Consultar el dispositivo (nombre, plataforma, alta, último uso)
+curl --cacert certs/ca.crt https://localhost:8443/api/v1/enrollments/$EID/device \
+  -H "X-Client-Id: $CID" -H "X-Client-Secret: $CS"
+# {"enrollment_id":"…","enrollment_estado":"activo","device_id":"dev_…","name":"Teléfono de trabajo",
+#  "platform":"android","created_at":"…","last_used_at":"2026-11-26T20:44:04.884Z","unlinked_at":null}
+
+# Desvincular (p. ej. teléfono perdido): revoca el enrolamiento; idempotente
+curl --cacert certs/ca.crt -X DELETE https://localhost:8443/api/v1/enrollments/$EID/device \
+  -H "X-Client-Id: $CID" -H "X-Client-Secret: $CS"
+# {"enrollment_id":"…","device_id":"dev_…","estado":"revocado","revoked_at":"…","unlinked_at":"…"}
+```
+
+Tras desvincular, `verify` con códigos de ese dispositivo responde exactamente igual que un código
+incorrecto (401 `VERIFICATION_FAILED`). Un enrolamiento de otra app o sin dispositivo responde 404.
+Con el SDK: `enrolar(userRef, { dispositivo: { nombre, plataforma } })`, `dispositivo(enrollmentId)` y
+`desvincularDispositivo(enrollmentId)`.
+
 ### 2.6 Lo que hace el equipo de soporte desde la consola
 
 No forma parte de la API de integradores (usa la cookie de sesión de `/consola/`, `X-CSRF-Token` y RBAC),
@@ -227,12 +269,13 @@ pero conviene saber que existe:
 | --- | --- | --- |
 | `GET /admin/api/enrollments?app_id=…&cedula=…` (o `&user_ref=…`) | Buscar el factor de un ciudadano | Administrador, Operador |
 | `POST /admin/api/enrollments/{id}/suspend` · `/reactivate` · `/revoke` | Suspender, reactivar o revocar (definitivo) un enrolamiento; un suspendido responde en `verify` como un código incorrecto | Administrador, Operador |
+| Enrolamientos → columna **Dispositivo** · acción **Revocar dispositivo** | Ver nombre, plataforma, alta y último uso del dispositivo vinculado y revocarlo (usa `/revoke`) | Administrador, Operador |
 | `POST /admin/api/apps` | Registrar una app integradora (entrega `client_secret` una vez) o cambiar su política | Administrador, Operador |
 | `POST /admin/api/apps/{id}/secret` | Regenerar el `client_secret` (el anterior deja de valer al instante) | Administrador |
 | `GET` / `POST /admin/api/admins` · `POST /admin/api/admins/{id}/disable` | Cuentas de la consola (contraseña aleatoria + TOTP propio entregados una vez) | Administrador |
 | `GET /admin/api/keys` · `POST /admin/api/keys/rotate` | Inventario y rotación de llaves Ed25519 (la JWKS conserva las anteriores para verificar) | Todos · Administrador |
 
-El contrato completo de las 31 rutas está en [`contracts/openapi.yaml`](../../contracts/openapi.yaml).
+El contrato completo de las 33 rutas está en [`contracts/openapi.yaml`](../../contracts/openapi.yaml).
 
 ---
 
