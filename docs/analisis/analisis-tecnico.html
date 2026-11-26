@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Análisis técnico — Servicio Soberano de Autenticación TOTP</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 18mm 16mm; }
+  :root { --ink:#1b1f24; --muted:#5b6470; --line:#d9dee4; --accent:#0b5c4a; --soft:#eef5f2; --warn:#8a4b00; --warnbg:#fff5e6; }
+  * { box-sizing: border-box; }
+  body { font-family: "Liberation Sans", "DejaVu Sans", Arial, sans-serif; color: var(--ink); font-size: 10.2pt; line-height: 1.45; margin: 0; }
+  h1 { font-size: 21pt; margin: 0 0 4px; color: var(--accent); letter-spacing: -0.3px; }
+  h2 { font-size: 13.5pt; margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 2px solid var(--accent); color: var(--accent); page-break-after: avoid; }
+  h3 { font-size: 11pt; margin: 14px 0 6px; page-break-after: avoid; }
+  p { margin: 0 0 8px; }
+  ul, ol { margin: 0 0 8px; padding-left: 18px; }
+  li { margin-bottom: 3px; }
+  code, .mono { font-family: "DejaVu Sans Mono", "Liberation Mono", monospace; font-size: 8.8pt; }
+  code { background: #f2f4f6; padding: 0 3px; border-radius: 3px; }
+  pre { font-family: "DejaVu Sans Mono", "Liberation Mono", monospace; font-size: 8.3pt; line-height: 1.35; background: #f6f8f9; border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; margin: 6px 0 10px; white-space: pre; page-break-inside: avoid; }
+  table { width: 100%; border-collapse: collapse; margin: 6px 0 12px; font-size: 9.2pt; page-break-inside: avoid; }
+  th, td { border: 1px solid var(--line); padding: 5px 7px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); font-weight: 700; }
+  .sub { color: var(--muted); font-size: 10.5pt; margin-bottom: 14px; }
+  .meta { color: var(--muted); font-size: 9pt; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 6px 0; margin-bottom: 14px; }
+  .box { background: var(--soft); border-left: 4px solid var(--accent); padding: 8px 12px; border-radius: 4px; margin: 8px 0 12px; page-break-inside: avoid; }
+  .warn { background: var(--warnbg); border-left: 4px solid var(--warn); padding: 8px 12px; border-radius: 4px; margin: 8px 0 12px; page-break-inside: avoid; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; page-break-inside: avoid; }
+  .card b { color: var(--accent); }
+  .pb { page-break-before: always; }
+  .small { font-size: 8.8pt; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<h1>Servicio Soberano de Autenticación TOTP</h1>
+<div class="sub">Análisis técnico, arquitectura y plan de trabajo · Reto Grupal 3 · Hackatón 2026</div>
+<div class="meta">Equipo PSM-Hackaton · Autor: Diego Landaeta · 26 de noviembre de 2026 · Versión 1.0 · Repositorio: PSM-Hackaton/servicio-soberano-autenticacion-totp</div>
+
+<h2>1. Qué pide el reto, en una frase</h2>
+<p>Un <b>segundo factor de autenticación (MFA) basado en códigos de 6–8 dígitos que cambian cada 30 segundos (TOTP)</b>, funcionando entero en infraestructura propia: nosotros generamos y guardamos las semillas, nosotros validamos los códigos, nosotros emitimos el comprobante firmado de que el usuario pasó el desafío y nosotros damos la app donde el usuario ve sus códigos. Ningún paso depende de Google, Microsoft, Authy, Twilio ni de ninguna nube externa.</p>
+
+<p>Los entregables obligatorios son cinco módulos:</p>
+<table>
+  <tr><th style="width:32%">Módulo exigido</th><th>Qué significa en la práctica</th></tr>
+  <tr><td>Motor criptográfico TOTP y backend</td><td>Semillas con CSPRNG, códigos RFC 6238 con HMAC-SHA256 y HMAC-SHA512, ventanas configurables, compensación de deriva de reloj, sesiones.</td></tr>
+  <tr><td>APIs de integración institucional</td><td>Endpoints para enrolar usuarios, verificar códigos y validar los tokens firmados (JWT con claves asimétricas locales) + SDK.</td></tr>
+  <tr><td>Cliente / app autenticadora y enrolamiento</td><td>App propia para ver los códigos, alta por código QR, UX clara.</td></tr>
+  <tr><td>Seguridad, resiliencia y heurística</td><td>Anti fuerza bruta, anti replay, rate limiting, bloqueos progresivos, anti-DDoS, detección local de anomalías sin telemetría externa.</td></tr>
+  <tr><td>Almacenamiento cifrado y consola admin</td><td>AES-256 en reposo, TLS en tránsito, metadatos anonimizados, políticas, revocación, rotación de claves, auditoría y métricas.</td></tr>
+</table>
+
+<h2>2. Qué significa “propio” (y qué NO significa)</h2>
+<div class="warn"><b>No vamos a inventar un algoritmo criptográfico.</b> El reto pide expresamente “algoritmos estándar abiertos” (RFC 6238, HMAC-SHA256/512). Inventar cripto propia es la forma más rápida de perder puntos de seguridad. La soberanía no está en el algoritmo —que es público y auditable— sino en <b>quién controla las semillas, el código y la infraestructura</b>.</div>
+
+<table>
+  <tr><th style="width:28%">Capa</th><th style="width:36%">Con Google Authenticator / servicios externos</th><th>En nuestra solución</th></tr>
+  <tr><td>Algoritmo</td><td>RFC 6238 (estándar abierto)</td><td>RFC 6238, el mismo estándar, implementado por nosotros desde cero</td></tr>
+  <tr><td>Implementación del motor</td><td>Código de terceros, cerrado</td><td><b>Código propio</b> sobre las primitivas del sistema (<code>node:crypto</code>), sin librerías OTP externas, verificado con los vectores de prueba oficiales del RFC</td></tr>
+  <tr><td>Generación de semillas</td><td>En el servidor del proveedor o del servicio</td><td>En nuestro servidor, con CSPRNG del sistema operativo</td></tr>
+  <tr><td>Custodia de semillas</td><td>Copias en la nube del proveedor (backup en cuenta Google, etc.)</td><td>Solo en nuestra base de datos, cifradas con AES-256-GCM, llave maestra en nuestro servidor</td></tr>
+  <tr><td>App del usuario</td><td>App extranjera, privativa</td><td><b>App autenticadora propia</b> (PWA instalable, funciona sin conexión)</td></tr>
+  <tr><td>Algoritmos soportados en el cliente</td><td>En la práctica muchas apps populares solo calculan SHA-1 e ignoran el parámetro <code>algorithm</code></td><td>SHA-256 y SHA-512, 6 u 8 dígitos (lo que exige el reto)</td></tr>
+  <tr><td>Validación y comprobante</td><td>Servidor del proveedor</td><td>Nuestro servidor; JWT firmado con Ed25519 con llave privada local</td></tr>
+  <tr><td>Registros y métricas</td><td>Telemetría hacia el proveedor</td><td>Locales, anonimizados, con cadena de hashes a prueba de manipulación</td></tr>
+</table>
+
+<div class="box"><b>Argumento clave para el jurado:</b> el reto exige HMAC-SHA256/SHA512, y muchas de las apps autenticadoras populares solo funcionan bien con SHA-1. Por eso la app propia no es un “extra”: es la única forma de cumplir el estándar pedido de punta a punta. Ofreceremos además un <i>modo de compatibilidad</i> (SHA-1, desactivado por defecto y controlado por política) para apps estándar, y lo declararemos como menos seguro.</div>
+
+<h2>3. Cómo funciona TOTP (lo que implementaremos)</h2>
+<pre>
+ ENROLAMIENTO (una sola vez)                      VERIFICACIÓN (cada inicio de sesión)
+ ───────────────────────────                      ────────────────────────────────────
+ Servidor: semilla K = CSPRNG(32 o 64 bytes)      Usuario abre la app → ve código 482 913
+ Servidor: guarda AES-256-GCM(K)                  Usuario lo escribe en el sistema institucional
+ Servidor → QR: otpauth://totp/...?secret=K       Servidor: T = floor((ahora − T0) / 30 s)
+ App: lee QR, guarda K cifrada en el dispositivo  Servidor: para T−1, T, T+1 (ventana configurable):
+ Usuario: escribe el primer código → ACTIVA          HMAC-SHA256(K, T) → truncado → 6/8 dígitos
+                                                  ¿Coincide? (comparación en tiempo constante)
+ Ambos lados calculan lo mismo sin comunicarse:   ¿T > último T usado?  (anti replay)
+ solo comparten K y el reloj.                     Sí → emite JWT firmado (5 min, jti único)
+</pre>
+
+<ul>
+  <li><b>Semilla:</b> 32 bytes para SHA-256 y 64 bytes para SHA-512 (las longitudes de los vectores de prueba del RFC 6238).</li>
+  <li><b>Truncado dinámico (RFC 4226):</b> <code>offset = hmac[último byte] &amp; 0x0f</code>; se toman 4 bytes desde ese offset, se quita el bit más alto y se aplica <code>mod 10^dígitos</code>.</li>
+  <li><b>Deriva de reloj:</b> guardamos por usuario el desfase observado (en pasos de 30 s). La siguiente verificación centra la ventana en <code>T + desfase</code>. Si el reloj del teléfono está muy desviado, hay un flujo de <i>resincronización</i>: el usuario introduce dos códigos consecutivos y buscamos en una ventana amplia (±10 pasos).</li>
+  <li><b>Anti replay:</b> guardamos el último paso <code>T</code> aceptado por usuario y solo aceptamos pasos estrictamente mayores. Un código ya usado nunca vuelve a valer, aunque siga dentro de la ventana.</li>
+  <li><b>Prueba de corrección:</b> tests automáticos contra los vectores del Apéndice B del RFC 6238 (SHA-1, SHA-256 y SHA-512). Es nuestra evidencia objetiva de que el motor propio es correcto.</li>
+</ul>
+
+<h2 class="pb">4. Arquitectura</h2>
+<pre>
+  ┌──────────────────────┐   ┌────────────────────────┐   ┌─────────────────────────┐
+  │ App autenticadora    │   │ Sistema institucional  │   │ Consola administrativa  │
+  │ (PWA propia, offline)│   │ (demo “Portal de       │   │ (React; RBAC; protegida │
+  │ semillas cifradas    │   │  Trámites” + SDK)      │   │ con nuestro propio TOTP)│
+  └─────────┬────────────┘   └───────────┬────────────┘   └────────────┬────────────┘
+            │ solo en el alta (QR)       │ HTTPS + credenciales de app  │ HTTPS + sesión
+            ▼                            ▼                              ▼
+  ┌───────────────────────────────────────────────────────────────────────────────────┐
+  │ Proxy inverso Caddy — TLS 1.3 con CA interna, límites de tasa y tamaño, cabeceras  │
+  └───────────────────────────────────────┬───────────────────────────────────────────┘
+                                          ▼
+  ┌───────────────────────────────────────────────────────────────────────────────────┐
+  │ API (Node.js 22 + TypeScript + Fastify)                                           │
+  │  ├─ core/totp        Motor RFC 6238 propio (HOTP, truncado, ventanas, deriva)      │
+  │  ├─ core/vault       AES-256-GCM, llave maestra versionada, rotación               │
+  │  ├─ core/tokens      JWT EdDSA (Ed25519), JWKS, jti de un solo uso, rotación kid   │
+  │  ├─ security/        rate limit, bloqueos progresivos, validación estricta         │
+  │  ├─ heuristics/      detección local de anomalías (modelo ligero, sin telemetría)  │
+  │  ├─ audit/           bitácora encadenada por hashes + métricas anonimizadas        │
+  │  └─ api/v1, admin/   rutas de integración y de administración                      │
+  └───────────────────────────────────────┬───────────────────────────────────────────┘
+                                          ▼
+                        ┌──────────────────────────────────────┐
+                        │ PostgreSQL 16 (local, en el servidor)│
+                        └──────────────────────────────────────┘
+          Todo se levanta con docker compose en una sola máquina. Cero llamadas a Internet.
+</pre>
+
+<h3>Stack recomendado y por qué</h3>
+<table>
+  <tr><th style="width:22%">Pieza</th><th style="width:30%">Elección</th><th>Razón</th></tr>
+  <tr><td>Backend</td><td>Node.js 22 + TypeScript + Fastify</td><td><code>node:crypto</code> trae todo lo necesario sin dependencias: CSPRNG, HMAC, AES-256-GCM, Ed25519, scrypt, comparación en tiempo constante. Fastify valida esquemas JSON de entrada de forma estricta. Es el stack que el equipo domina.</td></tr>
+  <tr><td>Base de datos</td><td>PostgreSQL 16 autoalojado</td><td>Restricciones e índices únicos resuelven el anti replay y el jti de un solo uso de forma atómica. Nada de bases de datos en la nube.</td></tr>
+  <tr><td>Frontends</td><td>React + Vite (PWA y consola)</td><td>Rápido de construir; la PWA se instala en el teléfono y funciona sin conexión. Sin CDNs externos: todo se sirve desde nuestro servidor.</td></tr>
+  <tr><td>TLS / borde</td><td>Caddy con <code>tls internal</code></td><td>TLS 1.3 con autoridad certificadora propia, sin Let’s Encrypt ni servicios externos. Límites de tasa y tamaño de petición en el borde.</td></tr>
+  <tr><td>Despliegue</td><td>Docker Compose</td><td>Reproducible en cualquier servidor institucional con un solo comando.</td></tr>
+  <tr><td>Dependencias</td><td>Mínimas y auditadas</td><td>SBOM CycloneDX + <code>npm audit</code> en la entrega (exigido por “trazabilidad”).</td></tr>
+</table>
+
+<h2>5. Seguridad: cómo cumplimos cada exigencia</h2>
+<table>
+  <tr><th style="width:27%">Exigencia</th><th>Diseño</th></tr>
+  <tr><td>Cifrado en reposo AES-256</td><td>Cada semilla se cifra con AES-256-GCM, nonce aleatorio de 96 bits y datos asociados (AAD) = <code>id_enrolamiento + versión_de_llave</code>, de modo que un cifrado no se puede copiar a otra fila. La llave maestra vive fuera de la base de datos (archivo con permisos 0400 o variable de entorno) y está versionada para poder rotarla y recifrar en lote.</td></tr>
+  <tr><td>Cifrado en tránsito</td><td>TLS 1.3 obligatorio en Caddy; HSTS; la API solo escucha en la red interna de Docker.</td></tr>
+  <tr><td>Fuerza bruta</td><td>Con 6 dígitos y ventana ±1 hay 3 códigos válidos entre 1 000 000. Límite de 5 intentos fallidos por usuario y luego bloqueo progresivo (30 s, 2 min, 10 min, 1 h…). La probabilidad de acertar en cada ciclo es 5 × 3 / 10⁶ ≈ 0,0015 %. Además, límites por IP anonimizada y por aplicación integradora.</td></tr>
+  <tr><td>Replay</td><td>Último paso aceptado por usuario (actualización atómica en SQL). Los JWT llevan <code>jti</code> único y se marcan como consumidos al validarlos.</td></tr>
+  <tr><td>Anti-DDoS</td><td>Limitación de tasa en el borde y en la API, tamaño máximo de cuerpo, timeouts, rechazo barato antes de cualquier operación criptográfica.</td></tr>
+  <tr><td>OWASP (sesiones y endpoints)</td><td>Validación estricta de entrada (esquemas cerrados, sin campos extra), respuestas de error genéricas que no revelan si un usuario existe, cabeceras de seguridad, CORS restrictivo, sesiones de la consola con cookie <code>HttpOnly; Secure; SameSite=Strict</code>, expiración corta y protección CSRF.</td></tr>
+  <tr><td>Tokens firmados</td><td>JWT con EdDSA (Ed25519), TTL de 5 minutos, claims <code>sub</code> (seudónimo), <code>aud</code> (app), <code>amr: ["otp"]</code>, <code>jti</code>. Clave pública publicada en <code>/.well-known/jwks.json</code>; rotación con <code>kid</code>.</td></tr>
+  <tr><td>Anonimización</td><td>No guardamos nombres ni correos: la app integradora nos envía un identificador opaco y nosotros guardamos <code>HMAC-SHA256(id, pepper)</code>. Las IP se guardan como HMAC con pepper rotativo diario (permite correlacionar ataques del día sin poder reconstruir la IP).</td></tr>
+  <tr><td>Auditoría y trazabilidad</td><td>Bitácora en la que cada evento incluye el hash del anterior (cadena de hashes): si alguien borra o modifica un registro, la cadena se rompe y la consola lo detecta.</td></tr>
+  <tr><td>Códigos de recuperación</td><td>10 códigos de un solo uso al activar, guardados como hash (scrypt); se muestran una sola vez.</td></tr>
+</table>
+
+<h2 class="pb">6. Contratos de la API (v1)</h2>
+<p class="small">Las aplicaciones integradoras se autentican con <code>client_id</code> + <code>client_secret</code> (secreto guardado como hash) sobre TLS. Todas las respuestas de error usan un formato genérico.</p>
+<table>
+  <tr><th style="width:36%">Endpoint</th><th>Función</th></tr>
+  <tr><td class="mono">POST /api/v1/enrollments</td><td>Crea un enrolamiento <i>pendiente</i> (caduca en 10 min). Devuelve <code>enrollment_id</code>, QR en SVG y URI <code>otpauth://</code>. La semilla no se vuelve a mostrar nunca.</td></tr>
+  <tr><td class="mono">POST /api/v1/enrollments/{id}/activate</td><td>Recibe el primer código; si es correcto, activa el factor y devuelve los códigos de recuperación.</td></tr>
+  <tr><td class="mono">POST /api/v1/verify</td><td><code>{user_ref, code}</code> → JWT de MFA superado, o error genérico. Aplica ventana, deriva, anti replay, límites y heurística.</td></tr>
+  <tr><td class="mono">POST /api/v1/tokens/validate</td><td>La app integradora confirma que el JWT es auténtico, está vigente y no se ha usado (consume el <code>jti</code>).</td></tr>
+  <tr><td class="mono">GET /.well-known/jwks.json</td><td>Claves públicas para validar los JWT sin llamar al servicio.</td></tr>
+  <tr><td class="mono">POST /api/v1/enrollments/{id}/resync</td><td>Resincronización con dos códigos consecutivos.</td></tr>
+  <tr><td class="mono">POST /api/v1/recovery</td><td>Uso de un código de recuperación; obliga a re-enrolar.</td></tr>
+  <tr><td class="mono">DELETE /api/v1/enrollments/{id}</td><td>Revoca el factor.</td></tr>
+  <tr><td class="mono">/admin/api/*</td><td>Políticas, estados, rotación de llaves, auditoría y métricas (solo consola, con RBAC).</td></tr>
+</table>
+
+<h3>Flujo de integración con un sistema institucional (demo “Portal de Trámites”)</h3>
+<pre>
+ Ciudadano          Portal de Trámites               Servicio TOTP soberano
+    │ usuario+clave ──▶ │ valida contraseña (propio)        │
+    │                   │── POST /verify {user_ref, code} ─▶│ verifica, anti replay, límites
+    │ código 6 dígitos ▶│◀───────── JWT firmado (5 min) ────│
+    │                   │ valida firma con JWKS + /validate │
+    │ ◀── acceso al trámite sensible                        │
+</pre>
+
+<h2>7. Modelo de datos</h2>
+<table>
+  <tr><th style="width:22%">Tabla</th><th>Campos principales</th></tr>
+  <tr><td>apps</td><td>id, nombre, client_id, secret_hash, política (algoritmo, dígitos, periodo, ventana, umbrales), estado</td></tr>
+  <tr><td>enrollments</td><td>id, app_id, user_ref_hash, estado (pendiente · activo · suspendido · revocado), algoritmo, dígitos, periodo, seed_ct, seed_nonce, key_version, drift_steps, last_step, fechas</td></tr>
+  <tr><td>recovery_codes</td><td>enrollment_id, code_hash, used_at</td></tr>
+  <tr><td>attempts</td><td>enrollment_id, ip_hash, resultado, ts — alimenta rate limit y heurística; se purga a los 30 días</td></tr>
+  <tr><td>consumed_jti</td><td>jti (clave primaria), expira_en</td></tr>
+  <tr><td>signing_keys</td><td>kid, public_jwk, private_ct (cifrada con la llave maestra), estado, fechas</td></tr>
+  <tr><td>admins</td><td>usuario, password_hash (scrypt), rol (Administrador · Operador · Auditor), enrolamiento TOTP propio</td></tr>
+  <tr><td>audit_log</td><td>id, ts, actor, acción, objetivo, detalle, prev_hash, hash</td></tr>
+</table>
+
+<h2>8. Inteligencia artificial (10 % de la nota)</h2>
+<p>La IA va donde aporta valor real y siempre en local, sin enviar datos fuera:</p>
+<div class="grid2">
+  <div class="card"><b>1. Detector de anomalías local</b><br>Cada intento genera variables: fallos por cuenta, IP distintas por cuenta, cuentas por IP, hora inusual, ritmo entre intentos. Un modelo ligero (Isolation Forest) entrenado localmente con tráfico normal y ataques simulados devuelve un puntaje de riesgo en milisegundos. Detecta lo que un límite fijo no ve: fuerza bruta distribuida desde muchas IP o “password spraying” contra muchas cuentas.</div>
+  <div class="card"><b>2. Respuesta adaptativa</b><br>Según el puntaje: permitir, exigir espera extra, bloquear temporalmente la cuenta o la IP, o alertar en la consola. Los umbrales se ajustan desde la consola (modo monitorización o bloqueo).</div>
+  <div class="card"><b>3. Asistente de auditoría (opcional)</b><br>Modelo de lenguaje pequeño ejecutado en el servidor (por ejemplo, vía Ollama) que resume en castellano los incidentes del día a partir de la bitácora. Nunca sale información a Internet.</div>
+  <div class="card"><b>4. Evidencia medible</b><br>Banco de pruebas con un script atacante (fuerza bruta lenta, distribuida y spraying) que muestra en vivo cómo el detector lo identifica: tasa de detección, falsos positivos y latencia de inferencia.</div>
+</div>
+
+<h2>9. Experiencia de usuario (15 %)</h2>
+<ul>
+  <li><b>App autenticadora:</b> lista de cuentas con código grande, anillo de cuenta regresiva y copia con un toque; alta por cámara (QR) o clave manual; bloqueo con PIN (las semillas se cifran en el dispositivo con una llave derivada del PIN); funciona sin conexión; modo claro y oscuro; textos en castellano y accesibles.</li>
+  <li><b>Enrolamiento en 3 pasos:</b> 1) escanear QR, 2) escribir el primer código, 3) guardar los códigos de recuperación. Indicador de progreso y mensajes claros cuando el reloj del teléfono está desfasado.</li>
+  <li><b>Consola:</b> panel con métricas (verificaciones, tasa de éxito, bloqueos, alertas del detector), gestión de apps y políticas, estados de enrolamiento, rotación de llaves con un botón y verificación de integridad de la bitácora.</li>
+</ul>
+
+<h2 class="pb">10. Estructura del repositorio</h2>
+<pre>
+servicio-soberano-autenticacion-totp/
+├── backend/                 API Fastify + TypeScript
+│   ├── src/core/totp/       motor RFC 6238 propio + tests con vectores oficiales
+│   ├── src/core/vault/      AES-256-GCM, llave maestra, rotación
+│   ├── src/core/tokens/     JWT Ed25519, JWKS, jti
+│   ├── src/security/        rate limit, bloqueos, validación
+│   ├── src/heuristics/      detector de anomalías
+│   ├── src/audit/           bitácora encadenada y métricas
+│   ├── src/api/             rutas v1 y admin
+│   └── migrations/          esquema PostgreSQL
+├── authenticator-app/       PWA autenticadora (React + Vite)
+├── admin-console/           consola administrativa (React + Vite)
+├── sdk/                     SDK TypeScript para integradores
+├── demo-portal-tramites/    sistema institucional de ejemplo
+├── attack-lab/              scripts de ataque simulado para la demo
+├── deploy/                  docker-compose.yml, Caddyfile
+└── docs/                    reto, análisis, API, SBOM, manual
+</pre>
+
+<h2>11. Plan de trabajo (jueves 26 – viernes 27)</h2>
+<table>
+  <tr><th style="width:18%">Bloque</th><th>Entregables</th></tr>
+  <tr><td>Jueves tarde</td><td>Motor TOTP propio con tests RFC en verde · esquema de base de datos · vault AES-256-GCM · endpoints de enrolamiento, activación y verificación · Docker Compose básico · esqueleto de la PWA mostrando códigos.</td></tr>
+  <tr><td>Jueves noche</td><td>Anti replay, deriva, rate limit y bloqueos progresivos · JWT Ed25519 + JWKS + validate · alta por QR en la PWA.</td></tr>
+  <tr><td>Viernes mañana</td><td>Consola admin (RBAC, políticas, estados, rotación, auditoría) · bitácora encadenada · demo Portal de Trámites con el SDK · detector de anomalías + attack-lab.</td></tr>
+  <tr><td>Viernes tarde</td><td>Pulido de UX · Caddy con TLS 1.3 · SBOM y <code>npm audit</code> · documentación · ensayo de la presentación y guion de demo.</td></tr>
+</table>
+
+<h3>Reparto sugerido por roles</h3>
+<table>
+  <tr><th style="width:28%">Rol</th><th>Responsabilidad</th></tr>
+  <tr><td>Backend y criptografía</td><td>core/totp, vault, tokens, API v1, tests RFC.</td></tr>
+  <tr><td>Frontend y UX</td><td>PWA autenticadora, consola admin, demo Portal de Trámites.</td></tr>
+  <tr><td>Seguridad e infraestructura</td><td>Rate limit, bloqueos, Caddy/TLS, Docker, SBOM, revisión OWASP.</td></tr>
+  <tr><td>IA y presentación</td><td>Detector de anomalías, attack-lab, métricas, guion y diapositivas.</td></tr>
+</table>
+
+<h2>12. Cómo sumamos puntos en cada criterio</h2>
+<table>
+  <tr><th style="width:34%">Criterio (peso)</th><th>Qué lo demuestra</th></tr>
+  <tr><td>Buenas prácticas, limpieza y seguridad (15 %)</td><td>Tests con vectores RFC, módulos separados, validación estricta, SBOM, sin secretos en el repo, bitácora a prueba de manipulación.</td></tr>
+  <tr><td>Ejecución técnica y funcionalidad (25 %)</td><td>Flujo completo en vivo: enrolar con QR → código en la PWA → acceso al Portal de Trámites con JWT validado.</td></tr>
+  <tr><td>Uso e integración de IA (10 %)</td><td>Detector local de anomalías demostrado contra ataques simulados, con métricas.</td></tr>
+  <tr><td>Impacto y viabilidad (15 %)</td><td>Un comando para desplegar en cualquier institución; SDK para integrar en sistemas existentes; cero costos de licencia y cero dependencia extranjera.</td></tr>
+  <tr><td>Innovación y creatividad (10 %)</td><td>App propia con SHA-512 y 8 dígitos, auditoría encadenada por hashes, anonimización con pepper rotativo, respuesta adaptativa al riesgo.</td></tr>
+  <tr><td>Diseño y UX (15 %)</td><td>Enrolamiento en 3 pasos, PWA offline con PIN, consola clara con métricas.</td></tr>
+  <tr><td>Presentación (10 %)</td><td>Demo en vivo con ataque simulado bloqueado en pantalla, y la comparación de la sección 2.</td></tr>
+</table>
+
+<h2>13. Riesgos y decisiones abiertas</h2>
+<ul>
+  <li><b>Tiempo:</b> prioridad absoluta al flujo completo (motor → API → PWA → demo). La heurística y el asistente de auditoría van después.</li>
+  <li><b>Cámara en la PWA:</b> leer QR desde el navegador requiere HTTPS; con la CA interna de Caddy hay que instalar su certificado en el teléfono de demo. Alternativa: alta por clave manual.</li>
+  <li><b>Llave maestra:</b> para la demo vive en un archivo protegido; en producción se recomienda un HSM o TPM. Lo declararemos como hoja de ruta.</li>
+  <li><b>Por decidir en equipo:</b> número de dígitos por defecto (6 u 8), ventana por defecto (±1) y si se incluye el modo de compatibilidad SHA-1.</li>
+</ul>
+
+</body>
+</html>
