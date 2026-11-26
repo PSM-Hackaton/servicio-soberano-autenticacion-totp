@@ -1,20 +1,19 @@
 {
-  "generado": "2026-11-26T17:57:02.990Z",
-  "destino": "https://127.0.0.1:18443",
+  "generado": "2026-11-26T18:56:28.066Z",
+  "destino": "https://localhost:28743",
   "entorno": {
     "node": "v22.22.1",
-    "plataforma": "linux",
-    "modo": "NODE_ENV=production (despliegue equivalente systemd)"
+    "plataforma": "linux"
   },
   "resumen": {
     "evaluados": 1,
     "correctos": 1,
     "fallidos": [],
     "omitidos": [],
-    "verificaciones": 9,
-    "verificacionesOk": 9,
+    "verificaciones": 12,
+    "verificacionesOk": 12,
     "hallazgos": 0,
-    "duracionMs": 38
+    "duracionMs": 87
   },
   "resultados": [
     {
@@ -38,20 +37,20 @@
         {
           "descripcion": "Certificado TLS vigente",
           "esperado": "no expirado",
-          "obtenido": "Dec  3 17:57:02 2026 GMT",
+          "obtenido": "Feb 28 18:54:55 2029 GMT",
           "ok": true
         },
         {
-          "descripcion": "Cabeceras OWASP en todas las rutas (24 rutas)",
-          "esperado": "24/24 sin faltantes ni huellas",
-          "obtenido": "24/24 OK",
+          "descripcion": "Cabeceras OWASP en todas las rutas (34 rutas)",
+          "esperado": "34/34 sin faltantes ni huellas",
+          "obtenido": "34/34 OK",
           "ok": true
         },
         {
           "descripcion": "Política Permissions-Policy en PWA (/app/)",
           "esperado": "camera=(self) para escáner QR",
-          "obtenido": "Permissions-Policy en /app/ bloquea camera=() (impide escáner QR por cámara; ver Issue #20 C2)",
-          "ok": null
+          "obtenido": "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
+          "ok": true
         },
         {
           "descripcion": "Rutas administrativas protegidas sin sesión",
@@ -82,25 +81,34 @@
           "esperado": "403",
           "obtenido": "403",
           "ok": true
+        },
+        {
+          "descripcion": "Cookie de sesión admin (HttpOnly, Secure, SameSite=Strict)",
+          "esperado": "0 atributos inseguros",
+          "obtenido": "1 cookie(s) endurecida(s)",
+          "ok": true
+        },
+        {
+          "descripcion": "Protección CSRF en mutación admin sin X-CSRF-Token",
+          "esperado": "403",
+          "obtenido": "403",
+          "ok": true
         }
       ],
       "metricas": {
         "tlsProtocolo": "TLSv1.3",
         "tlsCifrado": "TLS_AES_256_GCM_SHA384",
-        "rutasAuditadas": 24,
-        "cabecerasOk": 24,
+        "rutasAuditadas": 34,
+        "cabecerasOk": 34,
         "metodosRechazadosOk": 7,
         "corsOk": 9,
         "errores5xx": 0,
         "fugasDetectadas": 0
       },
-      "notas": [
-        "Permissions-Policy en /app/ bloquea camera=() (impide escáner QR por cámara; ver Issue #20 C2)",
-        "Auditoría de Set-Cookie admin en vivo disponible pasando --admin-user, --admin-pass y --admin-totp."
-      ],
+      "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T17:57:02.951Z",
-      "duracionMs": 38
+      "inicio": "2026-11-26T18:56:27.978Z",
+      "duracionMs": 87
     }
   ]
 }

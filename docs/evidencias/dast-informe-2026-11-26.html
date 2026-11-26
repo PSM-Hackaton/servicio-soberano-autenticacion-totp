@@ -33,10 +33,10 @@
 <body>
 <main>
   <h1>Laboratorio de ataques simulados y caos</h1>
-  <p class="sub">Servicio soberano TOTP · destino https://127.0.0.1:18443 · generado 2026-11-26T17:57:02.990Z · Node v22.22.1</p>
+  <p class="sub">Servicio soberano TOTP · destino https://localhost:28743 · generado 2026-11-26T18:56:28.066Z · Node v22.22.1</p>
   <div class="cifras">
     <div class="cifra"><b>1/1</b>escenarios OK</div>
-    <div class="cifra"><b>9/9</b>verificaciones OK</div>
+    <div class="cifra"><b>12/12</b>verificaciones OK</div>
     <div class="cifra"><b>0</b>hallazgos</div>
     <div class="cifra"><b>0 s</b>duración total</div>
   </div>
@@ -46,8 +46,8 @@
       <thead><tr><th>Escenario</th><th>Qué demuestra</th><th>Verificaciones</th><th>Duración</th><th>Resultado</th></tr></thead>
       <tbody>
       <tr><td><a href="#dast">Escaneo dinámico de seguridad (DAST propio)</a></td><td>TLS 1.3 estricto, cabeceras OWASP en todas las rutas, métodos 405, CORS cerrado, cookies seguras y respuestas de error sin filtraciones.</td>
-      <td class="num">9/9</td>
-      <td class="num">0.0 s</td><td><span class="ok">OK</span></td></tr></tbody>
+      <td class="num">12/12</td>
+      <td class="num">0.1 s</td><td><span class="ok">OK</span></td></tr></tbody>
     </table>
   </section>
   
@@ -59,22 +59,24 @@
       <tbody>
         <tr class=""><td>TLS 1.3 negociado con cifrado AEAD moderno</td><td>TLSv1.3 + cifrado AEAD</td><td><code>TLSv1.3 · TLS_AES_256_GCM_SHA384</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>TLS 1.2 y versiones antiguas rechazados</td><td>conexión rechazada</td><td><code>rechazado (ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION)</code></td><td><span class="ok">OK</span></td></tr>
-        <tr class=""><td>Certificado TLS vigente</td><td>no expirado</td><td><code>Dec  3 17:57:02 2026 GMT</code></td><td><span class="ok">OK</span></td></tr>
-        <tr class=""><td>Cabeceras OWASP en todas las rutas (24 rutas)</td><td>24/24 sin faltantes ni huellas</td><td><code>24/24 OK</code></td><td><span class="ok">OK</span></td></tr>
-        <tr class=""><td>Política Permissions-Policy en PWA (/app/)</td><td>camera=(self) para escáner QR</td><td><code>Permissions-Policy en /app/ bloquea camera=() (impide escáner QR por cámara; ver Issue #20 C2)</code></td><td><span class="info">INFO</span></td></tr>
+        <tr class=""><td>Certificado TLS vigente</td><td>no expirado</td><td><code>Feb 28 18:54:55 2029 GMT</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Cabeceras OWASP en todas las rutas (34 rutas)</td><td>34/34 sin faltantes ni huellas</td><td><code>34/34 OK</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Política Permissions-Policy en PWA (/app/)</td><td>camera=(self) para escáner QR</td><td><code>camera=(self), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>Rutas administrativas protegidas sin sesión</td><td>401 en todas las rutas /admin/api/* privadas</td><td><code>todas devolvieron 401</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>Errores genéricos y cero fugas internas / 5xx</td><td>0 errores 5xx, 0 fugas, formato { error, message }</td><td><code>5xx=0, fugas=0, formatoInvalido=0</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>Métodos HTTP peligrosos / no permitidos (TRACE, PUT, PATCH, DELETE)</td><td>7/7 rechazados sin reflejo</td><td><code>7/7 OK</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>CORS cerrado ante orígenes maliciosos y preflight OPTIONS</td><td>sin comodín * ni reflejo de orígenes externos</td><td><code>9 sondas CORS seguras</code></td><td><span class="ok">OK</span></td></tr>
         <tr class=""><td>Aislamiento de /metrics fuera de 127.0.0.1</td><td>403</td><td><code>403</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Cookie de sesión admin (HttpOnly, Secure, SameSite=Strict)</td><td>0 atributos inseguros</td><td><code>1 cookie(s) endurecida(s)</code></td><td><span class="ok">OK</span></td></tr>
+        <tr class=""><td>Protección CSRF en mutación admin sin X-CSRF-Token</td><td>403</td><td><code>403</code></td><td><span class="ok">OK</span></td></tr>
       </tbody>
     </table>
     
     <table class="metricas">
       <thead><tr><th>Métrica</th><th>Valor</th></tr></thead>
-      <tbody><tr><td>tlsProtocolo</td><td><code>TLSv1.3</code></td></tr><tr><td>tlsCifrado</td><td><code>TLS_AES_256_GCM_SHA384</code></td></tr><tr><td>rutasAuditadas</td><td><code>24</code></td></tr><tr><td>cabecerasOk</td><td><code>24</code></td></tr><tr><td>metodosRechazadosOk</td><td><code>7</code></td></tr><tr><td>corsOk</td><td><code>9</code></td></tr><tr><td>errores5xx</td><td><code>0</code></td></tr><tr><td>fugasDetectadas</td><td><code>0</code></td></tr></tbody>
+      <tbody><tr><td>tlsProtocolo</td><td><code>TLSv1.3</code></td></tr><tr><td>tlsCifrado</td><td><code>TLS_AES_256_GCM_SHA384</code></td></tr><tr><td>rutasAuditadas</td><td><code>34</code></td></tr><tr><td>cabecerasOk</td><td><code>34</code></td></tr><tr><td>metodosRechazadosOk</td><td><code>7</code></td></tr><tr><td>corsOk</td><td><code>9</code></td></tr><tr><td>errores5xx</td><td><code>0</code></td></tr><tr><td>fugasDetectadas</td><td><code>0</code></td></tr></tbody>
     </table>
-    <ul class="notas"><li>Permissions-Policy en /app/ bloquea camera=() (impide escáner QR por cámara; ver Issue #20 C2)</li><li>Auditoría de Set-Cookie admin en vivo disponible pasando --admin-user, --admin-pass y --admin-totp.</li></ul>
+    
     
   </section>
 </main>
