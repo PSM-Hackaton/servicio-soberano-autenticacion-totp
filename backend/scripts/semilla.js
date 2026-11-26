@@ -11,7 +11,7 @@ import { crearFirmas } from '../src/infrastructure/config/firmas.js';
 import { abrirBaseDatos } from '../src/infrastructure/persistence/db.js';
 import { crearRepositorios } from '../src/infrastructure/persistence/repositorios.js';
 import { crearVault } from '../src/core/vault/vault.js';
-import { crearBitacora, crearMetricas } from '../src/audit/index.js';
+import { crearBitacoraSqlite, crearMetricas } from '../src/audit/index.js';
 import { crearCasosDeUso } from '../src/application/use-cases/index.js';
 import { provisionarAdministrador } from '../src/application/use-cases/administradores.js';
 
@@ -26,11 +26,11 @@ const ACTOR_SEMILLA = Object.freeze({ id: 'semilla', usuario: 'semilla', rol: 'A
 const config = cargarConfig();
 const RUTA_QR = config.admin.rutaQr;
 if (config.baseDatos.ruta !== ':memory:') mkdirSync(dirname(config.baseDatos.ruta), { recursive: true });
-const db = abrirBaseDatos(config.baseDatos.ruta);
+const db = abrirBaseDatos(config.baseDatos.ruta, { sincrono: config.baseDatos.sincrono });
 const repos = crearRepositorios(db);
 const vault = crearVault(config.vault);
 const firmas = crearFirmas({ repos, vault }).recargar();
-const bitacora = crearBitacora({ ultimo: () => repos.auditLog.ultimo(), insertar: (f) => repos.auditLog.insertar(f).id });
+const bitacora = crearBitacoraSqlite(repos);
 const detector = { evaluar: () => ({ riskScore: 0, level: 'bajo', action: 'permitir', reasons: ['semilla'], inferenceMs: 0 }) };
 const casos = crearCasosDeUso({
   repos, vault, firmas, detector, bitacora, metricas: crearMetricas(), config: configCasosDeUso(config), reloj: () => Date.now(), db,

@@ -108,7 +108,9 @@ export function crearCasosMfa(d) {
   function historial(ipHash, urh) {
     const vistos = new Set();
     const filas = [];
-    for (const f of [...repos.attempts.ultimosPorIp(ipHash, LIMITE_HISTORIAL), ...consultas.ultimosPorUsuario(urh, LIMITE_HISTORIAL)]) {
+    const porOrigen = consultas.historialDetector({ ipHash }, LIMITE_HISTORIAL);
+    const porCuenta = consultas.historialDetector({ userRefHash: urh }, LIMITE_HISTORIAL);
+    for (const f of [...porOrigen, ...porCuenta]) {
       if (vistos.has(f.id)) continue;
       vistos.add(f.id);
       filas.push({ user_ref_hash: f.user_ref_hash, ip_hash: f.ip_hash, resultado: f.resultado, ts: f.ts });
@@ -305,12 +307,13 @@ export function crearCasosMfa(d) {
     //    Los fallos quedan en attempts y de ahí sale su bloqueo progresivo (sobrevive a un reinicio).
     if (!enrol) {
       verifyTotpWithDrift(randomBytes(32), v.code, ahora, { algoritmo: 'SHA256', digitos: app.digitos, periodo: app.periodo, ventana: app.ventana });
-      const hasta = repos.transaccion(() => {
+      // Una sola transacción (una confirmación a disco): intento + bloqueo + evento de bitácora.
+      repos.transaccion(() => {
         registrarIntento({ ...base, resultado: 'invalid_code', evaluacion });
-        return bloqueos.falloInexistente(app.id, urh, app.max_intentos, ahora);
+        const hasta = bloqueos.falloInexistente(app.id, urh, app.max_intentos, ahora);
+        if (hasta) auditar(actorApp(app), 'verificacion.bloqueo', null, { user_ref_hash: urh, locked_until: hasta });
       });
       metrica('invalid_code');
-      if (hasta) auditar(actorApp(app), 'verificacion.bloqueo', null, { user_ref_hash: urh, locked_until: hasta });
       return errorGenerico('codigo');
     }
 
@@ -325,33 +328,45 @@ export function crearCasosMfa(d) {
     let resultado = r.valid ? 'ok' : r.reason === 'replay' ? 'replay' : 'invalid_code';
     const ventana = app?.ventana ?? 1;
     const derivaFinal = r.valid ? derivaAGuardar(enrol.drift_steps, r.driftSteps, ventana) : enrol.drift_steps;
-    let hasta = null;
+
+    // 5. Si el código es válido, el JWT Ed25519 de un solo uso (sub = user_ref_hash, aud = client_id)
+    //    se firma ANTES de abrir la transacción: así la transacción solo contiene escrituras y el
+    //    evento de bitácora (que lleva el jti) se confirma con el paso aceptado y el intento.
+    //    Si otra petición gana la carrera con el mismo paso, el token se descarta sin emitirse.
+    let token = null;
+    let claims = null;
+    let kid = null;
+    if (resultado === 'ok') {
+      const activa = firmas.activa();
+      kid = activa.kid;
+      token = signMfaJwt({
+        privateKey: activa.privateKey, kid, issuer: config.emisorJwt, audience: app.client_id, subject: urh,
+        ttlSegundos: config.ttlJwtSegundos ?? 300, ahora,
+      });
+      claims = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+    }
+
+    // Una sola transacción por verificación (una confirmación a disco): paso aceptado (anti replay
+    // atómico) + intento + eventos de bitácora. Si algo falla, nada queda escrito y no hay token.
     repos.transaccion(() => {
       if (resultado === 'ok' && !repos.enrollments.registrarPasoAceptado(enrol.id, r.matchedStep, derivaFinal)) {
         resultado = 'replay'; // otra petición ganó la carrera con el mismo paso
       }
-      if (resultado !== 'ok') hasta = bloqueos.falloEnrolamiento(enrol.id, app.max_intentos, ahora);
       registrarIntento({ ...base, resultado, evaluacion });
-    });
-    metrica(resultado);
-
-    if (resultado !== 'ok') {
+      if (resultado === 'ok') {
+        auditar(actorApp(app), 'verificacion.exitosa', enrol.id, { jti: claims.jti, kid, drift_steps: derivaFinal, drift_observado: r.driftSteps });
+        return;
+      }
+      const hasta = bloqueos.falloEnrolamiento(enrol.id, app.max_intentos, ahora);
       // Un replay responde EXACTAMENTE igual que un código incorrecto (401 VERIFICATION_FAILED, sin
       // Retry-After): distinguirlo sería un oráculo que confirma que el código fue válido. Internamente
       // queda como 'replay' en attempts, en la bitácora y en las métricas, y cuenta para el bloqueo.
       if (resultado === 'replay') auditar(actorApp(app), 'verificacion.replay', enrol.id, { ip_hash: ipHash, locked_until: hasta });
       if (hasta) auditar(actorApp(app), 'enrolamiento.bloqueado', enrol.id, { locked_until: hasta, origen: 'verificacion' });
-      return errorGenerico('codigo');
-    }
-
-    // 5. Éxito: JWT Ed25519 de un solo uso (sub = user_ref_hash, aud = client_id).
-    const { kid, privateKey } = firmas.activa();
-    const ttl = config.ttlJwtSegundos ?? 300;
-    const token = signMfaJwt({
-      privateKey, kid, issuer: config.emisorJwt, audience: app.client_id, subject: urh, ttlSegundos: ttl, ahora,
     });
-    const claims = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
-    auditar(actorApp(app), 'verificacion.exitosa', enrol.id, { jti: claims.jti, kid, drift_steps: derivaFinal, drift_observado: r.driftSteps });
+    metrica(resultado);
+    if (resultado !== 'ok') return errorGenerico('codigo');
+
     return {
       status: 200,
       cuerpo: {

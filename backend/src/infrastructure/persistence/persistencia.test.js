@@ -4,8 +4,11 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
-import { abrirBaseDatos } from './db.js';
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { abrirBaseDatos, SINCRONO_POR_DEFECTO } from './db.js';
 import { crearRepositorios } from './repositorios.js';
+import { verificarCadena } from '../../audit/index.js';
 
 const TABLAS = ['apps', 'enrollments', 'recovery_codes', 'attempts', 'consumed_jti', 'signing_keys', 'admins', 'audit_log'];
 
@@ -36,7 +39,7 @@ test('migraciones idempotentes: abrir dos veces el mismo archivo no reaplica nad
 
     const db2 = abrirBaseDatos(ruta);
     const migraciones = db2.prepare('SELECT version FROM schema_migrations').all().map((f) => f.version);
-    assert.deepEqual(migraciones, ['001_esquema.sql', '002_cedula_apps.sql']);
+    assert.deepEqual(migraciones, ['001_esquema.sql', '002_cedula_apps.sql', '003_indices_detector.sql']);
     const tablas = db2.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((f) => f.name);
     for (const t of TABLAS) assert.ok(tablas.includes(t), `falta la tabla ${t}`);
     assert.equal(crearRepositorios(db2).apps.listar().length, 1, 'los datos sobreviven a la reapertura');
@@ -187,4 +190,75 @@ test('signing_keys, admins y audit_log', () => {
   assert.equal(e2.detalle, '{"kid":"k1"}');
   assert.deepEqual(repos.auditLog.listar(e1.id, 10).map((e) => e.id), [e2.id]);
   assert.deepEqual([...repos.auditLog.recorrerTodo()].map((e) => e.accion), ['login', 'rotar']);
+});
+
+test('PRAGMA synchronous: NORMAL por defecto en WAL, FULL configurable, otros modos rechazados', () => {
+  const carpeta = mkdtempSync(join(tmpdir(), 'totp-sinc-'));
+  try {
+    assert.equal(SINCRONO_POR_DEFECTO, 'NORMAL');
+    const normal = abrirBaseDatos(join(carpeta, 'a.db'));
+    assert.equal(normal.prepare('PRAGMA journal_mode').get().journal_mode, 'wal');
+    assert.equal(normal.prepare('PRAGMA synchronous').get().synchronous, 1, 'NORMAL = 1');
+    normal.close();
+    const full = abrirBaseDatos(join(carpeta, 'b.db'), { sincrono: 'FULL' });
+    assert.equal(full.prepare('PRAGMA synchronous').get().synchronous, 2, 'FULL = 2');
+    full.close();
+    assert.throws(() => abrirBaseDatos(join(carpeta, 'c.db'), { sincrono: 'OFF' }), /synchronous no admitido/);
+  } finally {
+    rmSync(carpeta, { recursive: true, force: true });
+  }
+});
+
+test('historial del detector: solo 5 columnas, más reciente primero, resuelto con índices de cobertura', () => {
+  const { db, repos } = entorno();
+  const { app, enrol } = crearAppYEnrolamiento(repos);
+  const ts = '2026-11-26T12:00:00.000Z';
+  for (let i = 0; i < 5; i++) {
+    repos.attempts.registrar({ enrollment_id: enrol.id, app_id: app.id, user_ref_hash: 'u1', ip_hash: i % 2 ? 'ipA' : 'ipB',
+      resultado: i === 4 ? 'ok' : 'invalid_code', risk_score: 10, reasons_json: ['x'], inference_ms: 0.1, ts });
+  }
+  const porIp = repos.attempts.historialDetector({ ipHash: 'ipB' }, 10);
+  assert.deepEqual(porIp.map((f) => Object.keys(f).sort()), porIp.map(() => ['id', 'ip_hash', 'resultado', 'ts', 'user_ref_hash']));
+  assert.deepEqual(porIp.map((f) => f.id), [5, 3, 1], 'mismo ts: desempate por id descendente');
+  assert.deepEqual(repos.attempts.historialDetector({ userRefHash: 'u1' }, 2).map((f) => f.id), [5, 4]);
+  assert.throws(() => repos.attempts.historialDetector({}, 1));
+  for (const columna of ['ip_hash', 'user_ref_hash']) {
+    const plan = db.prepare(`EXPLAIN QUERY PLAN SELECT id, user_ref_hash, ip_hash, resultado, ts FROM attempts
+      WHERE ${columna} = ? ORDER BY ts DESC, id DESC LIMIT 50`).all().map((f) => f.detail).join(' | ');
+    assert.match(plan, /COVERING INDEX idx_attempts_(ip|user)_ts_det/, plan);
+    assert.doesNotMatch(plan, /TEMP B-TREE/, plan);
+  }
+});
+
+test('bitácora con varios procesos sobre la misma base: la cadena no se bifurca (BEGIN IMMEDIATE)', async () => {
+  const carpeta = mkdtempSync(join(tmpdir(), 'totp-multi-'));
+  const ruta = join(carpeta, 'bitacora.db');
+  try {
+    abrirBaseDatos(ruta).close(); // migraciones antes de lanzar a los escritores
+    const raiz = fileURLToPath(new URL('../../', import.meta.url));
+    const codigo = `
+      const { abrirBaseDatos } = await import(${JSON.stringify(join(raiz, 'infrastructure/persistence/db.js'))});
+      const { crearRepositorios } = await import(${JSON.stringify(join(raiz, 'infrastructure/persistence/repositorios.js'))});
+      const { crearBitacoraSqlite } = await import(${JSON.stringify(join(raiz, 'audit/index.js'))});
+      const db = abrirBaseDatos(process.argv[1]);
+      const bitacora = crearBitacoraSqlite(crearRepositorios(db));
+      for (let i = 0; i < 150; i++) bitacora.registrar({ actor: 'proceso:' + process.pid, accion: 'prueba.concurrencia', detalle: { i } });
+      db.close();`;
+    const procesos = Array.from({ length: 4 }, () => new Promise((ok, mal) => {
+      const hijo = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', '--input-type=module', '-e', codigo, ruta], { stdio: ['ignore', 'ignore', 'pipe'] });
+      let err = '';
+      hijo.stderr.on('data', (t) => { err += t; });
+      hijo.on('exit', (c) => (c === 0 ? ok(undefined) : mal(new Error(`proceso escritor terminó con ${c}: ${err}`))));
+    }));
+    await Promise.all(procesos);
+    const db = abrirBaseDatos(ruta);
+    const filas = [...crearRepositorios(db).auditLog.recorrerTodo()];
+    db.close();
+    assert.equal(filas.length, 600);
+    assert.equal(new Set(filas.map((f) => f.prev_hash)).size, 600, 'ningún prev_hash repetido: sin bifurcaciones');
+    assert.equal(new Set(filas.map((f) => f.actor)).size, 4, 'los cuatro procesos escribieron');
+    assert.equal(verificarCadena(filas).intact, true);
+  } finally {
+    rmSync(carpeta, { recursive: true, force: true });
+  }
 });
