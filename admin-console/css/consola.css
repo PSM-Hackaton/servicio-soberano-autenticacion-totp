@@ -1,28 +1,29 @@
 /* =============================================================================
    Consola administrativa · Servicio Soberano de Autenticación TOTP
    Hoja de estilos propia. Tipografía del sistema, sin fuentes ni recursos externos.
-   Acento institucional #0b5c4a; rojo y ámbar reservados a estados.
+   Azul institucional #00247D/#1A3A8F; amarillo y rojo solo en la franja tricolor y detalles;
+   verde, ámbar y rojo reservados a estados.
    ============================================================================= */
 
 /* ----------------------------------------------------------------- tokens */
 :root {
   color-scheme: light;
-  --acento: #0b5c4a;
-  --acento-hover: #08493b;
-  --acento-texto: #0b5c4a;
-  --acento-suave: #e6f1ed;
-  --acento-borde: #b8d6cb;
+  --acento: #1a3a8f;
+  --acento-hover: #0b2a6f;
+  --acento-texto: #1a3a8f;
+  --acento-suave: #e8edf8;
+  --acento-borde: #b7c4e6;
   --sobre-acento: #ffffff;
 
-  --fondo: #f3f5f4;
+  --fondo: #f2f4f8;
   --superficie: #ffffff;
-  --superficie-2: #f7f9f8;
-  --superficie-3: #eef2f0;
-  --borde: #dde3e0;
-  --borde-fuerte: #c5cfca;
-  --texto: #15201c;
-  --texto-2: #46534e;
-  --texto-3: #64716c;
+  --superficie-2: #f7f8fb;
+  --superficie-3: #eceff5;
+  --borde: #dce1ea;
+  --borde-fuerte: #c3cbd9;
+  --texto: #141b2d;
+  --texto-2: #444d62;
+  --texto-3: #5e6679;
 
   --ok: #12704f;
   --ok-fondo: #e5f3ec;
@@ -40,22 +41,36 @@
 
   /* Series de gráficos */
   --g-ok: #1f7a5c;
-  --g-acento: #0b5c4a;
-  --g-neutro: #9aa7a1;
+  --g-acento: #1a3a8f;
+  --g-serie-ok: #3058c8;
+  --g-neutro: #9aa3b5;
   --g-aviso: #d99a1e;
   --g-aviso-fuerte: #b7791f;
   --g-peligro-suave: #e0775f;
   --g-peligro: #c8372b;
   --g-critico: #8e1b14;
-  --g-rejilla: #e8ecea;
+  --g-rejilla: #e6eaf1;
 
-  --sombra-1: 0 1px 2px rgb(16 32 26 / 0.06), 0 1px 1px rgb(16 32 26 / 0.04);
-  --sombra-2: 0 8px 28px rgb(16 32 26 / 0.14), 0 2px 6px rgb(16 32 26 / 0.08);
-  --foco: 0 0 0 2px var(--superficie), 0 0 0 4px #1a7f66;
+  --sombra-1: 0 1px 2px rgb(10 22 60 / 0.06), 0 1px 1px rgb(10 22 60 / 0.04);
+  --sombra-2: 0 8px 28px rgb(10 22 60 / 0.14), 0 2px 6px rgb(10 22 60 / 0.08);
+  --foco: 0 0 0 2px var(--superficie), 0 0 0 4px #1a3a8f;
   --radio: 10px;
   --radio-s: 6px;
   --lateral: 248px;
   --cabecera: 60px;
+
+  /* Identidad: franja tricolor y barra lateral institucional */
+  --azul-bandera: #00247D;
+  --amarillo-bandera: #FFCC00;
+  --rojo-bandera: #CF142B;
+  --franja-azul: #00247D;
+  --lateral-fondo: #00247D;
+  --lateral-texto: #ffffff;
+  --lateral-texto-2: #c9d4f2;
+  --lateral-linea: rgb(255 255 255 / 0.16);
+  --cintillo-fondo: #ffffff;
+  --cintillo-texto: #00247D;
+  --cintillo-texto-2: #444d62;
 
   --fuente: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Liberation Sans", Ubuntu, Cantarell, sans-serif;
   --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "Liberation Mono", Menlo, Consolas, monospace;
@@ -64,21 +79,21 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-tema="claro"]) {
     color-scheme: dark;
-    --acento: #2f9c7d;
-    --acento-hover: #3ab08e;
-    --acento-texto: #6cc9a9;
-    --acento-suave: #14302a;
-    --acento-borde: #22574a;
-    --sobre-acento: #04140f;
-    --fondo: #0d1311;
-    --superficie: #141c19;
-    --superficie-2: #18211e;
-    --superficie-3: #1d2824;
-    --borde: #26332e;
-    --borde-fuerte: #34443e;
-    --texto: #e5ece9;
-    --texto-2: #b3c0bb;
-    --texto-3: #8f9d97;
+    --acento: #3557c4;
+    --acento-hover: #2b4aae;
+    --acento-texto: #9db5ff;
+    --acento-suave: #1b2747;
+    --acento-borde: #2e4170;
+    --sobre-acento: #ffffff;
+    --fondo: #0c1120;
+    --superficie: #141a2b;
+    --superficie-2: #182033;
+    --superficie-3: #1e273d;
+    --borde: #283249;
+    --borde-fuerte: #36425d;
+    --texto: #e8ebf3;
+    --texto-2: #b4bccf;
+    --texto-3: #8f98ad;
     --ok: #6fd0a6;
     --ok-fondo: #12291f;
     --ok-borde: #24523e;
@@ -93,36 +108,43 @@
     --info-fondo: #142430;
     --info-borde: #2a4a60;
     --g-ok: #3fb58a;
-    --g-acento: #4fc29d;
-    --g-neutro: #6b7a74;
+    --g-acento: #9db5ff;
+    --g-serie-ok: #5b7fe6;
+    --g-neutro: #6b7489;
     --g-aviso: #e0a93a;
     --g-aviso-fuerte: #c98a2c;
     --g-peligro-suave: #e88a72;
     --g-peligro: #e5574a;
     --g-critico: #b8322a;
-    --g-rejilla: #222d29;
+    --g-rejilla: #222b40;
     --sombra-1: 0 1px 2px rgb(0 0 0 / 0.4);
     --sombra-2: 0 10px 30px rgb(0 0 0 / 0.55);
-    --foco: 0 0 0 2px var(--superficie), 0 0 0 4px #4fc29d;
+    --foco: 0 0 0 2px var(--superficie), 0 0 0 4px #9db5ff;
+    --franja-azul: #3557c4;
+    --lateral-fondo: #0b1430;
+    --lateral-texto-2: #aab8dc;
+    --cintillo-fondo: #080d1c;
+    --cintillo-texto: #dfe5f5;
+    --cintillo-texto-2: #aab2c5;
   }
 }
 :root[data-tema="oscuro"] {
   color-scheme: dark;
-  --acento: #2f9c7d;
-  --acento-hover: #3ab08e;
-  --acento-texto: #6cc9a9;
-  --acento-suave: #14302a;
-  --acento-borde: #22574a;
-  --sobre-acento: #04140f;
-  --fondo: #0d1311;
-  --superficie: #141c19;
-  --superficie-2: #18211e;
-  --superficie-3: #1d2824;
-  --borde: #26332e;
-  --borde-fuerte: #34443e;
-  --texto: #e5ece9;
-  --texto-2: #b3c0bb;
-  --texto-3: #8f9d97;
+  --acento: #3557c4;
+  --acento-hover: #2b4aae;
+  --acento-texto: #9db5ff;
+  --acento-suave: #1b2747;
+  --acento-borde: #2e4170;
+  --sobre-acento: #ffffff;
+  --fondo: #0c1120;
+  --superficie: #141a2b;
+  --superficie-2: #182033;
+  --superficie-3: #1e273d;
+  --borde: #283249;
+  --borde-fuerte: #36425d;
+  --texto: #e8ebf3;
+  --texto-2: #b4bccf;
+  --texto-3: #8f98ad;
   --ok: #6fd0a6;
   --ok-fondo: #12291f;
   --ok-borde: #24523e;
@@ -137,17 +159,24 @@
   --info-fondo: #142430;
   --info-borde: #2a4a60;
   --g-ok: #3fb58a;
-  --g-acento: #4fc29d;
-  --g-neutro: #6b7a74;
+  --g-acento: #9db5ff;
+  --g-serie-ok: #5b7fe6;
+  --g-neutro: #6b7489;
   --g-aviso: #e0a93a;
   --g-aviso-fuerte: #c98a2c;
   --g-peligro-suave: #e88a72;
   --g-peligro: #e5574a;
   --g-critico: #b8322a;
-  --g-rejilla: #222d29;
+  --g-rejilla: #222b40;
   --sombra-1: 0 1px 2px rgb(0 0 0 / 0.4);
   --sombra-2: 0 10px 30px rgb(0 0 0 / 0.55);
-  --foco: 0 0 0 2px var(--superficie), 0 0 0 4px #4fc29d;
+  --foco: 0 0 0 2px var(--superficie), 0 0 0 4px #9db5ff;
+  --franja-azul: #3557c4;
+  --lateral-fondo: #0b1430;
+  --lateral-texto-2: #aab8dc;
+  --cintillo-fondo: #080d1c;
+  --cintillo-texto: #dfe5f5;
+  --cintillo-texto-2: #aab2c5;
 }
 
 /* ----------------------------------------------------------------- base */
@@ -160,6 +189,7 @@ body {
   font: 14px/1.5 var(--fuente);
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+  display: flex; flex-direction: column;
 }
 [hidden] { display: none !important; }
 h1, h2, h3, p, ul, ol, dl, dd, figure { margin: 0; }
@@ -260,7 +290,7 @@ th.num, td.num { text-align: right; }
   transition: border-color 0.12s, box-shadow 0.12s;
 }
 .campo input:hover, .campo select:hover { border-color: var(--texto-3); }
-.campo input:focus-visible, .campo select:focus-visible { border-color: var(--acento); box-shadow: 0 0 0 3px rgb(11 92 74 / 0.22); border-radius: var(--radio-s); }
+.campo input:focus-visible, .campo select:focus-visible { border-color: var(--acento); box-shadow: 0 0 0 3px rgb(26 58 143 / 0.22); border-radius: var(--radio-s); }
 .campo input[aria-invalid="true"] { border-color: var(--peligro); }
 .campo-con-boton { position: relative; }
 .campo-con-boton input { padding-right: 44px; }
@@ -337,8 +367,30 @@ th.num, td.num { text-align: right; }
 .aviso--aviso > .icono, .aviso--aviso strong { color: var(--aviso); }
 .aviso--info { background: var(--info-fondo); border-color: var(--info-borde); }
 
+/* ----------------------------------------------------------------- cintillo y pie institucional */
+.franja-tricolor {
+  flex: none; height: 5px;
+  background: linear-gradient(90deg, var(--amarillo-bandera) 0 33.34%, var(--franja-azul) 33.34% 66.67%, var(--rojo-bandera) 66.67% 100%);
+}
+.cintillo {
+  flex: none; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 16px;
+  padding: 5px 20px; background: var(--cintillo-fondo); color: var(--cintillo-texto);
+  font-size: 11.5px; line-height: 1.5; border-bottom: 1px solid var(--borde);
+}
+.cintillo-pais { font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
+.cintillo-servicio { color: var(--cintillo-texto-2); font-weight: 600; }
+.pie-institucional {
+  flex: none; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 20px;
+  padding: 14px 20px; background: var(--superficie); border-top: 1px solid var(--borde);
+  font-size: 12px; color: var(--texto-2);
+}
+.pie-institucional strong { color: var(--texto); font-weight: 800; }
+.pie-sellos { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.pie-sellos li { display: inline-flex; align-items: center; gap: 7px; }
+.pie-sellos li::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--acento-texto); }
+
 /* ----------------------------------------------------------------- carga inicial */
-.pantalla-carga { min-height: 100vh; display: grid; place-content: center; justify-items: center; gap: 14px; color: var(--texto-3); }
+.pantalla-carga { flex: 1; min-height: 60vh; display: grid; place-content: center; justify-items: center; gap: 14px; color: var(--texto-3); }
 
 /* ----------------------------------------------------------------- marca */
 .marca-icono {
@@ -348,12 +400,12 @@ th.num, td.num { text-align: right; }
 .marca-icono .icono { width: 22px; height: 22px; stroke-width: 2; }
 .marca-icono--grande { width: 44px; height: 44px; border-radius: 11px; }
 .marca-icono--grande .icono { width: 28px; height: 28px; }
-:root[data-tema="oscuro"] .marca-icono { background: #0b5c4a; }
-@media (prefers-color-scheme: dark) { :root:not([data-tema="claro"]) .marca-icono { background: #0b5c4a; } }
+:root[data-tema="oscuro"] .marca-icono { background: #3557c4; }
+@media (prefers-color-scheme: dark) { :root:not([data-tema="claro"]) .marca-icono { background: #3557c4; } }
 
 /* ----------------------------------------------------------------- login */
 .login {
-  min-height: 100vh; display: grid; place-items: center; padding: 32px 16px;
+  flex: 1; display: grid; place-items: center; padding: 32px 16px;
   background:
     radial-gradient(1200px 500px at 50% -10%, var(--acento-suave), transparent 70%),
     var(--fondo);
@@ -361,11 +413,12 @@ th.num, td.num { text-align: right; }
 .login-tarjeta {
   width: 100%; max-width: 420px; display: grid; gap: 22px;
   background: var(--superficie); border: 1px solid var(--borde); border-radius: 14px;
+  border-top: 4px solid var(--azul-bandera);
   padding: 30px 30px 22px; box-shadow: var(--sombra-2);
 }
 .login-cabecera { display: flex; gap: 14px; align-items: center; }
-.login-institucion { font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--texto-3); font-weight: 600; }
-.login-cabecera h1 { font-size: 21px; line-height: 1.25; letter-spacing: -0.01em; }
+.login-institucion { font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--acento-texto); font-weight: 700; }
+.login-cabecera h1 { font-size: 22px; line-height: 1.25; letter-spacing: -0.01em; font-weight: 800; }
 .pasos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; counter-reset: paso; }
 .paso {
   display: flex; gap: 8px; align-items: center; padding-top: 10px;
@@ -388,7 +441,7 @@ th.num, td.num { text-align: right; }
   font-size: 24px; font-weight: 650; font-variant-numeric: tabular-nums; font-family: var(--mono);
   border: 1px solid var(--borde-fuerte); border-radius: 8px; background: var(--superficie-2); caret-color: var(--acento);
 }
-.casilla:focus-visible { border-color: var(--acento); box-shadow: 0 0 0 3px rgb(11 92 74 / 0.22); background: var(--superficie); border-radius: 8px; }
+.casilla:focus-visible { border-color: var(--acento); box-shadow: 0 0 0 3px rgb(26 58 143 / 0.22); background: var(--superficie); border-radius: 8px; }
 .codigo-casillas--8 { gap: 5px; }
 .codigo-casillas--8 .casilla { height: 48px; font-size: 20px; }
 .casilla-separador { flex: none; width: 8px; height: 2px; background: var(--borde-fuerte); border-radius: 2px; }
@@ -403,34 +456,36 @@ th.num, td.num { text-align: right; }
 .icono-texto .icono { width: 14px; height: 14px; }
 
 /* ----------------------------------------------------------------- estructura de la consola */
-.consola { display: grid; grid-template-columns: var(--lateral) minmax(0, 1fr); min-height: 100vh; }
+.consola { flex: 1; display: grid; grid-template-columns: var(--lateral) minmax(0, 1fr); }
 .barra-lateral {
   position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column;
-  background: var(--superficie); border-right: 1px solid var(--borde); padding: 14px 12px;
+  background: var(--lateral-fondo); color: var(--lateral-texto); padding: 14px 12px;
 }
+.barra-lateral :focus-visible { box-shadow: 0 0 0 2px var(--lateral-fondo), 0 0 0 4px var(--amarillo-bandera); }
+.barra-lateral .marca-icono { background: #ffffff; color: var(--azul-bandera); }
 .con-avisos .barra-lateral { height: auto; min-height: 100%; }
-.marca { display: flex; align-items: center; gap: 11px; padding: 4px 8px 18px; border-bottom: 1px solid var(--borde); margin-bottom: 12px; }
+.marca { display: flex; align-items: center; gap: 11px; padding: 6px 8px 18px; border-bottom: 1px solid var(--lateral-linea); margin-bottom: 12px; }
 .marca-texto { display: grid; line-height: 1.25; }
-.marca-texto strong { font-size: 14.5px; letter-spacing: -0.01em; }
-.marca-texto span { font-size: 12px; color: var(--texto-3); }
+.marca-texto strong { font-size: 15px; font-weight: 800; letter-spacing: -0.005em; }
+.marca-texto span { font-size: 12px; color: var(--lateral-texto-2); }
 .navegacion { display: grid; gap: 2px; }
 .nav-enlace {
   position: relative; display: flex; align-items: center; gap: 11px;
   min-height: 38px; padding: 0 12px; border-radius: var(--radio-s);
-  color: var(--texto-2); text-decoration: none; font-weight: 550;
+  color: var(--lateral-texto-2); text-decoration: none; font-weight: 550;
   transition: background-color 0.12s, color 0.12s;
 }
-.nav-enlace:hover { background: var(--superficie-3); color: var(--texto); }
-.nav-enlace[aria-current="page"] { background: var(--acento-suave); color: var(--acento-texto); font-weight: 650; }
+.nav-enlace:hover { background: rgb(255 255 255 / 0.08); color: var(--lateral-texto); }
+.nav-enlace[aria-current="page"] { background: rgb(255 255 255 / 0.14); color: var(--lateral-texto); font-weight: 700; }
 .nav-enlace[aria-current="page"]::before {
-  content: ""; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: var(--acento);
+  content: ""; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: var(--amarillo-bandera);
 }
-.barra-lateral-pie { margin-top: auto; display: grid; gap: 8px; padding: 12px 8px 2px; border-top: 1px solid var(--borde); font-size: 12px; color: var(--texto-3); }
+.barra-lateral-pie { margin-top: auto; display: grid; gap: 8px; padding: 12px 8px 2px; border-top: 1px solid var(--lateral-linea); font-size: 12px; color: var(--lateral-texto-2); }
 .pie-demo, .pie-conectado { display: flex; align-items: center; gap: 7px; font-weight: 600; }
-.pie-demo { color: var(--info); }
-.pie-conectado { color: var(--ok); }
+.pie-demo { color: #ffe27a; }
+.pie-conectado { color: #8fe0b8; }
 .pie-demo .icono, .pie-conectado .icono { width: 15px; height: 15px; }
-.velo { position: fixed; inset: 0; background: rgb(8 16 13 / 0.45); z-index: 40; }
+.velo { position: fixed; inset: 0; background: rgb(8 14 34 / 0.5); z-index: 40; }
 
 .principal { min-width: 0; display: flex; flex-direction: column; }
 .cabecera {
@@ -662,7 +717,7 @@ th.num, td.num { text-align: right; }
 .eje-base { stroke: var(--borde-fuerte); stroke-width: 1; }
 .eje-texto { fill: var(--texto-3); font-size: 11px; font-variant-numeric: tabular-nums; }
 .zona-activa { fill: transparent; }
-.serie--ok { fill: var(--g-ok); }
+.serie--ok { fill: var(--g-serie-ok); }
 .serie--aviso { fill: var(--g-aviso); }
 .serie--peligro { fill: var(--g-peligro); }
 .columna { transition: opacity 0.1s; }
@@ -685,7 +740,7 @@ th.num, td.num { text-align: right; }
 .grafico-burbuja strong { display: block; margin-bottom: 4px; }
 .burbuja-fila { display: grid; grid-template-columns: auto 1fr auto; gap: 7px; align-items: center; }
 .punto { display: inline-block; width: 9px; height: 9px; border-radius: 2px; flex: none; background: var(--g-neutro); }
-.punto--ok { background: var(--g-ok); }
+.punto--ok { background: var(--g-serie-ok); }
 .punto--acento { background: var(--g-acento); }
 .punto--neutro { background: var(--g-neutro); }
 .punto--aviso { background: var(--g-aviso); }
@@ -697,7 +752,7 @@ th.num, td.num { text-align: right; }
 .leyenda-serie > span { display: inline-flex; align-items: center; gap: 6px; }
 .barra-proporcion { display: flex; height: 12px; border-radius: 6px; overflow: hidden; gap: 2px; background: var(--superficie-3); margin-bottom: 12px; }
 .segmento { flex: var(--peso, 0) 1 0; min-width: 3px; }
-.segmento--ok { background: var(--g-ok); }
+.segmento--ok { background: var(--g-serie-ok); }
 .segmento--aviso { background: var(--g-aviso); }
 .segmento--aviso-fuerte { background: var(--g-aviso-fuerte); }
 .segmento--peligro-suave { background: var(--g-peligro-suave); }
@@ -857,7 +912,7 @@ th.num, td.num { text-align: right; }
   box-shadow: var(--sombra-2);
 }
 .dialogo--ancho { width: min(720px, calc(100vw - 32px)); }
-.dialogo::backdrop { background: rgb(8 16 13 / 0.5); backdrop-filter: blur(2px); }
+.dialogo::backdrop { background: rgb(8 14 34 / 0.5); backdrop-filter: blur(2px); }
 .dialogo[open] { display: flex; flex-direction: column; animation: aparecer 0.16s ease-out; }
 @keyframes aparecer { from { opacity: 0; transform: translateY(6px) scale(0.99); } }
 .dialogo-cabecera { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 16px 12px 22px; border-bottom: 1px solid var(--borde); }
@@ -978,7 +1033,7 @@ th.num, td.num { text-align: right; }
 }
 
 @media print {
-  .barra-lateral, .cabecera, .avisos, .notificaciones, .pagina-acciones { display: none !important; }
+  .barra-lateral, .cabecera, .avisos, .notificaciones, .pagina-acciones, .cintillo, .franja-tricolor, .pie-institucional { display: none !important; }
   .consola { display: block; }
   body { background: #fff; }
 }
