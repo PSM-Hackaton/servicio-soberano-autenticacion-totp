@@ -21,7 +21,9 @@
 //   POST   /admin/api/login                   → adminLogin         200 | 400 | 401 | 429
 //   GET    /admin/api/apps                    → adminListarApps    200 | 401 | 403
 //   POST   /admin/api/apps                    → adminActualizarApp 201 | 200 | 400 | 401 | 403 | 404
-//   GET    /admin/api/enrollments             → adminListarEnrolamientos 200 | 400 | 401 | 403
+//   POST   /admin/api/apps/{id}/secret        → adminRegenerarSecretoApp 200 | 400 | 401 | 403 | 404
+//   GET    /admin/api/enrollments             → adminListarEnrolamientos 200 | 400 | 401 | 403 | 404 | 409
+//          (con ?cedula= o ?user_ref= y app_id: búsqueda de soporte auditada)
 //   POST   /admin/api/enrollments/{id}/suspend    → adminSuspenderEnrolamiento 200 | 400 | 401 | 403 | 404 | 409
 //   POST   /admin/api/enrollments/{id}/reactivate → adminReactivarEnrolamiento 200 | 400 | 401 | 403 | 404 | 409
 //   POST   /admin/api/enrollments/{id}/revoke     → adminRevocarEnrolamiento   200 | 400 | 401 | 403 | 404 | 409

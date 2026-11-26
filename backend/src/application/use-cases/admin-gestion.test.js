@@ -13,6 +13,7 @@ import { hashSecreto } from '../../security/index.js';
 import { crearBitacora, crearMetricas, verificarCadena } from '../../audit/index.js';
 import { crearCasosDeUso, puede } from './index.js';
 import { crearFirmas } from '../../infrastructure/config/firmas.js';
+import { derivarUserRefDesdeCedula } from '../../../../sdk/src/index.js';
 
 const NEUTRA = { riskScore: 5, level: 'bajo', action: 'permitir', reasons: ['Comportamiento habitual'], inferenceMs: 0.4 };
 const PERIODO = 30_000;
@@ -163,6 +164,126 @@ describe('ciclo de vida de enrolamientos desde la consola', () => {
     m.repos.admins.crear({ usuario: 'jefa', password_hash: hashSecreto('x'), rol: 'Administrador', totp_enrollment_id: delAdmin.id });
     assert.equal((await m.casos.adminRevocarEnrolamiento({ id: delAdmin.id }, OPERADOR)).status, 409);
     assert.equal(m.repos.enrollments.buscarPorId(delAdmin.id).estado, 'activo');
+  });
+});
+
+describe('POST /admin/api/apps/:id/secret (adminRegenerarSecretoApp)', () => {
+  test('el secreto anterior deja de valer; solo Administrador; 404; una sola vez y sin hash', async () => {
+    const m = montar();
+    assert.ok(await m.casos.autenticarApp('portal', 'secreto-portal'));
+    const r = await m.casos.adminRegenerarSecretoApp({ id: m.app.id, cuerpo: {} }, ADMIN);
+    assert.equal(r.status, 200);
+    assert.equal(r.cabeceras['Cache-Control'], 'no-store');
+    assert.equal(r.cuerpo.client_id, 'portal');
+    assert.match(r.cuerpo.client_secret, /^[\x21-\x7e]{32,}$/);
+    assert.doesNotMatch(JSON.stringify(r.cuerpo.app), /secret_hash|scrypt/);
+    assert.equal(await m.casos.autenticarApp('portal', 'secreto-portal'), null, 'el anterior ya no autentica');
+    assert.ok(await m.casos.autenticarApp('portal', r.cuerpo.client_secret));
+    assert.ok(acciones(m).includes('app.secreto_regenerado'));
+    assert.doesNotMatch(JSON.stringify(m.db.prepare('SELECT detalle FROM audit_log').all()), new RegExp(r.cuerpo.client_secret));
+
+    assert.equal((await m.casos.adminRegenerarSecretoApp({ id: m.app.id }, OPERADOR)).status, 403);
+    assert.equal((await m.casos.adminRegenerarSecretoApp({ id: 'no-existe' }, ADMIN)).status, 404);
+    assert.equal((await m.casos.adminRegenerarSecretoApp({ id: m.app.id, cuerpo: { x: 1 } }, ADMIN)).status, 400);
+    assert.equal(puede('Administrador', 'apps.secreto'), true);
+    assert.equal(puede('Operador', 'apps.secreto'), false);
+  });
+});
+
+describe('búsqueda por cédula y por user_ref (GET /admin/api/enrollments)', () => {
+  /** Registra una app con derivación HMAC (secreto generado por el servicio) y enrola a dos ciudadanos. */
+  async function montarConCedula() {
+    const m = montar();
+    const alta = await m.casos.adminActualizarApp({ nombre: 'Portal ciudadano', user_ref_desde_cedula: 'hmac', cedula_prefijo: 'ciud_' }, ADMIN);
+    assert.equal(alta.status, 201);
+    assert.match(alta.cuerpo.cedula_secreto, /^[A-Za-z0-9_-]{43}$/);
+    const app = m.repos.apps.buscarPorId(alta.cuerpo.app.id);
+    const ctx = { app, ip: '10.0.0.8' };
+    // La app integradora deriva el user_ref con el SDK, igual que lo hará el servicio.
+    const ref = derivarUserRefDesdeCedula('V-12.345.678', alta.cuerpo.cedula_secreto, 'ciud_');
+    const e = await enrolarActivo(m, ref, ctx);
+    m.avanzar(PERIODO);
+    await enrolarActivo(m, derivarUserRefDesdeCedula('E-80.000.003', alta.cuerpo.cedula_secreto, 'ciud_'), ctx);
+    return { m, app, alta, ref, enrolId: e.id };
+  }
+
+  test('la app declara hmac: el secreto se guarda cifrado, nunca sale en listados y la búsqueda encuentra el factor', async () => {
+    const { m, app, alta, ref, enrolId } = await montarConCedula();
+    assert.equal(alta.cuerpo.app.user_ref_desde_cedula, 'hmac');
+    assert.equal(alta.cuerpo.app.cedula_prefijo, 'ciud_');
+    const crudo = m.db.prepare('SELECT * FROM apps WHERE id = ?').get(app.id);
+    assert.ok(crudo.cedula_secreto_ct && crudo.cedula_key_version === 'v1');
+    assert.notEqual(crudo.cedula_secreto_ct, alta.cuerpo.cedula_secreto);
+    const listado = await m.casos.adminListarApps({}, ADMIN);
+    assert.doesNotMatch(JSON.stringify(listado.cuerpo), /cedula_secreto|cedula_key_version|secret_hash/);
+
+    for (const forma of ['V-12.345.678', 'v12345678', 'V 12345678']) {
+      const r = await m.casos.adminListarEnrolamientos({ app_id: app.id, cedula: forma }, OPERADOR);
+      assert.equal(r.status, 200, forma);
+      assert.deepEqual(r.cuerpo.enrollments.map((x) => x.id), [enrolId], forma);
+      assert.doesNotMatch(JSON.stringify(r.cuerpo), /seed_/);
+    }
+    const porRef = await m.casos.adminListarEnrolamientos({ app_id: app.id, user_ref: ref }, ADMIN);
+    assert.deepEqual(porRef.cuerpo.enrollments.map((x) => x.id), [enrolId]);
+    const otra = await m.casos.adminListarEnrolamientos({ app_id: app.id, cedula: 'V-11.111.111' }, ADMIN);
+    assert.deepEqual(otra.cuerpo.enrollments, []);
+    const soloRevocados = await m.casos.adminListarEnrolamientos({ app_id: app.id, cedula: 'V12345678', estado: 'revocado' }, ADMIN);
+    assert.deepEqual(soloRevocados.cuerpo.enrollments, []);
+
+    // Auditoría de cada búsqueda, sin la cédula ni el user_ref en claro.
+    const busquedas = m.db.prepare("SELECT detalle FROM audit_log WHERE accion = 'enrolamientos.busqueda'").all().map((f) => JSON.parse(f.detalle));
+    assert.equal(busquedas.length, 6);
+    assert.equal(busquedas[0].criterio, 'cedula');
+    assert.match(busquedas[0].cedula_hmac, /^[0-9a-f]{64}$/);
+    assert.equal(busquedas[0].cedula_hmac, busquedas[1].cedula_hmac, 'misma cédula, mismo HMAC');
+    assert.equal(busquedas[3].criterio, 'user_ref');
+    const todo = JSON.stringify(m.db.prepare('SELECT * FROM audit_log').all());
+    assert.doesNotMatch(todo, /12345678|12\.345\.678|80000003|11111111/);
+    assert.doesNotMatch(todo, new RegExp(ref));
+    assert.doesNotMatch(todo, new RegExp(alta.cuerpo.cedula_secreto));
+    assert.equal(verificarCadena(m.db.prepare('SELECT * FROM audit_log ORDER BY id').all()).intact, true);
+  });
+
+  test('errores: cédula inválida, sin app_id, criterios juntos, app inexistente, app sin derivación, RBAC', async () => {
+    const { m, app, ref } = await montarConCedula();
+    const q = (consulta, ctx = ADMIN) => m.casos.adminListarEnrolamientos(consulta, ctx);
+    assert.equal((await q({ app_id: app.id, cedula: 'J-12345678' })).status, 400);
+    assert.equal((await q({ app_id: app.id, cedula: 'V-012345678' })).status, 400);
+    assert.equal((await q({ cedula: 'V12345678' })).status, 400, 'app_id obligatorio');
+    assert.equal((await q({ user_ref: ref })).status, 400, 'app_id obligatorio');
+    assert.equal((await q({ app_id: app.id, cedula: 'V12345678', user_ref: ref })).status, 400);
+    assert.equal((await q({ app_id: 'no-existe', cedula: 'V12345678' })).status, 404);
+    const sin = await q({ app_id: m.app.id, cedula: 'V12345678' });
+    assert.equal(sin.status, 409);
+    assert.equal(sin.cuerpo.error, 'CONFLICT');
+    assert.equal((await q({ app_id: m.app.id, user_ref: 'ciudadana-x' })).status, 200, 'user_ref exacto vale para cualquier app');
+    assert.equal((await q({ app_id: app.id, cedula: 'V12345678' }, AUDITOR)).status, 403);
+  });
+
+  test('configuración por actualización: aportar secreto, conservarlo al cambiar el prefijo y desactivar', async () => {
+    const m = montar();
+    const secreto = randomBytes(32).toString('base64url');
+    const r = await m.casos.adminActualizarApp({ id: m.app.id, user_ref_desde_cedula: 'hmac', cedula_secreto: secreto }, ADMIN);
+    assert.equal(r.status, 200);
+    assert.equal(r.cuerpo.cedula_secreto, undefined, 'un secreto aportado no se devuelve');
+    await enrolarActivo(m, derivarUserRefDesdeCedula('V-9.876.543', secreto, ''));
+    assert.equal((await m.casos.adminListarEnrolamientos({ app_id: m.app.id, cedula: 'V9876543' }, ADMIN)).cuerpo.enrollments.length, 1);
+
+    const pref = await m.casos.adminActualizarApp({ id: m.app.id, cedula_prefijo: 'nuevo_' }, ADMIN);
+    assert.equal(pref.cuerpo.app.cedula_prefijo, 'nuevo_');
+    assert.equal(pref.cuerpo.cedula_secreto, undefined, 'se conserva el secreto');
+    assert.equal((await m.casos.adminListarEnrolamientos({ app_id: m.app.id, cedula: 'V9876543' }, ADMIN)).cuerpo.enrollments.length, 0);
+
+    const off = await m.casos.adminActualizarApp({ id: m.app.id, user_ref_desde_cedula: 'ninguno' }, ADMIN);
+    assert.equal(off.cuerpo.app.user_ref_desde_cedula, 'ninguno');
+    assert.equal(m.db.prepare('SELECT cedula_secreto_ct AS c FROM apps WHERE id = ?').get(m.app.id).c, null, 'secreto borrado');
+    assert.equal((await m.casos.adminListarEnrolamientos({ app_id: m.app.id, cedula: 'V9876543' }, ADMIN)).status, 409);
+
+    assert.equal((await m.casos.adminActualizarApp({ id: m.app.id, cedula_prefijo: 'x_' }, ADMIN)).status, 400, 'prefijo sin hmac');
+    assert.equal((await m.casos.adminActualizarApp({ nombre: 'Otra', cedula_secreto: secreto }, ADMIN)).status, 400, 'secreto sin hmac');
+    assert.equal((await m.casos.adminActualizarApp({ id: m.app.id, user_ref_desde_cedula: 'hmac', cedula_secreto: 'corto' }, ADMIN)).status, 400);
+    assert.equal((await m.casos.adminActualizarApp({ id: m.app.id, user_ref_desde_cedula: 'hmac', cedula_prefijo: 'con espacio' }, ADMIN)).status, 400);
+    assert.doesNotMatch(JSON.stringify(m.db.prepare('SELECT detalle FROM audit_log').all()), new RegExp(secreto));
   });
 });
 

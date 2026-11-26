@@ -10,6 +10,7 @@ import { validarConfig } from '../infrastructure/config/config.js';
 import { generateTotp } from '../core/totp/totp.js';
 import { base32Decode } from '../core/totp/base32.js';
 import { hashSecretoAsync } from '../security/index.js';
+import { derivarUserRefDesdeCedula } from '../core/identidad/cedula.js';
 
 const SILENCIO = { info() {}, warn() {}, error() {} };
 const PASSWORD = 'clave-de-prueba-larga';
@@ -139,5 +140,37 @@ describe('consola: rutas de gestión contra el servicio real', () => {
     const no = await como('Administrador', { metodo: 'POST', ruta: '/admin/api/enrollments/00000000-0000-4000-8000-000000000000/revoke', cuerpo: {} });
     assert.equal(no.status, 404);
     assert.equal((await como('Administrador', { metodo: 'POST', ruta: ruta('revoke'), cuerpo: { extra: 1 } })).status, 400);
+  });
+
+  test('POST /admin/api/apps/:id/secret invalida la caché de autenticación; búsqueda por cédula por HTTP', async () => {
+    const alta = await como('Operador', {
+      metodo: 'POST', ruta: '/admin/api/apps', cuerpo: { nombre: 'Portal con cédula', user_ref_desde_cedula: 'hmac', cedula_prefijo: 'c_' },
+    });
+    assert.equal(alta.status, 201);
+    assert.equal(alta.cabeceras['cache-control'], 'no-store');
+    const { client_id: clientId, client_secret: secreto, cedula_secreto: secretoCedula } = alta.json;
+    const verificar = (s) => pedir(svc.puerto, {
+      metodo: 'POST', ruta: '/api/v1/verify', cabeceras: { 'x-client-id': clientId, 'x-client-secret': s }, cuerpo: { user_ref: 'nadie', code: '123456' },
+    });
+    assert.equal((await verificar(secreto)).status, 401, 'credenciales válidas: falla el código, no la app');
+    assert.equal((await verificar(secreto)).json.error, 'VERIFICATION_FAILED', 'la app quedó en la caché');
+
+    assert.equal((await como('Operador', { metodo: 'POST', ruta: `/admin/api/apps/${alta.json.app.id}/secret`, cuerpo: {} })).status, 403);
+    const nuevo = await como('Administrador', { metodo: 'POST', ruta: `/admin/api/apps/${alta.json.app.id}/secret` });
+    assert.equal(nuevo.status, 200, nuevo.texto);
+    assert.notEqual(nuevo.json.client_secret, secreto);
+    assert.equal((await verificar(secreto)).json.error, 'UNAUTHORIZED', 'el secreto anterior ya no vale (caché invalidada)');
+    assert.equal((await verificar(nuevo.json.client_secret)).json.error, 'VERIFICATION_FAILED');
+    assert.equal((await como('Administrador', { metodo: 'POST', ruta: '/admin/api/apps/no-existe/secret', cuerpo: {} })).status, 404);
+
+    const app = svc.repos.apps.buscarPorId(alta.json.app.id);
+    const ref = derivarUserRefDesdeCedula('V-12.345.678', secretoCedula, 'c_');
+    const enrol = await svc.casos.enrolar({ user_ref: ref }, { app, ip: '127.0.0.1' });
+    const q = `/admin/api/enrollments?app_id=${encodeURIComponent(app.id)}&cedula=${encodeURIComponent('V-12.345.678')}`;
+    const r = await como('Operador', { ruta: q });
+    assert.equal(r.status, 200, r.texto);
+    assert.deepEqual(r.json.enrollments.map((e) => e.id), [enrol.cuerpo.enrollment_id]);
+    assert.equal((await como('Auditor', { ruta: q })).status, 403);
+    assert.equal((await como('Operador', { ruta: `/admin/api/enrollments?cedula=V12345678` })).status, 400);
   });
 });

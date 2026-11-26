@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 
 import { abrirBaseDatos } from './db.js';
 import { crearRepositorios } from './repositorios.js';
-import { recifrarConLlaveActiva, ErrorRotacion } from './rotacionLlaveMaestra.js';
+import { recifrarConLlaveActiva, ErrorRotacion, contextoCedula } from './rotacionLlaveMaestra.js';
 import { crearVault } from '../../core/vault/vault.js';
 import { crearFirmas } from '../config/firmas.js';
 import { crearBitacora, verificarCadena } from '../../audit/index.js';
@@ -21,13 +21,16 @@ const SCRIPT = fileURLToPath(new URL('../../../scripts/rotar-llave-maestra.js', 
 const V1 = randomBytes(32);
 const V2 = randomBytes(32);
 
-/** Base temporal con 3 semillas y 2 claves de firma cifradas con v1. */
+const SECRETO_CEDULA = randomBytes(32);
+
+/** Base temporal con 3 semillas, 2 claves de firma y 1 secreto de derivación de cédula cifrados con v1. */
 function prepararBase(carpeta) {
   const ruta = join(carpeta, 'totp.db');
   const db = abrirBaseDatos(ruta);
   const repos = crearRepositorios(db);
   const vault = crearVault({ llaves: { v1: V1 }, versionActiva: 'v1' });
   const app = repos.apps.crear({ nombre: 'Portal', client_id: 'portal', secret_hash: 'scrypt$x' });
+  repos.apps.configurarCedula(app.id, { modo: 'hmac', prefijo: 'c_', cifrado: vault.encryptBlob(SECRETO_CEDULA, contextoCedula(app.id)) });
   const semillas = new Map();
   for (let i = 0; i < 3; i++) {
     const id = `00000000-0000-4000-8000-00000000000${i}`;
@@ -42,7 +45,7 @@ function prepararBase(carpeta) {
   const firmas = crearFirmas({ repos, vault }).recargar();
   firmas.rotar(); // dos claves: la activa y una en solo_verificacion
   db.close();
-  return { ruta, semillas };
+  return { ruta, semillas, appId: app.id };
 }
 
 function abrir(ruta, llaves, versionActiva) {
@@ -60,16 +63,16 @@ describe('rotación de la llave maestra', () => {
   test('recifra en lote semillas y claves de firma, es idempotente y deja todo descifrable con v2', () => {
     const carpeta = mkdtempSync(join(tmpdir(), 'rotacion-'));
     try {
-      const { ruta, semillas } = prepararBase(carpeta);
+      const { ruta, semillas, appId } = prepararBase(carpeta);
       const e = abrir(ruta, { v1: V1, v2: V2 }, 'v2');
       try {
         const r = recifrarConLlaveActiva(e);
-        assert.deepEqual(r, { versionActiva: 'v2', semillas: 3, clavesFirma: 2 });
+        assert.deepEqual(r, { versionActiva: 'v2', semillas: 3, clavesFirma: 2, secretosCedula: 1 });
         assert.equal(versiones(e.db, 'enrollments'), 'v2:3');
         assert.equal(versiones(e.db, 'signing_keys'), 'v2:2');
 
         const segunda = recifrarConLlaveActiva(e);
-        assert.deepEqual(segunda, { versionActiva: 'v2', semillas: 0, clavesFirma: 0 }, 'idempotente');
+        assert.deepEqual(segunda, { versionActiva: 'v2', semillas: 0, clavesFirma: 0, secretosCedula: 0 }, 'idempotente');
 
         const eventos = [...e.repos.auditLog.recorrerTodo()];
         assert.equal(eventos.filter((f) => f.accion === 'llave_maestra.rotada').length, 1);
@@ -88,6 +91,10 @@ describe('rotación de la llave maestra', () => {
         }
         const firmas = crearFirmas({ repos: solo2.repos, vault: solo2.vault }).recargar();
         assert.ok(firmas.activa().privateKey);
+        const app = solo2.repos.apps.buscarPorId(appId);
+        assert.equal(app.cedula_key_version, 'v2');
+        const secreto = solo2.vault.decryptBlob({ ct: app.cedula_secreto_ct, nonce: app.cedula_secreto_nonce, authTag: app.cedula_secreto_auth_tag, keyVersion: app.cedula_key_version }, contextoCedula(appId));
+        assert.ok(secreto.equals(SECRETO_CEDULA));
       } finally {
         solo2.db.close();
       }

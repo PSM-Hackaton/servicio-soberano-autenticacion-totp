@@ -7,6 +7,9 @@ import {
   errorGenerico, generarClientId, generarSecretoCliente, hashSecretoAsync, verificarSecretoAsync,
 } from '../../security/index.js';
 import { verificarCadena, respuestaVerificacion } from '../../audit/index.js';
+import { hashPepper } from '../../core/vault/vault.js';
+import { derivarUserRefDesdeCedula, normalizarCedula } from '../../core/identidad/cedula.js';
+import { contextoCedula } from '../../infrastructure/persistence/rotacionLlaveMaestra.js';
 import {
   HASH_FICTICIO, PATRON_UUID, anonimizarIp, conflicto, derivaAGuardar, errorEntrada, topeDeriva, iso, noEncontrado, prohibido,
   separarEntrada, validar,
@@ -22,12 +25,16 @@ import { puede } from './rbac.js';
 const MAX_INTENTOS_ADMIN = 5;
 const RIESGO_MINIMO_ANOMALIA = 60;
 
-/** Fila de app sin el hash del secreto. */
+/** Fila de app sin el hash del secreto ni el secreto de derivación de la cédula (ni cifrado). */
 function appPublica(app) {
   if (!app) return null;
-  const { secret_hash: _omitido, ...resto } = app;
+  const {
+    secret_hash: _a, cedula_secreto_ct: _b, cedula_secreto_nonce: _c, cedula_secreto_auth_tag: _d, cedula_key_version: _e, ...resto
+  } = app;
   return resto;
 }
+
+const MENSAJE_SIN_CEDULA = 'La aplicación no declara cómo deriva el user_ref desde la cédula.';
 
 /** Nivel y acción del contrato a partir de un intento guardado. */
 function nivelDe(score) {
@@ -195,20 +202,28 @@ export function crearCasosAdmin(d) {
     const v = validar(cuerpo, ESQUEMA_ADMIN_APP);
     if (!v) return errorEntrada();
     const id = v.id ?? (typeof idRuta === 'string' ? idRuta : undefined);
-    const { id: _i, nombre, ...politica } = v;
+    const {
+      id: _i, nombre, user_ref_desde_cedula: modoCedula, cedula_prefijo: prefijoCedula, cedula_secreto: secretoCedula, ...politica
+    } = v;
+    const pideCedula = modoCedula !== undefined || prefijoCedula !== undefined || secretoCedula !== undefined;
 
     if (id === undefined) {
       if (!nombre) return errorEntrada();
       if ((politica.algoritmo ?? 'SHA256') === 'SHA1' && !politica.permitir_sha1) return errorEntrada();
+      const planCedula = pideCedula ? planDerivacion(null, modoCedula, prefijoCedula, secretoCedula) : null;
+      if (pideCedula && !planCedula) return errorEntrada();
       const clientId = generarClientId('app');
       const clientSecret = generarSecretoCliente();
-      const app = repos.apps.crear({ nombre, client_id: clientId, secret_hash: await hashSecretoAsync(clientSecret), ...politica });
-      auditar(actorAdmin(ctx.admin), 'app.registrada', app.id, { nombre, client_id: clientId, ...politica });
-      return {
-        status: 201,
-        cuerpo: { app: appPublica(app), client_id: clientId, client_secret: clientSecret },
-        cabeceras: { 'Cache-Control': 'no-store' },
-      };
+      const secretHash = await hashSecretoAsync(clientSecret);
+      const app = repos.transaccion(() => {
+        const creada = repos.apps.crear({ nombre, client_id: clientId, secret_hash: secretHash, ...politica });
+        if (planCedula) aplicarDerivacion(creada.id, planCedula);
+        return repos.apps.buscarPorId(creada.id);
+      });
+      auditar(actorAdmin(ctx.admin), 'app.registrada', app.id, { nombre, client_id: clientId, ...politica, ...planCedula?.detalle });
+      const cuerpoRespuesta = { app: appPublica(app), client_id: clientId, client_secret: clientSecret };
+      if (planCedula?.generado) cuerpoRespuesta.cedula_secreto = planCedula.generado;
+      return { status: 201, cuerpo: cuerpoRespuesta, cabeceras: { 'Cache-Control': 'no-store' } };
     }
 
     if (nombre !== undefined) return errorEntrada();
@@ -216,9 +231,90 @@ export function crearCasosAdmin(d) {
     if (!actual) return noEncontrado();
     const final = { ...actual, ...politica };
     if (final.algoritmo === 'SHA1' && !final.permitir_sha1) return errorEntrada();
-    if (Object.keys(politica).length > 0) repos.apps.actualizarPolitica(id, politica);
-    auditar(actorAdmin(ctx.admin), 'app.politica_actualizada', id, politica);
-    return { status: 200, cuerpo: { app: appPublica(repos.apps.buscarPorId(id)) }, cabeceras: {} };
+    const planCedula = pideCedula ? planDerivacion(actual, modoCedula, prefijoCedula, secretoCedula) : null;
+    if (pideCedula && !planCedula) return errorEntrada();
+    repos.transaccion(() => {
+      if (Object.keys(politica).length > 0) repos.apps.actualizarPolitica(id, politica);
+      if (planCedula) aplicarDerivacion(id, planCedula);
+    });
+    auditar(actorAdmin(ctx.admin), 'app.politica_actualizada', id, { ...politica, ...planCedula?.detalle });
+    const cuerpoRespuesta = { app: appPublica(repos.apps.buscarPorId(id)) };
+    if (planCedula?.generado) cuerpoRespuesta.cedula_secreto = planCedula.generado;
+    return { status: 200, cuerpo: cuerpoRespuesta, cabeceras: planCedula?.generado ? { 'Cache-Control': 'no-store' } : {} };
+  }
+
+  /**
+   * Decide la derivación del user_ref desde la cédula a partir de la app actual (null al registrar)
+   * y de los campos recibidos. null → combinación inválida (400). Con 'hmac' y sin secreto aportado
+   * se conserva el que ya hubiera o se genera uno nuevo (32 bytes aleatorios) que se devuelve una vez.
+   * El detalle para la bitácora nunca incluye el secreto.
+   */
+  function planDerivacion(actual, modo, prefijo, secreto) {
+    const modoFinal = modo ?? actual?.user_ref_desde_cedula ?? 'ninguno';
+    if (modoFinal === 'ninguno') {
+      if (prefijo !== undefined || secreto !== undefined) return null;
+      return { modo: 'ninguno', prefijo: '', cifrado: null, claro: null, generado: null, detalle: { user_ref_desde_cedula: 'ninguno' } };
+    }
+    const prefijoFinal = prefijo ?? actual?.cedula_prefijo ?? '';
+    let origen;
+    let generado = null;
+    let claro = null;
+    let cifrado = null;
+    if (secreto !== undefined) {
+      claro = Buffer.from(secreto, 'base64url');
+      if (claro.length < 32 || claro.length > 64) return null;
+      origen = 'aportado';
+    } else if (actual?.cedula_secreto_ct) {
+      cifrado = { ct: actual.cedula_secreto_ct, nonce: actual.cedula_secreto_nonce, authTag: actual.cedula_secreto_auth_tag, keyVersion: actual.cedula_key_version };
+      origen = 'conservado';
+    } else {
+      claro = randomBytes(32);
+      generado = claro.toString('base64url');
+      origen = 'generado';
+    }
+    return {
+      modo: 'hmac', prefijo: prefijoFinal, cifrado, claro, generado,
+      detalle: { user_ref_desde_cedula: 'hmac', cedula_prefijo: prefijoFinal, secreto_cedula: origen },
+    };
+  }
+
+  /** Guarda el plan (cifra el secreto en claro con la bóveda, AAD 'cedula:' + app_id) y borra el claro. */
+  function aplicarDerivacion(appId, plan) {
+    let cifrado = plan.cifrado;
+    if (plan.claro) {
+      try {
+        cifrado = vault.encryptBlob(plan.claro, contextoCedula(appId));
+      } finally {
+        plan.claro.fill(0);
+        plan.claro = null;
+      }
+    }
+    repos.apps.configurarCedula(appId, { modo: plan.modo, prefijo: plan.prefijo, cifrado });
+  }
+
+  /**
+   * POST /admin/api/apps/:id/secret — permiso apps.secreto (solo Administrador). Sin cuerpo.
+   * Genera un client_secret nuevo (scrypt) que sustituye al anterior de inmediato; el servidor
+   * invalida su caché de autenticación de apps. 200 { app, client_id, client_secret } (una sola vez,
+   * Cache-Control no-store) | 404.
+   * @param {unknown} entrada @param {{ admin: any }} ctx @returns {Promise<Respuesta>}
+   */
+  async function adminRegenerarSecretoApp(entrada, ctx) {
+    const negado = exigir(ctx, 'apps.secreto');
+    if (negado) return negado;
+    const { id, cuerpo } = separarEntrada(entrada ?? {});
+    if (cuerpo !== undefined && cuerpo !== null && !validar(cuerpo, ESQUEMA_VACIO)) return errorEntrada();
+    if (typeof id !== 'string' || id.length === 0 || id.length > 64) return noEncontrado();
+    const app = repos.apps.buscarPorId(id);
+    if (!app) return noEncontrado();
+    const clientSecret = generarSecretoCliente();
+    if (!repos.apps.actualizarSecreto(app.id, await hashSecretoAsync(clientSecret))) return noEncontrado();
+    auditar(actorAdmin(ctx.admin), 'app.secreto_regenerado', app.id, { client_id: app.client_id });
+    return {
+      status: 200,
+      cuerpo: { app: appPublica(repos.apps.buscarPorId(app.id)), client_id: app.client_id, client_secret: clientSecret },
+      cabeceras: { 'Cache-Control': 'no-store' },
+    };
   }
 
   // ------------------------------------------------------------------ enrolamientos
@@ -232,9 +328,46 @@ export function crearCasosAdmin(d) {
     if (negado) return negado;
     const q = consulta(entrada, ESQUEMA_ADMIN_ENROLAMIENTOS);
     if (!q) return errorEntrada();
+    if (q.cedula !== undefined || q.user_ref !== undefined) return buscarEnrolamientos(q, ctx);
     const filas = consultas.listarEnrolamientos({ appId: q.app_id, estado: q.estado, limite: entero(q.limite, 100, 500) });
     const enrollments = filas.map(enrolamientoPublico);
     return { status: 200, cuerpo: { enrollments }, cabeceras: {} };
+  }
+
+  /**
+   * Búsqueda de soporte (GET /admin/api/enrollments con `cedula` o `user_ref`, excluyentes, y
+   * `app_id` obligatorio). Con `cedula`, la app debe haber declarado user_ref_desde_cedula = 'hmac':
+   * el servicio descifra su secreto de derivación, recalcula user_ref = prefijo + HMAC y busca por
+   * user_ref_hash. 400 entrada inválida | 404 app inexistente | 409 la app no deriva desde la cédula.
+   * Cada búsqueda queda en la bitácora sin la cédula ni el user_ref en claro: solo
+   * HMAC-SHA256('cedula:' + canónica, USER_REF_PEPPER) o el user_ref_hash.
+   */
+  function buscarEnrolamientos(q, ctx) {
+    if (q.cedula !== undefined && q.user_ref !== undefined) return errorEntrada();
+    if (q.app_id === undefined) return errorEntrada();
+    const cedula = q.cedula === undefined ? null : normalizarCedula(q.cedula);
+    if (q.cedula !== undefined && !cedula) return errorEntrada();
+    const app = repos.apps.buscarPorId(q.app_id);
+    if (!app) return noEncontrado();
+
+    let userRef = q.user_ref;
+    if (cedula) {
+      if (app.user_ref_desde_cedula !== 'hmac' || !app.cedula_secreto_ct) return conflicto(MENSAJE_SIN_CEDULA);
+      const claro = vault.decryptBlob({
+        ct: app.cedula_secreto_ct, nonce: app.cedula_secreto_nonce, authTag: app.cedula_secreto_auth_tag, keyVersion: app.cedula_key_version,
+      }, contextoCedula(app.id));
+      try {
+        userRef = derivarUserRefDesdeCedula(cedula.canonica, claro.toString('base64url'), app.cedula_prefijo ?? '');
+      } finally {
+        claro.fill(0);
+      }
+    }
+    const urh = hashPepper(userRef, config.userRefPepper);
+    const filas = consultas.listarEnrolamientos({ appId: app.id, userRefHash: urh, estado: q.estado, limite: entero(q.limite, 100, 500) });
+    auditar(actorAdmin(ctx.admin), 'enrolamientos.busqueda', app.id, cedula
+      ? { criterio: 'cedula', cedula_hmac: hashPepper(`cedula:${cedula.canonica}`, config.userRefPepper), resultados: filas.length }
+      : { criterio: 'user_ref', user_ref_hash: urh, resultados: filas.length });
+    return { status: 200, cuerpo: { enrollments: filas.map(enrolamientoPublico) }, cabeceras: { 'Cache-Control': 'no-store' } };
   }
 
   /**
@@ -394,7 +527,7 @@ export function crearCasosAdmin(d) {
   }
 
   return {
-    autenticarApp, adminLogin, adminListarApps, adminActualizarApp, adminListarEnrolamientos,
+    autenticarApp, adminLogin, adminListarApps, adminActualizarApp, adminRegenerarSecretoApp, adminListarEnrolamientos,
     adminSuspenderEnrolamiento: cambiarEstadoEnrolamiento('suspender'),
     adminReactivarEnrolamiento: cambiarEstadoEnrolamiento('reactivar'),
     adminRevocarEnrolamiento: cambiarEstadoEnrolamiento('revocar'),

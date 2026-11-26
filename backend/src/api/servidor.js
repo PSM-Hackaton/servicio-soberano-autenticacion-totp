@@ -457,6 +457,8 @@ export function crearServidor({
   admin('POST', '/admin/api/enrollments/:id/suspend', 'adminSuspenderEnrolamiento', 'enrolamientos.gestionar', conId, { cuerpo: true });
   admin('POST', '/admin/api/enrollments/:id/reactivate', 'adminReactivarEnrolamiento', 'enrolamientos.gestionar', conId, { cuerpo: true });
   admin('POST', '/admin/api/enrollments/:id/revoke', 'adminRevocarEnrolamiento', 'enrolamientos.gestionar', conId, { cuerpo: true });
+  // El secreto anterior deja de valer al instante: se vacía la caché de autenticación de apps.
+  admin('POST', '/admin/api/apps/:id/secret', 'adminRegenerarSecretoApp', 'apps.secreto', conId, { cuerpo: true, invalidaApps: true });
 
   // ---------------------------------------------------------------- estáticos
 

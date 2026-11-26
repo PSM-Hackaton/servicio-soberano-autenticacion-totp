@@ -36,7 +36,7 @@ test('migraciones idempotentes: abrir dos veces el mismo archivo no reaplica nad
 
     const db2 = abrirBaseDatos(ruta);
     const migraciones = db2.prepare('SELECT version FROM schema_migrations').all().map((f) => f.version);
-    assert.deepEqual(migraciones, ['001_esquema.sql']);
+    assert.deepEqual(migraciones, ['001_esquema.sql', '002_cedula_apps.sql']);
     const tablas = db2.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((f) => f.name);
     for (const t of TABLAS) assert.ok(tablas.includes(t), `falta la tabla ${t}`);
     assert.equal(crearRepositorios(db2).apps.listar().length, 1, 'los datos sobreviven a la reapertura');
