@@ -4,7 +4,7 @@
   "description": "SDK para sistemas integradores del Servicio Soberano de Autenticación TOTP. Sin dependencias: solo módulos nativos de Node.js.",
   "type": "module",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "AGPL-3.0-or-later",
   "engines": {
     "node": ">=22"
   },
