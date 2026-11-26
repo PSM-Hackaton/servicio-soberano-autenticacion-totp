@@ -16,7 +16,15 @@
       "activated_at": "2026-11-26T15:15:36.145Z",
       "revoked_at": null,
       "last_used_at": "2026-11-26T14:06:15.316Z",
-      "user_ref_demo": "investigador-0042"
+      "user_ref_demo": "investigador-0042",
+      "device": {
+        "device_id": "dev_ZC4oTJ8bpAtknCfdJSrlMw",
+        "name": "Teléfono personal",
+        "platform": "android",
+        "created_at": "2026-11-26T15:14:06.145Z",
+        "last_used_at": "2026-11-26T14:06:15.316Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "270102d3-e21e-4e7d-afe4-814c96961707",
@@ -33,7 +41,15 @@
       "created_at": "2026-11-26T14:16:00.540Z",
       "activated_at": "2026-11-26T14:17:30.540Z",
       "revoked_at": "2026-11-27T14:16:00.540Z",
-      "last_used_at": null
+      "last_used_at": null,
+      "device": {
+        "device_id": "dev_FgtNSWnlCnOQ4kA1TalaFg",
+        "name": "Teléfono de trabajo",
+        "platform": "android",
+        "created_at": "2026-11-26T14:16:00.540Z",
+        "last_used_at": null,
+        "unlinked_at": "2026-11-27T14:16:00.540Z"
+      }
     },
     {
       "id": "25cc854d-e040-44b4-ad87-adc1dafb28d1",
@@ -50,7 +66,15 @@
       "created_at": "2026-11-26T10:08:52.125Z",
       "activated_at": "2026-11-26T10:10:22.125Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T13:55:34.266Z"
+      "last_used_at": "2026-11-26T13:55:34.266Z",
+      "device": {
+        "device_id": "dev_Wn3VTsRsFs6xQJfeu1mnXg",
+        "name": "Autenticador web",
+        "platform": "pwa",
+        "created_at": "2026-11-26T10:08:52.125Z",
+        "last_used_at": "2026-11-26T13:55:34.266Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "74ade9d9-c5a4-404c-ad12-f2bf59688df2",
@@ -67,7 +91,15 @@
       "created_at": "2026-11-26T09:46:13.134Z",
       "activated_at": "2026-11-26T09:47:43.134Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T15:12:37.518Z"
+      "last_used_at": "2026-11-26T15:12:37.518Z",
+      "device": {
+        "device_id": "dev_gk7ixQeMpiEVwTKO8SGMTQ",
+        "name": "Tableta de la oficina",
+        "platform": "android",
+        "created_at": "2026-11-26T09:46:13.134Z",
+        "last_used_at": "2026-11-26T15:12:37.518Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "1838d873-9337-4eab-a506-c250efa894c7",
@@ -85,7 +117,15 @@
       "activated_at": "2026-11-26T02:54:57.508Z",
       "revoked_at": null,
       "last_used_at": "2026-11-26T15:30:20.741Z",
-      "cedula_demo": "V12345678"
+      "cedula_demo": "V12345678",
+      "device": {
+        "device_id": "dev_8qBwixBJ7wvSqig7j248vA",
+        "name": "Portátil (PWA)",
+        "platform": "pwa",
+        "created_at": "2026-11-26T02:53:27.508Z",
+        "last_used_at": "2026-11-26T15:30:20.741Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "383d968f-69d7-4a56-ad0c-0fd0b42c8641",
@@ -103,7 +143,15 @@
       "activated_at": "2026-11-25T23:45:20.723Z",
       "revoked_at": null,
       "last_used_at": "2026-11-26T14:51:32.686Z",
-      "cedula_demo": "E80000003"
+      "cedula_demo": "E80000003",
+      "device": {
+        "device_id": "dev_fFM-qmsviK6yr6bKX0ZGJw",
+        "name": "Llavero TOTP",
+        "platform": "otro",
+        "created_at": "2026-11-25T23:43:50.723Z",
+        "last_used_at": "2026-11-26T14:51:32.686Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "a1f75b36-3751-49f5-a7b0-00cc3a9d9473",
@@ -120,7 +168,8 @@
       "created_at": "2026-11-25T23:23:18.843Z",
       "activated_at": null,
       "revoked_at": null,
-      "last_used_at": null
+      "last_used_at": null,
+      "device": null
     },
     {
       "id": "e9d202ab-2476-4f44-a552-c836e9d7487a",
@@ -137,7 +186,15 @@
       "created_at": "2026-11-25T21:08:47.239Z",
       "activated_at": null,
       "revoked_at": null,
-      "last_used_at": null
+      "last_used_at": null,
+      "device": {
+        "device_id": "dev_DJ-UB1bJ-fvHcsQznOPfmQ",
+        "name": "Teléfono de trabajo",
+        "platform": "android",
+        "created_at": "2026-11-25T21:08:47.239Z",
+        "last_used_at": null,
+        "unlinked_at": null
+      }
     },
     {
       "id": "ab2dd514-4696-4f2f-aeb0-5602237853c6",
@@ -154,7 +211,15 @@
       "created_at": "2026-11-25T20:59:57.114Z",
       "activated_at": "2026-11-25T21:01:27.114Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T14:22:59.866Z"
+      "last_used_at": "2026-11-26T14:22:59.866Z",
+      "device": {
+        "device_id": "dev_a2k_09a5izdmLrjmSaE0aQ",
+        "name": "Autenticador web",
+        "platform": "pwa",
+        "created_at": "2026-11-25T20:59:57.114Z",
+        "last_used_at": "2026-11-26T14:22:59.866Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "d4c4cde5-1bb4-420e-ad00-aa0b13c7db7f",
@@ -171,7 +236,15 @@
       "created_at": "2026-11-25T10:42:22.667Z",
       "activated_at": "2026-11-25T10:43:52.667Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T16:17:24.115Z"
+      "last_used_at": "2026-11-26T16:17:24.115Z",
+      "device": {
+        "device_id": "dev_QYWG_yeo5b2ECeNf97z2Wg",
+        "name": "Tableta de la oficina",
+        "platform": "android",
+        "created_at": "2026-11-25T10:42:22.667Z",
+        "last_used_at": "2026-11-26T16:17:24.115Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "274f8acd-6455-45d3-ab46-0d96c8c9e1a4",
@@ -188,7 +261,15 @@
       "created_at": "2026-11-25T09:07:53.207Z",
       "activated_at": null,
       "revoked_at": null,
-      "last_used_at": null
+      "last_used_at": null,
+      "device": {
+        "device_id": "dev_G7ATPUJFLAkrQtMbTetABg",
+        "name": "Portátil (PWA)",
+        "platform": "pwa",
+        "created_at": "2026-11-25T09:07:53.207Z",
+        "last_used_at": null,
+        "unlinked_at": null
+      }
     },
     {
       "id": "ff16da6c-abb7-4c30-ab7e-e50cdb43fc80",
@@ -205,7 +286,15 @@
       "created_at": "2026-11-24T22:39:25.090Z",
       "activated_at": null,
       "revoked_at": null,
-      "last_used_at": null
+      "last_used_at": null,
+      "device": {
+        "device_id": "dev_0ROTW2zxlWHh_XOA-36QXQ",
+        "name": "Llavero TOTP",
+        "platform": "otro",
+        "created_at": "2026-11-24T22:39:25.090Z",
+        "last_used_at": null,
+        "unlinked_at": null
+      }
     },
     {
       "id": "2ae90ff9-e8ec-45ac-a212-5d6f77983390",
@@ -222,7 +311,15 @@
       "created_at": "2026-11-24T22:09:00.759Z",
       "activated_at": "2026-11-24T22:10:30.759Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T13:54:25.697Z"
+      "last_used_at": "2026-11-26T13:54:25.697Z",
+      "device": {
+        "device_id": "dev_GrTTTMaTj9p1-U3v5TCaUA",
+        "name": "Teléfono personal",
+        "platform": "android",
+        "created_at": "2026-11-24T22:09:00.759Z",
+        "last_used_at": "2026-11-26T13:54:25.697Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "94b6d8b7-5eba-4f18-ab75-ba4d0fb77ede",
@@ -239,7 +336,8 @@
       "created_at": "2026-11-24T17:48:48.964Z",
       "activated_at": "2026-11-24T17:50:18.964Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T15:58:13.728Z"
+      "last_used_at": "2026-11-26T15:58:13.728Z",
+      "device": null
     },
     {
       "id": "2030bdf2-d308-4899-a984-1810debcf6b5",
@@ -256,7 +354,15 @@
       "created_at": "2026-11-24T17:46:45.779Z",
       "activated_at": "2026-11-24T17:48:15.779Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T14:27:33.729Z"
+      "last_used_at": "2026-11-26T14:27:33.729Z",
+      "device": {
+        "device_id": "dev_n6dMloJ9hkxjCG3ONMnOFA",
+        "name": "Autenticador web",
+        "platform": "pwa",
+        "created_at": "2026-11-24T17:46:45.779Z",
+        "last_used_at": "2026-11-26T14:27:33.729Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "7c48eb61-178e-4878-afd8-855ea6cb36fe",
@@ -273,7 +379,15 @@
       "created_at": "2026-11-24T16:58:30.474Z",
       "activated_at": "2026-11-24T17:00:00.474Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T15:05:22.722Z"
+      "last_used_at": "2026-11-26T15:05:22.722Z",
+      "device": {
+        "device_id": "dev_7YnkEwcKazw5PaTXzW1v2g",
+        "name": "Tableta de la oficina",
+        "platform": "android",
+        "created_at": "2026-11-24T16:58:30.474Z",
+        "last_used_at": "2026-11-26T15:05:22.722Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "01e739e9-20a4-401c-a515-e2f37d3524f0",
@@ -290,7 +404,15 @@
       "created_at": "2026-11-24T11:49:15.429Z",
       "activated_at": "2026-11-24T11:50:45.429Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T14:22:37.976Z"
+      "last_used_at": "2026-11-26T14:22:37.976Z",
+      "device": {
+        "device_id": "dev_0PB6xHjo0fiNlflEcTj6lg",
+        "name": "Portátil (PWA)",
+        "platform": "pwa",
+        "created_at": "2026-11-24T11:49:15.429Z",
+        "last_used_at": "2026-11-26T14:22:37.976Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "1708ef6b-8ec8-431d-af91-34c9d4294993",
@@ -307,7 +429,15 @@
       "created_at": "2026-11-24T06:44:43.199Z",
       "activated_at": "2026-11-24T06:46:13.199Z",
       "revoked_at": "2026-11-25T06:44:43.199Z",
-      "last_used_at": null
+      "last_used_at": null,
+      "device": {
+        "device_id": "dev_h6F1XEAth2DQPdQKer3p7A",
+        "name": "Llavero TOTP",
+        "platform": "otro",
+        "created_at": "2026-11-24T06:44:43.199Z",
+        "last_used_at": null,
+        "unlinked_at": "2026-11-25T06:44:43.199Z"
+      }
     },
     {
       "id": "cfd349fa-8f46-4d09-a8ca-c309851fba1d",
@@ -324,7 +454,15 @@
       "created_at": "2026-11-24T02:37:19.683Z",
       "activated_at": "2026-11-24T02:38:49.683Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T14:55:30.864Z"
+      "last_used_at": "2026-11-26T14:55:30.864Z",
+      "device": {
+        "device_id": "dev_cMliIv5t49wkcd1fdviOrQ",
+        "name": "Teléfono personal",
+        "platform": "android",
+        "created_at": "2026-11-24T02:37:19.683Z",
+        "last_used_at": "2026-11-26T14:55:30.864Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "0f527063-c3a7-4877-a131-062d2988d126",
@@ -341,7 +479,15 @@
       "created_at": "2026-11-24T01:45:49.238Z",
       "activated_at": "2026-11-24T01:47:19.238Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T16:17:28.855Z"
+      "last_used_at": "2026-11-26T16:17:28.855Z",
+      "device": {
+        "device_id": "dev_Kk32LSVLonMfZodjlfuSOg",
+        "name": "Teléfono de trabajo",
+        "platform": "android",
+        "created_at": "2026-11-24T01:45:49.238Z",
+        "last_used_at": "2026-11-26T16:17:28.855Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "f7501a74-195b-4510-a245-6a80c76ab1f0",
@@ -358,7 +504,8 @@
       "created_at": "2026-11-24T00:34:24.467Z",
       "activated_at": "2026-11-24T00:35:54.467Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T14:05:36.304Z"
+      "last_used_at": "2026-11-26T14:05:36.304Z",
+      "device": null
     },
     {
       "id": "8c5b2a47-f870-41e5-a885-66c694b80b7d",
@@ -376,7 +523,15 @@
       "activated_at": "2026-11-23T22:34:38.050Z",
       "revoked_at": "2026-11-24T22:33:08.050Z",
       "last_used_at": null,
-      "cedula_demo": "V12345678"
+      "cedula_demo": "V12345678",
+      "device": {
+        "device_id": "dev_JVx0OJMLKSjMWvMiFyHL5w",
+        "name": "Tableta de la oficina",
+        "platform": "android",
+        "created_at": "2026-11-23T22:33:08.050Z",
+        "last_used_at": null,
+        "unlinked_at": "2026-11-24T22:33:08.050Z"
+      }
     },
     {
       "id": "baaef090-2bb8-4309-a189-517ced1f8a96",
@@ -393,7 +548,15 @@
       "created_at": "2026-11-23T20:21:18.821Z",
       "activated_at": "2026-11-23T20:22:48.821Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T14:44:29.991Z"
+      "last_used_at": "2026-11-26T14:44:29.991Z",
+      "device": {
+        "device_id": "dev_YrJT92nEQvSJhvTUQSkbOg",
+        "name": "Portátil (PWA)",
+        "platform": "pwa",
+        "created_at": "2026-11-23T20:21:18.821Z",
+        "last_used_at": "2026-11-26T14:44:29.991Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "8c034c3a-460b-490a-a99d-7a179a9ec4f0",
@@ -410,7 +573,15 @@
       "created_at": "2026-11-23T18:34:18.399Z",
       "activated_at": "2026-11-23T18:35:48.399Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T14:21:01.048Z"
+      "last_used_at": "2026-11-26T14:21:01.048Z",
+      "device": {
+        "device_id": "dev_1P4LjbGHeeyhqqJ-sYgpww",
+        "name": "Llavero TOTP",
+        "platform": "otro",
+        "created_at": "2026-11-23T18:34:18.399Z",
+        "last_used_at": "2026-11-26T14:21:01.048Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "78638644-8432-4852-a95c-ba8bc86b48e8",
@@ -427,7 +598,15 @@
       "created_at": "2026-11-23T17:12:09.175Z",
       "activated_at": "2026-11-23T17:13:39.175Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T13:37:48.367Z"
+      "last_used_at": "2026-11-26T13:37:48.367Z",
+      "device": {
+        "device_id": "dev_lRe94g3aEl13S9i_7dTRyw",
+        "name": "Teléfono personal",
+        "platform": "android",
+        "created_at": "2026-11-23T17:12:09.175Z",
+        "last_used_at": "2026-11-26T13:37:48.367Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "af5d3a8f-2bd0-4893-ad53-a58dfb061493",
@@ -444,7 +623,15 @@
       "created_at": "2026-11-23T14:39:04.641Z",
       "activated_at": "2026-11-23T14:40:34.641Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T14:25:41.972Z"
+      "last_used_at": "2026-11-26T14:25:41.972Z",
+      "device": {
+        "device_id": "dev_aJYB9M9Y3lAoz7d7cmbyGQ",
+        "name": "Teléfono de trabajo",
+        "platform": "android",
+        "created_at": "2026-11-23T14:39:04.641Z",
+        "last_used_at": "2026-11-26T14:25:41.972Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "32ae1283-db4e-4d03-a0f5-cd0008ad0db2",
@@ -461,7 +648,15 @@
       "created_at": "2026-11-23T08:43:51.506Z",
       "activated_at": "2026-11-23T08:45:21.506Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T14:21:58.141Z"
+      "last_used_at": "2026-11-26T14:21:58.141Z",
+      "device": {
+        "device_id": "dev_y7r2McpuRanqctbrxkjZIg",
+        "name": "Autenticador web",
+        "platform": "pwa",
+        "created_at": "2026-11-23T08:43:51.506Z",
+        "last_used_at": "2026-11-26T14:21:58.141Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "d4936911-808a-482b-a9d9-cbbeb261df8e",
@@ -478,7 +673,8 @@
       "created_at": "2026-11-22T19:54:15.621Z",
       "activated_at": "2026-11-22T19:55:45.621Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T14:06:28.215Z"
+      "last_used_at": "2026-11-26T14:06:28.215Z",
+      "device": null
     },
     {
       "id": "304732a0-fc87-4282-af36-50aa6d5f3935",
@@ -495,7 +691,15 @@
       "created_at": "2026-11-22T17:35:16.174Z",
       "activated_at": "2026-11-22T17:36:46.174Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T15:02:30.256Z"
+      "last_used_at": "2026-11-26T15:02:30.256Z",
+      "device": {
+        "device_id": "dev_jBunDujZ36E4LkiV5zkRcA",
+        "name": "Portátil (PWA)",
+        "platform": "pwa",
+        "created_at": "2026-11-22T17:35:16.174Z",
+        "last_used_at": "2026-11-26T15:02:30.256Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "6b2220fe-2367-4fb7-a9c6-44faa86adab4",
@@ -512,7 +716,15 @@
       "created_at": "2026-11-22T12:48:49.854Z",
       "activated_at": "2026-11-22T12:50:19.854Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T13:47:11.679Z"
+      "last_used_at": "2026-11-26T13:47:11.679Z",
+      "device": {
+        "device_id": "dev_cIjnZhcH-ktoU5M265e5xg",
+        "name": "Llavero TOTP",
+        "platform": "otro",
+        "created_at": "2026-11-22T12:48:49.854Z",
+        "last_used_at": "2026-11-26T13:47:11.679Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "0c386ae1-94bf-4ba5-a3ce-31fcccb72636",
@@ -529,7 +741,15 @@
       "created_at": "2026-11-22T12:22:50.958Z",
       "activated_at": null,
       "revoked_at": null,
-      "last_used_at": null
+      "last_used_at": null,
+      "device": {
+        "device_id": "dev_9QgnvPd20zN9wUYoA6neVw",
+        "name": "Teléfono personal",
+        "platform": "android",
+        "created_at": "2026-11-22T12:22:50.958Z",
+        "last_used_at": null,
+        "unlinked_at": null
+      }
     },
     {
       "id": "8c165879-e657-4263-abc0-d183f31ec504",
@@ -546,7 +766,15 @@
       "created_at": "2026-11-22T12:01:24.219Z",
       "activated_at": "2026-11-22T12:02:54.219Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T15:12:00.079Z"
+      "last_used_at": "2026-11-26T15:12:00.079Z",
+      "device": {
+        "device_id": "dev_AqvoGyI5HTwpRX1gyIxp4A",
+        "name": "Teléfono de trabajo",
+        "platform": "android",
+        "created_at": "2026-11-22T12:01:24.219Z",
+        "last_used_at": "2026-11-26T15:12:00.079Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "4b559ef4-b7c1-46b0-a2d1-2a2645a497f5",
@@ -563,7 +791,15 @@
       "created_at": "2026-11-22T08:26:10.940Z",
       "activated_at": "2026-11-22T08:27:40.940Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T15:18:46.048Z"
+      "last_used_at": "2026-11-26T15:18:46.048Z",
+      "device": {
+        "device_id": "dev_Krra2-hvz8wnu4C373Xljg",
+        "name": "Autenticador web",
+        "platform": "pwa",
+        "created_at": "2026-11-22T08:26:10.940Z",
+        "last_used_at": "2026-11-26T15:18:46.048Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "845d2c40-e4e4-4956-a592-97178ce65a74",
@@ -580,7 +816,15 @@
       "created_at": "2026-11-22T07:17:33.797Z",
       "activated_at": "2026-11-22T07:19:03.797Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T14:51:26.380Z"
+      "last_used_at": "2026-11-26T14:51:26.380Z",
+      "device": {
+        "device_id": "dev_ziZdI21a3I93-NZln4ODSQ",
+        "name": "Tableta de la oficina",
+        "platform": "android",
+        "created_at": "2026-11-22T07:17:33.797Z",
+        "last_used_at": "2026-11-26T14:51:26.380Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "344199a0-114f-4012-a3fa-e1744e8fdd74",
@@ -597,7 +841,8 @@
       "created_at": "2026-11-22T04:42:37.715Z",
       "activated_at": "2026-11-22T04:44:07.715Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T14:16:15.481Z"
+      "last_used_at": "2026-11-26T14:16:15.481Z",
+      "device": null
     },
     {
       "id": "4275d601-0b39-4ac5-adc7-d803049e6e39",
@@ -614,7 +859,15 @@
       "created_at": "2026-11-22T03:58:31.765Z",
       "activated_at": "2026-11-22T04:00:01.765Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T13:30:10.106Z"
+      "last_used_at": "2026-11-26T13:30:10.106Z",
+      "device": {
+        "device_id": "dev_smEYhQ3dpLot47hThOi-Ag",
+        "name": "Llavero TOTP",
+        "platform": "otro",
+        "created_at": "2026-11-22T03:58:31.765Z",
+        "last_used_at": "2026-11-26T13:30:10.106Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "0662480c-1790-442d-a806-8ae414af8e6b",
@@ -631,7 +884,15 @@
       "created_at": "2026-11-21T23:38:56.868Z",
       "activated_at": "2026-11-21T23:40:26.868Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T14:53:23.006Z"
+      "last_used_at": "2026-11-26T14:53:23.006Z",
+      "device": {
+        "device_id": "dev_UGcH32RRiPdxj72YDHEhsA",
+        "name": "Teléfono personal",
+        "platform": "android",
+        "created_at": "2026-11-21T23:38:56.868Z",
+        "last_used_at": "2026-11-26T14:53:23.006Z",
+        "unlinked_at": null
+      }
     },
     {
       "id": "94ecb1f0-c8ba-41b8-ab79-856aa2abada5",
@@ -648,7 +909,15 @@
       "created_at": "2026-11-21T22:01:07.980Z",
       "activated_at": "2026-11-21T22:02:37.980Z",
       "revoked_at": null,
-      "last_used_at": "2026-11-26T15:40:29.892Z"
+      "last_used_at": "2026-11-26T15:40:29.892Z",
+      "device": {
+        "device_id": "dev_9NpBWHkQNICVnA8AF3-Asw",
+        "name": "Teléfono de trabajo",
+        "platform": "android",
+        "created_at": "2026-11-21T22:01:07.980Z",
+        "last_used_at": "2026-11-26T15:40:29.892Z",
+        "unlinked_at": null
+      }
     }
   ]
 }

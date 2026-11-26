@@ -280,7 +280,11 @@ export async function mockFetch(url, opciones = {}) {
     }
     const previo = e.estado;
     e.estado = accion === 'suspend' ? 'suspendido' : accion === 'reactivate' ? 'activo' : 'revocado';
-    if (accion === 'revoke') e.revoked_at = new Date().toISOString();
+    if (accion === 'revoke') {
+      e.revoked_at = new Date().toISOString();
+      // Revocar el enrolamiento desvincula su dispositivo (issue #47), igual que en el servidor.
+      if (e.device && !e.device.unlinked_at) e.device.unlinked_at = e.revoked_at;
+    }
     await registrarAuditoria(`admin:${sesion.usuario}`, `enrolamiento.${accion === 'suspend' ? 'suspendido' : accion === 'reactivate' ? 'reactivado' : 'revocado'}`, e.id, { app_id: e.app_id, estado_previo: previo, motivo: 'consola' });
     return json(200, { enrollment: sinDemo(e) });
   }
