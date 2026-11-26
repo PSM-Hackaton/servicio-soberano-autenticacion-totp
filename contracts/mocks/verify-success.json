@@ -1,0 +1,18 @@
+{
+  "verified": true,
+  "mfaToken": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6ImtleS0yMDI2MTEyNi0wMSJ9.eyJzdWIiOiJ1c3ItcmV0bzEtZXZhbHVhZG9yLTAxIiwiaXNzIjoiaHR0cHM6Ly9tZmEuc29iZXJhbm8ubG9jYWwiLCJhdWQiOiJpbnN0aXR1Y2lvbmFsLWFwaSIsImFtciI6WyJ0b3RwIl0sInNvdXJjZUFwcCI6InJldG8xLWV2YWx1YWRvci1wcm9wdWVzdGFzIn0.MOCK_SIGNATURE_ONLY",
+  "jti": "c41f7f02-4a2b-47ea-8b3d-99a01b78de04",
+  "kid": "key-20261126-01",
+  "expiresAt": "2026-11-26T16:05:00.000Z",
+  "driftSteps": 0,
+  "riskAssessment": {
+    "riskScore": 8.5,
+    "level": "LOW",
+    "action": "ALLOW",
+    "inferenceMs": 1.4,
+    "reasons": [
+      "Frecuencia de intentos dentro del rango normal",
+      "Sin deriva temporal anómala"
+    ]
+  }
+}

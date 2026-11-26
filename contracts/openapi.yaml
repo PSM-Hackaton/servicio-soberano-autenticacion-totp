@@ -1,0 +1,447 @@
+openapi: 3.1.0
+info:
+  title: Servicio Soberano de Autenticación Multifactorial (TOTP) API
+  version: 1.0.0
+  description: >
+    Contrato oficial congelado (Fuente Única de Verdad) para el Reto 2 TOTP Soberano
+    y su integración como módulo MFA del Reto 1 (Agente Evaluador de Propuestas).
+servers:
+  - url: https://localhost:8443
+    description: Servidor local soberano HTTPS (TLS 1.2/1.3)
+
+tags:
+  - name: System
+  - name: MFA
+  - name: Admin
+
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Estado operativo del servicio y metadata criptográfica
+      responses:
+        '200':
+          description: Servicio operativo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, timestamp, tlsEnabled, activeKeyId, anomalyMode]
+                properties:
+                  status: { type: string, enum: [ok] }
+                  timestamp: { type: string, format: date-time }
+                  tlsEnabled: { type: boolean }
+                  activeKeyId: { type: string }
+                  anomalyMode: { type: string, enum: [local, mock] }
+
+  /.well-known/jwks.json:
+    get:
+      tags: [MFA]
+      summary: Claves públicas asimétricas (Ed25519) para verificación offline de JWT MFA
+      responses:
+        '200':
+          description: Conjunto JWKS estándar RFC 7517
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [keys]
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      type: object
+                      required: [kty, crv, kid, use, alg, x]
+                      properties:
+                        kty: { type: string, example: OKP }
+                        crv: { type: string, example: Ed25519 }
+                        kid: { type: string }
+                        use: { type: string, example: sig }
+                        alg: { type: string, example: EdDSA }
+                        x: { type: string }
+
+  /api/v1/enroll:
+    post:
+      tags: [MFA]
+      summary: Enrola un usuario generando semilla CSPRNG cifrada con AES-256-GCM y QR otpauth://
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [externalUserId, accountLabel]
+              properties:
+                externalUserId: { type: string, minLength: 2, maxLength: 120, example: "usr-reto1-evaluador-01" }
+                accountLabel: { type: string, minLength: 2, maxLength: 150, example: "elena.rivas@institucion.gob.ve" }
+                algorithm: { type: string, enum: [SHA256, SHA512, SHA1], default: SHA256 }
+                digits: { type: integer, enum: [6, 8], default: 6 }
+                stepSeconds: { type: integer, minimum: 15, maximum: 60, default: 30 }
+                sourceApp: { type: string, default: "portal-demo", example: "reto1-evaluador-propuestas" }
+      responses:
+        '201':
+          description: Usuario enrolado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollResponse'
+        '409':
+          description: El usuario ya tiene un enrolamiento activo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/v1/verify:
+    post:
+      tags: [MFA]
+      summary: Valida código TOTP (RFC 6238 + time-drift + anti-replay + IA local) y emite JWT Ed25519
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [externalUserId, code]
+              properties:
+                externalUserId: { type: string, example: "usr-reto1-evaluador-01" }
+                code: { type: string, pattern: '^[0-9]{6,8}$', example: "482913" }
+                sourceApp: { type: string, default: "portal-demo" }
+                clientTimestamp: { type: string, format: date-time, description: "Opcional para telemetría local de deriva" }
+      responses:
+        '200':
+          description: Código válido; JWT asimétrico emitido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifySuccessResponse'
+        '401':
+          description: Código inválido o expirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Usuario revocado o bloqueado por IA local / bloqueo progresivo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409':
+          description: Ataque de repetición detectado (código ya utilizado en su ventana)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '429':
+          description: Rate limit / protección anti-DDoS activada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/v1/token/validate:
+    post:
+      tags: [MFA]
+      summary: Valida autenticidad, firma Ed25519, expiración y no-revocación de un JWT MFA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        '200':
+          description: Resultado de validación del token
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [valid]
+                properties:
+                  valid: { type: boolean }
+                  subject: { type: string }
+                  jti: { type: string }
+                  kid: { type: string }
+                  sourceApp: { type: string }
+                  expiresAt: { type: string, format: date-time }
+                  reason: { type: string }
+
+  /api/v1/admin/login:
+    post:
+      tags: [Admin]
+      summary: Inicio de sesión para Consola Administrativa (RBAC)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: Sesión administrativa autenticada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accessToken, role, expiresAt]
+                properties:
+                  accessToken: { type: string }
+                  role: { type: string, enum: [ADMIN, AUDITOR] }
+                  expiresAt: { type: string, format: date-time }
+
+  /api/v1/admin/policies:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Obtiene la política global activa de TOTP y resiliencia
+      responses:
+        '200':
+          description: Política activa
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TotpPolicy' }
+    put:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Actualiza la política global de TOTP (algoritmo, ventana drift, TTL JWT, umbrales)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TotpPolicy' }
+      responses:
+        '200':
+          description: Política actualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TotpPolicy' }
+
+  /api/v1/admin/users:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Lista enrolamientos (sin exponer semillas)
+      responses:
+        '200':
+          description: Listado de cuentas enroladas
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/EnrollmentSummary' }
+
+  /api/v1/admin/users/{externalUserId}/revoke:
+    post:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Revoca inmediatamente el enrolamiento TOTP de un usuario
+      parameters:
+        - name: externalUserId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Usuario revocado
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [externalUserId, status, revokedAt]
+                properties:
+                  externalUserId: { type: string }
+                  status: { type: string, enum: [REVOKED] }
+                  revokedAt: { type: string, format: date-time }
+
+  /api/v1/admin/keys/rotate:
+    post:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Rota el par de claves asimétricas Ed25519 manteniendo gracia de verificación para llaves previas
+      responses:
+        '200':
+          description: Nueva clave activa generada y cifrada con AES-256-GCM
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [newKid, previousKid, rotatedAt]
+                properties:
+                  newKid: { type: string }
+                  previousKid: { type: string, nullable: true }
+                  rotatedAt: { type: string, format: date-time }
+
+  /api/v1/admin/audit:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Eventos de auditoría anonimizados (IP hasheada, sin secretos)
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50, maximum: 200 }
+      responses:
+        '200':
+          description: Historial de auditoría
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/AuditEvent' }
+
+  /api/v1/admin/anomalies:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Alertas y métricas del motor de IA heurística local
+      responses:
+        '200':
+          description: Métricas agregadas y alertas recientes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [summary, alerts]
+                properties:
+                  summary:
+                    type: object
+                    required: [totalVerifications, blockedReplayCount, blockedAnomalyCount, avgInferenceMs]
+                    properties:
+                      totalVerifications: { type: integer }
+                      blockedReplayCount: { type: integer }
+                      blockedAnomalyCount: { type: integer }
+                      avgInferenceMs: { type: number }
+                  alerts:
+                    type: array
+                    items: { $ref: '#/components/schemas/AnomalyAlert' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    EnrollResponse:
+      type: object
+      required: [enrollmentId, externalUserId, algorithm, digits, stepSeconds, otpauthUri, qrCodeDataUrl, createdAt]
+      properties:
+        enrollmentId: { type: string, format: uuid }
+        externalUserId: { type: string }
+        algorithm: { type: string, enum: [SHA256, SHA512, SHA1] }
+        digits: { type: integer }
+        stepSeconds: { type: integer }
+        otpauthUri: { type: string }
+        qrCodeDataUrl: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    VerifySuccessResponse:
+      type: object
+      required: [verified, mfaToken, jti, kid, expiresAt, driftSteps, riskAssessment]
+      properties:
+        verified: { type: boolean, enum: [true] }
+        mfaToken: { type: string }
+        jti: { type: string, format: uuid }
+        kid: { type: string }
+        expiresAt: { type: string, format: date-time }
+        driftSteps: { type: integer, description: "Deriva temporal compensada (-2..+2)" }
+        riskAssessment: { $ref: '#/components/schemas/RiskAssessment' }
+
+    RiskAssessment:
+      type: object
+      required: [riskScore, level, action, inferenceMs, reasons]
+      properties:
+        riskScore: { type: number, minimum: 0, maximum: 100 }
+        level: { type: string, enum: [LOW, MEDIUM, HIGH, CRITICAL] }
+        action: { type: string, enum: [ALLOW, WARN, BLOCK] }
+        inferenceMs: { type: number }
+        reasons:
+          type: array
+          items: { type: string }
+
+    TotpPolicy:
+      type: object
+      required: [defaultAlgorithm, digits, stepSeconds, driftWindow, jwtTtlSeconds, maxFailedAttempts, lockoutMinutes, anomalyBlockThreshold]
+      properties:
+        defaultAlgorithm: { type: string, enum: [SHA256, SHA512, SHA1] }
+        digits: { type: integer, enum: [6, 8] }
+        stepSeconds: { type: integer, minimum: 15, maximum: 60 }
+        driftWindow: { type: integer, minimum: 0, maximum: 3 }
+        jwtTtlSeconds: { type: integer, minimum: 60, maximum: 3600 }
+        maxFailedAttempts: { type: integer, minimum: 3, maximum: 15 }
+        lockoutMinutes: { type: integer, minimum: 1, maximum: 60 }
+        anomalyBlockThreshold: { type: number, minimum: 50, maximum: 100 }
+
+    EnrollmentSummary:
+      type: object
+      required: [enrollmentId, externalUserId, accountLabel, algorithm, status, failedAttempts, lastDriftSteps, createdAt]
+      properties:
+        enrollmentId: { type: string }
+        externalUserId: { type: string }
+        accountLabel: { type: string }
+        algorithm: { type: string }
+        status: { type: string, enum: [ACTIVE, LOCKED, REVOKED] }
+        failedAttempts: { type: integer }
+        lastDriftSteps: { type: integer }
+        createdAt: { type: string, format: date-time }
+
+    AuditEvent:
+      type: object
+      required: [id, eventType, externalUserId, ipHash, outcome, riskScore, createdAt]
+      properties:
+        id: { type: string }
+        eventType: { type: string }
+        externalUserId: { type: string, nullable: true }
+        ipHash: { type: string, description: "HMAC-SHA256 truncado; nunca IP en texto plano" }
+        outcome: { type: string }
+        riskScore: { type: number, nullable: true }
+        detail: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    AnomalyAlert:
+      type: object
+      required: [id, externalUserId, ipHash, riskScore, level, action, reasons, createdAt]
+      properties:
+        id: { type: string }
+        externalUserId: { type: string, nullable: true }
+        ipHash: { type: string }
+        riskScore: { type: number }
+        level: { type: string, enum: [LOW, MEDIUM, HIGH, CRITICAL] }
+        action: { type: string, enum: [ALLOW, WARN, BLOCK] }
+        reasons:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    ErrorResponse:
+      type: object
+      required: [errorCode, message]
+      properties:
+        errorCode:
+          type: string
+          enum:
+            - INVALID_INPUT
+            - ALREADY_ENROLLED
+            - USER_NOT_FOUND
+            - USER_REVOKED
+            - USER_LOCKED
+            - INVALID_TOTP_CODE
+            - REPLAY_DETECTED
+            - ANOMALY_BLOCKED
+            - RATE_LIMITED
+            - UNAUTHORIZED
+        message: { type: string }
+        retryAfterSeconds: { type: integer, nullable: true }
+        riskAssessment: { $ref: '#/components/schemas/RiskAssessment' }
