@@ -196,9 +196,9 @@ function main() {
   const flagCov = conCobertura ? ['--experimental-test-coverage'] : [];
   const suites = [
     { nombre: 'Backend', cwd: join(RAIZ, 'backend'), args: ['--test', ...flagCov, 'src/**/*.test.js'] },
-    { nombre: 'App Autenticadora PWA', cwd: RAIZ, args: ['--test', ...flagCov, 'authenticator-app/tests/totp.test.mjs', 'authenticator-app/tests/cripto.test.mjs', 'authenticator-app/tests/otpauth.test.mjs'] },
-    { nombre: 'SDK', cwd: RAIZ, args: ['--test', ...flagCov, 'sdk/tests/sdk.test.js'] },
-    { nombre: 'Portal de Trámites Demo', cwd: RAIZ, args: ['--test', ...flagCov, 'demo-portal-tramites/tests/portal.test.js'] },
+    { nombre: 'App Autenticadora PWA', cwd: RAIZ, args: ['--test', ...flagCov, 'authenticator-app/tests/*.test.mjs'] },
+    { nombre: 'SDK', cwd: RAIZ, args: ['--test', ...flagCov, 'sdk/tests/*.test.js'] },
+    { nombre: 'Portal de Trámites Demo', cwd: RAIZ, args: ['--test', ...flagCov, 'demo-portal-tramites/tests/*.test.js'] },
     { nombre: 'Attack Lab y DAST', cwd: join(RAIZ, 'attack-lab'), args: ['--test', ...flagCov, 'tests/*.test.js'] },
   ];
 

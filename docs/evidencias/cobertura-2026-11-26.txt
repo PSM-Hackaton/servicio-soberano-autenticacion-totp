@@ -1,5 +1,5 @@
 # Evidencia de Cobertura de Pruebas (node --test --experimental-test-coverage)
-Fecha UTC: 2026-11-26T19:00:40.811Z
+Fecha UTC: 2026-11-26T19:16:59.034Z
 Runtime: Node.js v22.22.1 (linux)
 ## Backend
     # Subtest: /health informa el modo de heurística configurado (local | monitorizacion | mock)
@@ -125,8 +125,8 @@ Runtime: Node.js v22.22.1 (linux)
 # end of coverage report
 
 ## SDK
-# tests 26
-# pass 26
+# tests 28
+# pass 28
 # fail 0
 # start of coverage report
 # file                  | line % | branch % | funcs % | uncovered lines
@@ -138,7 +138,7 @@ Runtime: Node.js v22.22.1 (linux)
 #     reedSolomon.js    |  92.31 |    93.75 |   60.00 | 26-27 75-78
 # sdk                   |        |          |         | 
 #  src                  |        |          |         | 
-#   cedula.js           |  65.57 |   100.00 |    0.00 | 30-38 50-61
+#   cedula.js           | 100.00 |    73.33 |  100.00 | 
 #   cliente.js          |  95.41 |    80.14 |   96.77 | 49-50 55-56 58-59 83-84 120 128 213-214 246-247 378-379 390-391
 #   errores.js          | 100.00 |   100.00 |  100.00 | 
 #   http.js             |  87.16 |    71.88 |   84.62 | 20-21 26-27 29-30 40-43 77-80
@@ -149,8 +149,9 @@ Runtime: Node.js v22.22.1 (linux)
 #  testing              |        |          |         | 
 #   servicio-falso.js   |  92.97 |    76.55 |   88.89 | 46-47 207-209 247 278 299-306 373-384
 #  tests                |        |          |         | 
+#   cedula.test.js      | 100.00 |   100.00 |  100.00 | 
 #   sdk.test.js         | 100.00 |    97.78 |  100.00 | 
-# all files             |  95.35 |    83.26 |   93.88 | 
+# all files             |  96.38 |    83.15 |   94.76 | 
 # end of coverage report
 
 ## Portal de Trámites Demo
@@ -168,7 +169,7 @@ Runtime: Node.js v22.22.1 (linux)
 # demo-portal-tramites     |        |          |         | 
 #  src                     |        |          |         | 
 #   cedula.js              | 100.00 |    80.95 |  100.00 | 
-#   config.js              |  96.25 |   100.00 |   75.00 | 37-39
+#   config.js              |  96.20 |   100.00 |   75.00 | 37-39
 #   html.js                | 100.00 |    86.67 |  100.00 | 
 #   portal.js              |  89.35 |    71.73 |   87.88 | 180-182 194-196 201-203 273-274 291-292 294-295 297-298 304-306 320-321 333-335 348-349 370-376 426-428 439 441 501 547-563 580-581 585-589 593-595
 #   sesiones.js            |  95.28 |    85.71 |   78.57 | 73-74 78-79 105
@@ -189,7 +190,7 @@ Runtime: Node.js v22.22.1 (linux)
 #   local.js               |  92.31 |    42.86 |   66.67 | 24-25
 #  testing                 |        |          |         | 
 #   servicio-falso.js      |  89.84 |    72.93 |   81.82 | 46-47 238-247 261-265 278 299-306 318 373-384
-# all files                |  93.11 |    76.40 |   88.55 | 
+# all files                |  93.10 |    76.38 |   88.55 | 
 # end of coverage report
 
 ## Attack Lab y DAST
@@ -199,7 +200,7 @@ Runtime: Node.js v22.22.1 (linux)
 # start of coverage report
 # file                    | line % | branch % | funcs % | uncovered lines
 # caos                    |        |          |         | 
-#  proxy-caos.js          |  80.37 |    87.69 |   81.25 | 175-215 218-219
+#  proxy-caos.js          |  80.37 |    87.50 |   81.25 | 175-215 218-219
 # escenarios              |        |          |         | 
 #  dast.js                |  83.67 |    52.48 |   92.86 | 104-105 197-198 255-256 273-275 278-280 286-287 294-295 300-301 305-309 365-366 394-395 427-450 462-490
 # lib                     |        |          |         | 
@@ -224,5 +225,5 @@ Runtime: Node.js v22.22.1 (linux)
 #      totp.js            |  51.61 |   100.00 |   25.00 | 16-20 42-44 47-51 65-83 91-107 114-124
 #    security             |        |          |         | 
 #     cabeceras.js        |  93.18 |    75.00 |   66.67 | 23-25
-# all files               |  87.54 |    81.79 |   82.88 | 
+# all files               |  87.54 |    81.76 |   82.88 | 
 # end of coverage report
