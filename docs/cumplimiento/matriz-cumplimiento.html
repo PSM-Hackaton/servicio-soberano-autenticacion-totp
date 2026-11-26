@@ -128,13 +128,13 @@ del repositorio; <code>…/</code> abrevia la carpeta del módulo anterior en la
     <td><code>backend/src/infrastructure/persistence/db.js</code>, <code>…/repositorios.js</code>, <code>authenticator-app/js/boveda.js</code>, <code>…/almacen.js</code></td>
     <td><code>persistencia.test.js</code>; SBOM (0 dependencias, 0 recursos externos); caos sin red en attack-lab</td><td><span class="st ok">CUMPLE</span></td></tr>
   <tr><td class="req">«Prevención de repetición y fuerza bruta: Bloqueo temporal de códigos ya utilizados dentro de la ventana válida (replay protection), limitación de intentos (rate limiting), bloqueos progresivos y protección anti-DDoS sobre los endpoints de verificación.»</td>
-    <td>Actualización atómica <code>UPDATE … WHERE last_step &lt; ?</code> (401 <code>REPLAY_DETECTED</code>); límites de tasa por IP, por app y por origen; 5 fallos → bloqueo progresivo persistido en base de datos; rechazo barato (límite, tamaño, tiempo) antes de cualquier cálculo.</td>
+    <td>Actualización atómica <code>UPDATE … WHERE last_step &lt; ?</code> (401 <code>VERIFICATION_FAILED</code>, idéntico a un código incorrecto, registrado como <code>replay</code> en las métricas); límites de tasa por IP, por app y por origen; 5 fallos → bloqueo progresivo persistido en base de datos; rechazo barato (límite, tamaño, tiempo) antes de cualquier cálculo.</td>
     <td><code>backend/src/infrastructure/persistence/repositorios.js</code>, <code>backend/src/security/limitador.js</code>, <code>…/bloqueo.js</code>, <code>backend/src/api/servidor.js</code></td>
     <td><code>casos.test.js</code>, <code>api.test.js</code>; attack-lab: replay (10 envíos paralelos → 1 aceptado), fuerza bruta (429 al 6.º con <code>Retry-After: 30</code>), inundación (400 peticiones/50 concurrentes: 0 5xx, <code>/health</code> 100 %)</td><td><span class="st ok">CUMPLE</span></td></tr>
   <tr><td class="req">«Heurística local opcional: Detección local de patrones anómalos de fallos de autenticación o intentos distribuidos sin enviar datos a terceros.»</td>
     <td>Detector con Isolation Forest implementado desde cero, entrenado en el arranque con tráfico sintético determinista, más reglas explicables; modos <code>local</code>, <code>monitorizacion</code> y <code>mock</code>; razones visibles en la consola.</td>
     <td><code>backend/src/heuristics/isolationForest.js</code>, <code>…/caracteristicas.js</code>, <code>…/detector.js</code>, <code>…/generadorTrafico.js</code>, <code>admin-console/js/vistas/anomalias.js</code></td>
-    <td><code>heuristics.test.js</code> (9, incl. inferencia p95 &lt; 15 ms); attack-lab spraying: riesgo 100 CRITICAL, 35 <code>ANOMALY_BLOCKED</code></td><td><span class="st ok">CUMPLE</span></td></tr>
+    <td><code>heuristics.test.js</code> (9, incl. inferencia p95 &lt; 15 ms); attack-lab spraying: 36 bloqueos del detector (métrica <code>anomaly_blocked</code>), 429 genérico sin riesgo ni razones</td><td><span class="st ok">CUMPLE</span></td></tr>
 </table>
 
 <h3>2.3 Integración, Cliente y Administración</h3>

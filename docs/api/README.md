@@ -34,6 +34,21 @@ Envíe un identificador **opaco y estable** de su usuario (por ejemplo `ptd-d092
 su nombre, documento ni correo. El servicio solo guarda `HMAC-SHA256(user_ref, pepper)`; el `sub` del JWT
 es ese seudónimo, nunca el `user_ref` en claro.
 
+**Si su sistema identifica a las personas por cédula** (como el Portal de Trámites), no la envíe en claro:
+derive el `user_ref` con el SDK, `derivarUserRefDesdeCedula('V-12.345.678', secreto, prefijo)`
+(= prefijo + base64url(HMAC-SHA256(cédula canónica, secreto))). Si registra su app con
+`user_ref_desde_cedula: "hmac"`, el servicio guarda ese secreto cifrado y el soporte puede buscar el factor
+de un ciudadano por cédula en la consola (`GET /admin/api/enrollments?app_id=…&cedula=…`) sin que la cédula
+se guarde nunca.
+
+### Origen del usuario final (`client_ip`)
+
+En `verify`, `recovery`, `activate` y `resync` puede añadir `"client_ip": "203.0.113.7"` (IPv4 o IPv6
+válida, sin puerto; inválida → 400) con la IP de **su** usuario. El detector de anomalías, el límite por
+origen y el bloqueo adaptativo usan HMAC(app_id + ':' + client_ip, pepper diario): la IP no se guarda en
+claro. **Envíela siempre**: sin ella, todos sus usuarios comparten la IP de su servidor y los fallos de unos
+pocos pueden frenar a todos. El servicio no confía en `X-Forwarded-For`. En el SDK: opción `clientIp`.
+
 ### Cabeceras comunes
 
 ```http
@@ -110,7 +125,7 @@ no sirve para entrar: el usuario debe esperar al siguiente.
 curl --cacert certs/ca.crt -X POST https://localhost:8443/api/v1/verify \
   -H "Content-Type: application/json" -H "X-Client-Id: $CID" -H "X-Client-Secret: $CS" \
   -H "Idempotency-Key: demo-verify-0001" \
-  -d '{"user_ref":"ciudadano-0001","code":"318204"}'
+  -d '{"user_ref":"ciudadano-0001","code":"318204","client_ip":"203.0.113.7"}'
 ```
 
 Respuesta `200`:
@@ -123,8 +138,7 @@ Respuesta `200`:
   "kid": "7YT0A1PjVuhxFfVMmJpjzA",
   "expires_at": "2026-11-26T17:24:47.000Z",
   "drift_steps": 1,
-  "risk": { "score": 0, "level": "LOW", "action": "ALLOW", "inference_ms": 0.159,
-            "reasons": ["Comportamiento dentro del patrón habitual"] }
+  "risk": { "level": "LOW" }
 }
 ```
 
@@ -143,17 +157,16 @@ Respuestas de rechazo reales:
 
 | Situación | HTTP | Cuerpo |
 | --- | --- | --- |
-| Código incorrecto **o** usuario sin enrolamiento (misma respuesta) | 401 | `{"error":"VERIFICATION_FAILED","message":"No se pudo completar la verificación."}` |
-| Código ya usado (replay) | 401 | `{"error":"REPLAY_DETECTED","message":"El código TOTP ya fue utilizado dentro de la ventana temporal activa (ataque de repetición mitigado).","retry_after_seconds":13,…}` |
+| Código incorrecto, usuario sin enrolamiento, enrolamiento suspendido **o** código ya usado (replay): misma respuesta, sin oráculo | 401 | `{"error":"VERIFICATION_FAILED","message":"No se pudo completar la verificación."}` |
 | Sexto intento tras 5 fallos (bloqueo progresivo 30 s → 2 min → 10 min → 1 h) | 429 | `{"error":"TOO_MANY_REQUESTS","message":"Demasiados intentos. Intente más tarde.","retry_after_seconds":30}` + cabecera `Retry-After: 30` |
-| Detector local de anomalías | 429 | `{"error":"ANOMALY_BLOCKED",…,"riskAssessment":{"riskScore":100,"level":"CRITICAL",…}}` |
+| Detector local de anomalías (modo `bloqueo`) | 429 | `{"error":"TOO_MANY_REQUESTS","message":"Demasiados intentos. Intente más tarde.","retry_after_seconds":300}`: igual que un bloqueo; la puntuación y las razones solo se ven en la consola |
 | Campo no declarado | 400 | `{"error":"INVALID_REQUEST","message":"Solicitud inválida."}` |
 | Credenciales de app incorrectas | 401 | `{"error":"UNAUTHORIZED","message":"Credenciales inválidas."}` |
 | Error interno o base de datos no disponible | 503 | `{"error":"SERVICE_UNAVAILABLE",…}` (nunca 200) |
 
 **Idempotencia.** Con `Idempotency-Key` la respuesta se guarda 5 minutos por (app, clave): si su petición
 se corta y la repite con la **misma** clave, recibe la misma respuesta sin que el código se evalúe dos
-veces (evita un falso `REPLAY_DETECTED`). Reutilizar la clave con otro cuerpo da 400.
+veces (evita que el reintento cuente como replay). Reutilizar la clave con otro cuerpo da 400.
 
 ### 2.4 Validar el token
 
@@ -205,6 +218,22 @@ curl --cacert certs/ca.crt -X DELETE https://localhost:8443/api/v1/enrollments/$
 Tras una recuperación **no** conceda acceso directo: inicie un enrolamiento nuevo y pida un código del
 autenticador nuevo.
 
+### 2.6 Lo que hace el equipo de soporte desde la consola
+
+No forma parte de la API de integradores (usa la cookie de sesión de `/consola/`, `X-CSRF-Token` y RBAC),
+pero conviene saber que existe:
+
+| Ruta | Para qué | Rol |
+| --- | --- | --- |
+| `GET /admin/api/enrollments?app_id=…&cedula=…` (o `&user_ref=…`) | Buscar el factor de un ciudadano | Administrador, Operador |
+| `POST /admin/api/enrollments/{id}/suspend` · `/reactivate` · `/revoke` | Suspender, reactivar o revocar (definitivo) un enrolamiento; un suspendido responde en `verify` como un código incorrecto | Administrador, Operador |
+| `POST /admin/api/apps` | Registrar una app integradora (entrega `client_secret` una vez) o cambiar su política | Administrador, Operador |
+| `POST /admin/api/apps/{id}/secret` | Regenerar el `client_secret` (el anterior deja de valer al instante) | Administrador |
+| `GET` / `POST /admin/api/admins` · `POST /admin/api/admins/{id}/disable` | Cuentas de la consola (contraseña aleatoria + TOTP propio entregados una vez) | Administrador |
+| `GET /admin/api/keys` · `POST /admin/api/keys/rotate` | Inventario y rotación de llaves Ed25519 (la JWKS conserva las anteriores para verificar) | Todos · Administrador |
+
+El contrato completo de las 31 rutas está en [`contracts/openapi.yaml`](../../contracts/openapi.yaml).
+
 ---
 
 ## 3. Con el SDK (Node.js 22, sin dependencias)
@@ -241,6 +270,6 @@ El SDK es opcional: cualquier lenguaje con cliente HTTPS y Ed25519 puede integra
 | --- | --- |
 | Límites de tasa | Global por IP (anti-DDoS, antes de autenticar), por app y por origen; superarlos da `429` con `Retry-After`. Configurables con `RATE_LIMIT_*` (ver `README.md`). |
 | Bloqueo progresivo por cuenta | 5 fallos → 30 s, luego 2 min, 10 min y 1 h; persiste tras reiniciar el servicio. |
-| Detector local de anomalías | Puede responder `429 ANOMALY_BLOCKED` (300 s) ante spraying o fuerza bruta distribuida si la app está en modo `bloqueo`. |
+| Detector local de anomalías | Puede responder `429 TOO_MANY_REQUESTS` (300 s, idéntico a un bloqueo) ante spraying o fuerza bruta distribuida si la app está en modo `bloqueo`. |
 | Cabeceras | `Strict-Transport-Security`, `Content-Security-Policy`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Cache-Control: no-store`, entre otras. |
 | CORS | Lista blanca (`CORS_ALLOWED_ORIGINS`); las llamadas de servidor a servidor no lo necesitan. |
