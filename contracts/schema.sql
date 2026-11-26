@@ -1,120 +1,125 @@
 -- ==============================================================================
--- Esquema SQL Congelado — Servicio Soberano MFA / TOTP (SQLite WAL)
--- Diseñado bajo Arquitectura Hexagonal: portátil a PostgreSQL sin tocar dominio.
--- TODA semilla criptográfica y clave privada se persiste cifrada con AES-256-GCM.
--- TODA dirección IP se persiste únicamente anonimizada vía HMAC-SHA256 local.
+-- Esquema Oficial PostgreSQL 16 (Sección 7 de docs/analisis/analisis-tecnico.html)
+-- 8 tablas: apps, enrollments, recovery_codes, attempts, consumed_jti,
+--           signing_keys, admins, audit_log (cadena de hashes)
 -- ==============================================================================
 
-PRAGMA journal_mode = WAL;
-PRAGMA foreign_keys = ON;
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- 1. Administradores de la Consola (RBAC)
-CREATE TABLE IF NOT EXISTS admin_users (
-    id TEXT PRIMARY KEY,
-    username TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,            -- scrypt / argon2id con salt
-    role TEXT NOT NULL CHECK (role IN ('ADMIN', 'AUDITOR')),
-    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+-- 1. Aplicaciones integradoras (Portal de Trámites, Reto 1, Consola Admin, etc.)
+CREATE TABLE IF NOT EXISTS apps (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nombre VARCHAR(120) NOT NULL,
+    client_id VARCHAR(80) UNIQUE NOT NULL,
+    secret_hash TEXT NOT NULL,                     -- scrypt hash del client_secret
+    algoritmo VARCHAR(10) NOT NULL DEFAULT 'SHA256' CHECK (algoritmo IN ('SHA256', 'SHA512', 'SHA1')),
+    digitos INT NOT NULL DEFAULT 6 CHECK (digitos IN (6, 8)),
+    periodo INT NOT NULL DEFAULT 30 CHECK (periodo BETWEEN 15 AND 60),
+    ventana INT NOT NULL DEFAULT 1 CHECK (ventana BETWEEN 0 AND 3),
+    max_intentos INT NOT NULL DEFAULT 5 CHECK (max_intentos BETWEEN 3 AND 15),
+    umbral_riesgo_bloqueo REAL NOT NULL DEFAULT 75.0 CHECK (umbral_riesgo_bloqueo BETWEEN 40.0 AND 100.0),
+    modo_heuristica VARCHAR(15) NOT NULL DEFAULT 'bloqueo' CHECK (modo_heuristica IN ('monitorizacion', 'bloqueo')),
+    permitir_sha1 BOOLEAN NOT NULL DEFAULT FALSE,
+    estado VARCHAR(20) NOT NULL DEFAULT 'activo' CHECK (estado IN ('activo', 'suspendido')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 2. Políticas Globales de Autenticación TOTP y Resiliencia
-CREATE TABLE IF NOT EXISTS totp_policies (
-    id INTEGER PRIMARY KEY CHECK (id = 1),  -- Singleton de política activa
-    default_algorithm TEXT NOT NULL DEFAULT 'SHA256' CHECK (default_algorithm IN ('SHA256', 'SHA512', 'SHA1')),
-    digits INTEGER NOT NULL DEFAULT 6 CHECK (digits IN (6, 8)),
-    step_seconds INTEGER NOT NULL DEFAULT 30 CHECK (step_seconds BETWEEN 15 AND 60),
-    drift_window INTEGER NOT NULL DEFAULT 1 CHECK (drift_window BETWEEN 0 AND 3),
-    jwt_ttl_seconds INTEGER NOT NULL DEFAULT 300 CHECK (jwt_ttl_seconds BETWEEN 60 AND 3600),
-    max_failed_attempts INTEGER NOT NULL DEFAULT 5 CHECK (max_failed_attempts BETWEEN 3 AND 15),
-    lockout_minutes INTEGER NOT NULL DEFAULT 5 CHECK (lockout_minutes BETWEEN 1 AND 60),
-    anomaly_block_threshold REAL NOT NULL DEFAULT 75.0 CHECK (anomaly_block_threshold BETWEEN 50.0 AND 100.0),
-    updated_by TEXT,
-    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+-- 2. Enrolamientos TOTP (semillas cifradas AES-256-GCM con AAD = id || ':' || key_version)
+CREATE TABLE IF NOT EXISTS enrollments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    app_id UUID NOT NULL REFERENCES apps(id) ON DELETE CASCADE,
+    user_ref_hash VARCHAR(64) NOT NULL,            -- HMAC-SHA256(user_ref, USER_REF_PEPPER); cero PII
+    estado VARCHAR(20) NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'activo', 'suspendido', 'revocado')),
+    algoritmo VARCHAR(10) NOT NULL CHECK (algoritmo IN ('SHA256', 'SHA512', 'SHA1')),
+    digitos INT NOT NULL CHECK (digitos IN (6, 8)),
+    periodo INT NOT NULL DEFAULT 30,
+    seed_ct BYTEA NOT NULL,                        -- AES-256-GCM ciphertext
+    seed_nonce BYTEA NOT NULL,                     -- 96-bit random nonce
+    seed_auth_tag BYTEA NOT NULL,                  -- 128-bit GCM auth tag
+    key_version VARCHAR(20) NOT NULL DEFAULT 'v1',
+    drift_steps INT NOT NULL DEFAULT 0,
+    last_step BIGINT NOT NULL DEFAULT -1,          -- Anti-replay atómico: exigir T > last_step
+    failed_attempts INT NOT NULL DEFAULT 0,
+    locked_until TIMESTAMPTZ,
+    pending_expires_at TIMESTAMPTZ,                -- Caduca a los 10 minutos si no se activa
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    activated_at TIMESTAMPTZ,
+    revoked_at TIMESTAMPTZ
 );
 
--- 3. Enrolamientos de Usuarios (Semillas cifradas en reposo con AES-256-GCM)
-CREATE TABLE IF NOT EXISTS user_enrollments (
-    id TEXT PRIMARY KEY,
-    external_user_id TEXT UNIQUE NOT NULL,
-    account_label TEXT NOT NULL,
-    source_app TEXT NOT NULL DEFAULT 'portal-demo',
-    algorithm TEXT NOT NULL CHECK (algorithm IN ('SHA256', 'SHA512', 'SHA1')),
-    digits INTEGER NOT NULL CHECK (digits IN (6, 8)),
-    step_seconds INTEGER NOT NULL,
-    -- Semilla TOTP cifrada (NUNCA en texto plano)
-    secret_ciphertext TEXT NOT NULL,
-    secret_iv TEXT NOT NULL,
-    secret_auth_tag TEXT NOT NULL,
-    -- Estado y compensación de deriva temporal
-    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'LOCKED', 'REVOKED')),
-    failed_attempts INTEGER NOT NULL DEFAULT 0,
-    locked_until TEXT,
-    last_drift_steps INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-    revoked_at TEXT
+CREATE INDEX IF NOT EXISTS idx_enrollments_app_user ON enrollments(app_id, user_ref_hash);
+
+-- 3. Códigos de recuperación de un solo uso (10 al activar, guardados con scrypt)
+CREATE TABLE IF NOT EXISTS recovery_codes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    enrollment_id UUID NOT NULL REFERENCES enrollments(id) ON DELETE CASCADE,
+    code_hash TEXT NOT NULL,
+    used_at TIMESTAMPTZ
 );
 
-CREATE INDEX IF NOT EXISTS idx_enrollments_external_id ON user_enrollments(external_user_id);
+CREATE INDEX IF NOT EXISTS idx_recovery_enrollment ON recovery_codes(enrollment_id);
 
--- 4. Bóveda Local de Claves Asimétricas Ed25519 (JWT + JWKS con rotación kid)
-CREATE TABLE IF NOT EXISTS signing_keys (
-    kid TEXT PRIMARY KEY,
-    algorithm TEXT NOT NULL DEFAULT 'EdDSA',
-    public_jwk_json TEXT NOT NULL,
-    -- Clave privada Ed25519 cifrada con AES-256-GCM
-    private_key_ciphertext TEXT NOT NULL,
-    private_key_iv TEXT NOT NULL,
-    private_key_auth_tag TEXT NOT NULL,
-    status TEXT NOT NULL CHECK (status IN ('ACTIVE', 'VERIFY_ONLY', 'RETIRED')),
-    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-    rotated_at TEXT
-);
-
--- 5. Protección Anti-Replay (bloqueo temporal de códigos ya usados en ventana)
-CREATE TABLE IF NOT EXISTS replay_guard (
-    enrollment_id TEXT NOT NULL REFERENCES user_enrollments(id) ON DELETE CASCADE,
-    time_step INTEGER NOT NULL,
-    used_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-    expires_at TEXT NOT NULL,
-    PRIMARY KEY (enrollment_id, time_step)
-);
-
-CREATE INDEX IF NOT EXISTS idx_replay_expires ON replay_guard(expires_at);
-
--- 6. Bitácora de Auditoría Anonimizada (sin IPs en texto plano ni secretos)
-CREATE TABLE IF NOT EXISTS auth_audit_events (
-    id TEXT PRIMARY KEY,
-    event_type TEXT NOT NULL,               -- ENROLL, VERIFY_OK, VERIFY_FAIL, REPLAY_BLOCKED, ANOMALY_BLOCKED, KEY_ROTATED, USER_REVOKED, POLICY_UPDATED
-    external_user_id TEXT,
-    source_app TEXT,
-    ip_hash TEXT NOT NULL,                  -- HMAC-SHA256(ip, IP_ANON_SALT)
-    outcome TEXT NOT NULL,
+-- 4. Intentos de verificación (alimenta rate limit e IA local; purga a los 30 días)
+CREATE TABLE IF NOT EXISTS attempts (
+    id BIGSERIAL PRIMARY KEY,
+    enrollment_id UUID REFERENCES enrollments(id) ON DELETE SET NULL,
+    app_id UUID REFERENCES apps(id) ON DELETE SET NULL,
+    user_ref_hash VARCHAR(64),
+    ip_hash VARCHAR(64) NOT NULL,                  -- HMAC-SHA256 con pepper rotativo diario
+    resultado VARCHAR(30) NOT NULL,                -- ok, invalid_code, replay, locked, anomaly_blocked, rate_limited
     risk_score REAL,
-    detail TEXT,
-    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    reasons_json JSONB,
+    inference_ms REAL,
+    ts TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_audit_created_at ON auth_audit_events(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_attempts_ts ON attempts(ts DESC);
+CREATE INDEX IF NOT EXISTS idx_attempts_ip_ts ON attempts(ip_hash, ts DESC);
+CREATE INDEX IF NOT EXISTS idx_attempts_user_ts ON attempts(user_ref_hash, ts DESC);
 
--- 7. Alertas del Motor de IA Heurística Local (0 telemetría externa)
-CREATE TABLE IF NOT EXISTS anomaly_alerts (
-    id TEXT PRIMARY KEY,
-    external_user_id TEXT,
-    ip_hash TEXT NOT NULL,
-    risk_score REAL NOT NULL,
-    level TEXT NOT NULL CHECK (level IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')),
-    action TEXT NOT NULL CHECK (action IN ('ALLOW', 'WARN', 'BLOCK')),
-    reasons_json TEXT NOT NULL,             -- JSON array de factores explicables
-    inference_ms REAL NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+-- 5. JTIs de JWT consumidos (evita replay de comprobantes MFA)
+CREATE TABLE IF NOT EXISTS consumed_jti (
+    jti UUID PRIMARY KEY,
+    expira_en TIMESTAMPTZ NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_anomalies_created_at ON anomaly_alerts(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_consumed_jti_exp ON consumed_jti(expira_en);
 
--- Semilla inicial de política activa
-INSERT OR IGNORE INTO totp_policies (
-    id, default_algorithm, digits, step_seconds, drift_window,
-    jwt_ttl_seconds, max_failed_attempts, lockout_minutes, anomaly_block_threshold, updated_by
-) VALUES (
-    1, 'SHA256', 6, 30, 1, 300, 5, 5, 75.0, 'system_seed'
+-- 6. Claves asimétricas locales Ed25519 (rotación por kid)
+CREATE TABLE IF NOT EXISTS signing_keys (
+    kid VARCHAR(64) PRIMARY KEY,
+    public_jwk JSONB NOT NULL,
+    private_ct BYTEA NOT NULL,                     -- Clave privada Ed25519 cifrada con AES-256-GCM
+    private_nonce BYTEA NOT NULL,
+    private_auth_tag BYTEA NOT NULL,
+    key_version VARCHAR(20) NOT NULL DEFAULT 'v1',
+    estado VARCHAR(20) NOT NULL CHECK (estado IN ('activa', 'solo_verificacion', 'retirada')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    rotated_at TIMESTAMPTZ
 );
+
+-- 7. Administradores de la Consola (RBAC + TOTP propio)
+CREATE TABLE IF NOT EXISTS admins (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario VARCHAR(80) UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,                   -- scrypt hash
+    rol VARCHAR(20) NOT NULL CHECK (rol IN ('Administrador', 'Operador', 'Auditor')),
+    totp_enrollment_id UUID REFERENCES enrollments(id) ON DELETE SET NULL,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 8. Bitácora encadenada por hashes (a prueba de manipulación)
+CREATE TABLE IF NOT EXISTS audit_log (
+    id BIGSERIAL PRIMARY KEY,
+    ts TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    actor VARCHAR(120) NOT NULL,
+    accion VARCHAR(80) NOT NULL,
+    objetivo VARCHAR(160),
+    detalle JSONB,
+    prev_hash VARCHAR(64) NOT NULL,
+    hash VARCHAR(64) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts DESC);

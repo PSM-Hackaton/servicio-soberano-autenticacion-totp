@@ -1,20 +1,16 @@
 # AGENTS.md — Guía Maestra al Unísono (`servicio-soberano-autenticacion-totp`)
 
-> **LECTURA OBLIGATORIA:** Todo agente de IA (de J Laya o de cualquiera de los compañeros del equipo, sin importar el modelo o IDE) **DEBE leer este archivo, `ARCHITECTURE.md`, `SYSTEM_GRAPH.md`, `contracts/` y `TASKS.md` antes de crear, modificar o proponer cualquier código.**
+> **LECTURA OBLIGATORIA:** Todo agente de IA (de J Laya, Diego, Giovani, Javier o cualquier compañero, sin importar modelo o IDE) **DEBE leer este archivo, `docs/analisis/analisis-tecnico.html`, `ARCHITECTURE.md`, `SYSTEM_GRAPH.md`, `contracts/` y `TASKS.md` antes de crear, modificar o proponer cualquier código.**
 
 ---
 
 ## 1. Contexto Oficial del Proyecto
 
 - **Repositorio de trabajo (GitHub):** `https://github.com/PSM-Hackaton/servicio-soberano-autenticacion-totp`
-- **Evento:** Hackatón Venezuela INNOVA 2026 (26–27 de noviembre de 2026).
+- **Documento rector técnico en `main`:** `docs/analisis/analisis-tecnico.html` (autor: Diego Landaeta, v1.0).
 - **Reto oficial:** **Servicio Soberano de Autenticación Multifactorial basado en Tiempo (TOTP)** *(ver `docs/reto/AutenticaciónMultifactorial_TerminosEspecificaciones.pdf`)*.
-- **Sub-equipo asignado (3 personas):** J Laya (Tech Lead / Arquitecto / QA & Integración) + Compañero 2 (Backend / Criptografía / IA Local) + Compañero 3 (Frontend / PWA / Consola).
-- **Integración estratégica con Reto 1:** Otro sub-equipo desarrolla el **Reto 1 (Agente Evaluador de Propuestas de Servicios)**. Nuestro servicio TOTP debe operar:
-  1. **100% autónomo (standalone)** para la defensa de 100 pts del Reto 2.
-  2. **Integrable vía API REST + JWKS (`/.well-known/jwks.json`)** como factor MFA obligatorio en el login del Reto 1 mediante nuestro `sdk/`, sin compartir base de datos ni acoplar código interno.
-- **Soberanía y costo operativo:** **\$0 en APIs externas**, **100% local / offline-capable**, cero dependencias de Google Authenticator Cloud, Auth0, Cloudflare u otros servicios privativos.
-- **Entorno real verificado del nodo:** Ubuntu, 12 cores CPU, 14 GiB RAM, **sin GPU**, **sin Docker**. Disponibles: `Node.js 22`, `npm`, `Python 3.14`, `uv`, `git`.
+- **Integración con Reto 1:** El sub-equipo del **Reto 1 (Agente Evaluador de Propuestas de Servicios)** se integra como una `app` cliente más en nuestra tabla `apps` (`client_id` + `client_secret`) usando nuestro `sdk/`, exactamente igual que `demo-portal-tramites/`.
+- **Soberanía y costo operativo:** **\$0 en APIs externas**, **100% local / sin llamadas a Internet**, cero librerías OTP externas (motor RFC 6238 propio sobre `node:crypto`), cero dependencia de Google Authenticator Cloud, Auth0 o nubes extranjeras.
 
 ---
 
@@ -22,94 +18,80 @@
 
 1. **PROHIBIDO tocar `main`:** Nunca hagas `commit` ni `push` directo a `main`.
 2. **POLÍTICA DE REMOTOS (ORDEN ESTRICTA DE J LAYA):**
-   - **GitHub (`origin`):** **EXCLUSIVO para todas las subidas, PRs y trabajo en equipo.**
-   - **GitLab (`gitlab`):** **BLOQUEADO.** Prohibido ejecutar cualquier `git push` hacia GitLab hasta que J Laya dé la orden literal **`/push gitlab final`**.
+   - **GitHub (`origin`):** **EXCLUSIVO para todas las subidas, PRs y trabajo diario del equipo.**
+   - **GitLab (`gitlab`):** **BLOQUEADO.** Prohibido ejecutar `git push` hacia GitLab hasta que J Laya dé la orden literal **`/push gitlab final`**.
 3. **Flujo de ramas en GitHub:**
-   - Cada integrante trabaja únicamente en su rama `feat/<rol>-<modulo>` (ej. `feat/lead-arquitectura-totp`, `feat/backend-totp-core`, `feat/frontend-console-pwa`).
-   - Integración en GitHub: Pull Request hacia `avance` (revisado por J Laya).
-   - Solo al recibir `/push gitlab final`, el Lead sincroniza hacia el GitLab oficial (`avance` y `terminado`) con el `README.md` obligatorio de 6 apartados.
-4. **Propiedad estricta de carpetas:** Nadie edita carpetas ajenas sin visto bueno del Lead.
-5. **Contratos congelados (`contracts/`):** Son la única fuente de verdad. Prohibido inventar campos, renombrar rutas o cambiar DTOs sin actualizar `contracts/openapi.yaml`, `contracts/schema.sql` y `SYSTEM_GRAPH.md`.
-6. **Cero secretos en Git:** Nunca commitear `.env`, `*.pem`, `*.key`, `*.crt`, `*.db`, llaves AES ni tokens reales.
-7. **Protocolo Graphy (`SYSTEM_GRAPH.md`):** Leer antes de programar; dar de alta nuevos nodos y podar nodos obsoletos en cada avance fuerte.
+   - Trabajo en ramas aisladas por módulo: `feat/<rol>-<modulo>` (ej. `feat/lead-arquitectura-totp`, `feat/backend-totp-core`, `feat/frontend-pwa`, `feat/security-heuristics`).
+   - Integración en GitHub mediante Pull Request revisado antes de fusionar.
+4. **Contratos congelados (`contracts/`):** Fuente única de verdad alineada a la Sección 6 y 7 de `docs/analisis/analisis-tecnico.html`. Prohibido inventar campos o renombrar rutas sin actualizar `contracts/openapi.yaml` y `SYSTEM_GRAPH.md`.
+5. **Cero secretos en Git:** Nunca commitear `.env`, llaves maestras, `*.pem`, `*.key`, `*.crt`, `*.db` ni secretos reales.
+6. **Protocolo Graphy (`SYSTEM_GRAPH.md`):** Leer antes de escribir código; agregar nodos nuevos y podar nodos obsoletos en cada avance.
 
 ---
 
-## 3. Rúbrica Oficial de Evaluación (100 pts — Jurado)
-
-| Dimensión | Peso | Requisito para puntaje máximo |
-| :--- | :---: | :--- |
-| **1. Ejecución Técnica y Funcionalidad** | **25%** | Motor RFC 6238 propio (CSPRNG + `HMAC-SHA256`/`HMAC-SHA512` + *time-drift*), enrolamiento QR, verificación + JWT asimétrico Ed25519 + integración viva con Portal Demo y Reto 1. |
-| **2. Buenas Prácticas, Limpieza y Seguridad** | **15%** | Arquitectura Hexagonal pura, AES-256-GCM en reposo, TLS 1.2/1.3 en tránsito, anti-replay estricto, rate limiting/anti-DDoS, OWASP Top 10, anonimización de IP/metadatos y **SBOM** sin vulnerabilidades críticas. |
-| **3. Impacto y Viabilidad** | **15%** | 100% soberano, \$0 operativo, corre sin internet ni GPU, SDK integrable en 5 minutos en cualquier portal institucional o en Reto 1. |
-| **4. Diseño y UX/UI** | **15%** | Consola Admin (políticas, revocación, rotación de llaves, alertas IA, auditoría) + Cliente Autenticador PWA soberano (QR + temporizador 30s) + Portal Institucional Demo. |
-| **5. Uso e Integración de IA** | **10%** | Motor local de detección de anomalías (<15 ms, 0 telemetría externa) para detectar fuerza bruta distribuida y patrones sospechosos con explicabilidad y bloqueo adaptativo. |
-| **6. Innovación y Creatividad** | **10%** | Simulador de ataques en vivo (Replay + Fuerza Bruta + *Time-Drift*) y puente MFA/JWKS con Reto 1. |
-| **7. Presentación** | **10%** | Demo fluida reproducible en 1 comando y `README.md` completo (6 apartados oficiales). |
-
----
-
-## 4. Estructura Hexagonal Oficial y Propiedad de Carpetas
-
-Basada en el esqueleto **Hexagonal (Ports & Adapters)** del equipo en **Node.js 22 + TypeScript**:
+## 3. Estructura Oficial del Repositorio (Alineada 100% con `main` + Puertos Hexagonales)
 
 ```text
 servicio-soberano-autenticacion-totp/
-├── AGENTS.md                        # [LEAD] Guía maestra al unísono para todos los agentes
-├── ARCHITECTURE.md                  # [LEAD] ADR, diseño hexagonal, stack y comandos
-├── ANALISIS_FASE0.md                # [LEAD] Auditoría Fase 0, prueba de estrés y corte 29h
-├── SYSTEM_GRAPH.md                  # [LEAD] Grafo vivo de dependencias (Protocolo Graphy)
-├── CONTRIBUTING.md                  # [LEAD] Reglas GitHub, bloqueo GitLab y Code Freeze
-├── TASKS.md                         # [LEAD] Pizarrón vivo de tareas verificadas
-├── .env.example                     # [LEAD] Variables de entorno sin secretos
-├── contracts/                       # [LEAD] Contratos congelados (OpenAPI, SQL, JSON mocks)
+├── AGENTS.md                        # Guía maestra al unísono para todos los agentes
+├── ARCHITECTURE.md                  # ADR, arquitectura hexagonal+modular, dual DB (PG16 / SQLite fallback)
+├── ANALISIS_FASE0.md                # Auditoría Fase 0, estrés hardware (con y sin Docker) y cronograma
+├── SYSTEM_GRAPH.md                  # Grafo vivo de conexiones (Protocolo Graphy)
+├── CONTRIBUTING.md                  # Reglas GitHub, bloqueo GitLab y Code Freeze
+├── TASKS.md                         # Pizarrón vivo de tareas verificadas
+├── .env.example                     # Variables de entorno sin secretos
+├── contracts/                       # Contratos congelados (OpenAPI v1, SQL Postgres + SQLite, Mocks JSON)
 │   ├── openapi.yaml
-│   ├── schema.sql
+│   ├── schema.sql                   # PostgreSQL 16 (producción / Docker Compose)
+│   ├── schema.sqlite.sql            # Fallback SQLite WAL (nodos sin Docker)
 │   └── mocks/
-├── backend/                         # [COMPAÑERO 2 — BACKEND, CRIPTO E IA LOCAL]
-│   └── src/
-│       ├── domain/                  # NÚCLEO PURO (0 dependencias de frameworks/HTTP/DB)
-│       │   ├── entities/            # UserEnrollment, TotpPolicy, SigningKey, AuditEvent, AnomalyAssessment
-│       │   ├── value-objects/       # TotpAlgorithm, EncryptedPayload, AnonymizedIp, RiskLevel
-│       │   └── services/            # TotpGenerator (RFC 6238), TimeDriftCalculator
-│       ├── application/             # CASOS DE USO Y PUERTOS (Contratos internos)
-│       │   ├── ports/in/            # EnrollUserUseCase, VerifyTotpUseCase, ValidateTokenUseCase, AdminGovernanceUseCase
-│       │   ├── ports/out/           # EnrollmentRepositoryPort, PolicyRepositoryPort, CryptoVaultPort, ReplayGuardPort, AnomalyDetectorPort, AuditRepositoryPort
-│       │   └── use-cases/           # EnrollUserService, VerifyTotpService, ValidateTokenService, AdminGovernanceService
-│       └── infrastructure/          # ADAPTADORES INTERCAMBIABLES
-│           ├── adapters/in/http/    # Fastify REST, RBAC Admin, Rate Limit, Anti-DDoS, Cabeceras OWASP
-│           ├── adapters/out/persistence/ # SQLite WAL (intercambiable por Postgres en prod sin tocar dominio)
-│           ├── adapters/out/crypto/ # NodeCryptoVaultAdapter (CSPRNG, AES-256-GCM, Ed25519 JWT/JWKS, HMAC IP)
-│           ├── adapters/out/ai/     # LocalAnomalyAdapter + MockAnomalyAdapter (desarrollo paralelo)
-│           └── config/              # DependencyInjection.ts + TlsConfig.ts
-├── frontend/                        # [COMPAÑERO 3 — FRONTEND & UX]
-│   ├── console/                     # Consola Administrativa (políticas, revocación, rotación llaves, alertas IA, auditoría)
-│   ├── authenticator-pwa/           # Cliente Autenticador PWA Soberano (QR + generador TOTP offline 30s)
-│   └── demo-portal/                 # Mini Portal Institucional Demo (login + MFA + inspector JWT)
-├── sdk/                             # [LEAD / INTEGRACIÓN RETO 1] SDK TS/JS para validar MFA + JWKS offline
-├── qa/                              # [LEAD / QA] Tests RFC 6238, OWASP, simulador de ataques y SBOM
-└── docs/reto/                       # Material oficial del hackatón (solo lectura)
+├── backend/                         # API Fastify + TypeScript (Node.js 22)
+│   ├── src/
+│   │   ├── core/totp/               # Motor RFC 6238 propio (CSPRNG, HMAC-SHA256/512, drift, tests RFC)
+│   │   ├── core/vault/              # AES-256-GCM con AAD (enrollment_id+key_version), llave maestra versionada
+│   │   ├── core/tokens/             # JWT Ed25519 (EdDSA), JWKS, jti un solo uso, rotación kid
+│   │   ├── application/             # Puertos Hexagonales (ports/in, ports/out) y casos de uso
+│   │   ├── security/                # Rate limit, bloqueos progresivos, validación estricta, auth apps
+│   │   ├── heuristics/              # Detector local de anomalías (Isolation Forest / scoring <15ms)
+│   │   ├── audit/                   # Bitácora encadenada por hashes (prev_hash -> hash) y métricas anon
+│   │   ├── api/                     # Rutas /api/v1/*, /.well-known/jwks.json y /admin/api/*
+│   │   └── infrastructure/          # Adaptadores persistence (PostgreSQL + SQLite fallback) y config DI/TLS
+│   └── migrations/                  # Migraciones SQL PostgreSQL
+├── authenticator-app/               # PWA autenticadora soberana (React + Vite, offline, PIN, SHA256/512)
+├── admin-console/                   # Consola administrativa (React + Vite, RBAC + TOTP propio, métricas)
+├── sdk/                             # SDK TypeScript para integradores (Portal de Trámites y Reto 1)
+├── demo-portal-tramites/            # Sistema institucional de ejemplo conectado al SDK
+├── attack-lab/                      # Scripts de ataque simulado (replay, fuerza bruta, spraying, drift)
+├── deploy/                          # docker-compose.yml (PostgreSQL 16 + Caddy TLS 1.3) y Caddyfile
+└── docs/                            # reto/, analisis/ (analisis-tecnico.html/pdf), api/, sbom/
 ```
 
 ---
 
-## 5. Invariantes de Ciberseguridad (Obligatorias)
+## 4. Invariantes Criptográficas y de Seguridad (Obligatorias)
 
-1. **TOTP RFC 6238:** Semillas ≥256 bits vía `crypto.randomBytes` (CSPRNG); soporte obligatorio de `HMAC-SHA256` y `HMAC-SHA512` (más `HMAC-SHA1` opcional solo para compatibilidad); ventana de *time-drift* configurable (±1 paso por defecto) con comparación en tiempo constante (`crypto.timingSafeEqual`).
-2. **Anti-Replay:** Bloqueo inmediato de `(enrollment_id, time_step)` ya validado dentro de su ventana activa (en memoria + tabla `replay_guard`).
-3. **Cifrado en Reposo (AES-256-GCM):** Semillas TOTP y claves privadas Ed25519 se cifran con AES-256-GCM (IV aleatorio de 12 bytes + *auth tag* de 16 bytes) antes de persistirse.
-4. **Cifrado en Tránsito (TLS 1.2/1.3):** Fastify sobre HTTPS con certificado TLS local (generado por script de bootstrap y excluido de Git).
-5. **JWT Asimétrico + JWKS:** Firma con `Ed25519` (`EdDSA`), `kid` rotativo, TTL corto (ej. 300s), `jti` único; clave pública publicada en `GET /.well-known/jwks.json`.
-6. **Anonimización:** IPs almacenadas únicamente como `HMAC-SHA256(ip, IP_ANON_SALT)`.
-7. **OWASP & Anti-DDoS:** Validación JSON estricta (Fastify/Ajv o Zod), cabeceras seguras (`Helmet`), *rate limiting* en memoria (<2 ms), bloqueo progresivo exponencial y **SBOM** (`npm sbom` / CycloneDX).
-8. **IA Local sin Telemetría:** `LocalAnomalyAdapter` calcula riesgo conductual 100% en local (velocidad, tasa de fallos, dispersión de cuentas/IPs anonimizadas, *time-drift* anómalo) sin llamar a ninguna API externa.
+1. **Motor TOTP Propio (RFC 6238 sin librerías OTP externas):** Sobre `node:crypto` únicamente; semillas de 32 bytes (SHA-256) y 64 bytes (SHA-512) vía CSPRNG; truncado dinámico RFC 4226; comparación en tiempo constante (`timingSafeEqual`); tests obligatorios contra vectores del Apéndice B del RFC 6238; compensación de *time-drift* y flujo de resincronización con 2 códigos consecutivos (±10 pasos).
+2. **AES-256-GCM con AAD:** Nonce aleatorio de 96 bits + AAD = `enrollment_id + ":" + key_version` para que un cifrado no pueda copiarse a otra fila. Llave maestra fuera de BD y versionada para rotación en lote.
+3. **Anti-Replay Atómico y `jti` de un solo uso:** Guardar `last_step` aceptado y exigir estrictamente `T > last_step`; marcar cada `jti` en `consumed_jti` al validarlo en `/api/v1/tokens/validate`.
+4. **10 Códigos de Recuperación:** Generados al activar (`/enrollments/{id}/activate`), mostrados una sola vez y guardados con hash `scrypt`.
+5. **Anonimización con Pepper:** `user_ref_hash = HMAC-SHA256(user_ref, USER_PEPPER)` (nunca nombres ni correos en BD) e `ip_hash = HMAC-SHA256(ip, DAILY_IP_PEPPER)` con pepper rotativo diario.
+6. **Bitácora Encadenada (`audit_log`):** Cada registro guarda `prev_hash` y `hash = SHA-256(prev_hash || payload)` verificable desde la consola admin.
+7. **OWASP Top 10 & Anti-DDoS:** Esquemas JSON cerrados (`additionalProperties: false`), respuestas de error genéricas (sin enumeración de usuarios), sesiones admin con cookies `HttpOnly; Secure; SameSite=Strict` + CSRF + TOTP propio, *rate limiting* + bloqueo progresivo (30s, 2m, 10m, 1h), TLS 1.3 (Caddy en Docker o Node HTTPS en modo sin Docker) y **SBOM CycloneDX + `npm audit`**.
+8. **IA Local (10% del baremo):** Detector local (sin telemetría externa) sobre `attempts` (fallos/cuenta, IPs distintas/cuenta, cuentas/IP, ritmo entre intentos, hora inusual) con respuesta adaptativa (permitir, espera extra, bloqueo temporal, alerta) demostrado en vivo con `attack-lab/`.
+
+---
+
+## 5. Nota Operativa de Hardware (Docker vs. Sin Docker)
+
+- En entornos **con Docker** (`deploy/docker-compose.yml`): levanta PostgreSQL 16 + Caddy TLS 1.3 + API + Frontends en 1 comando.
+- En estaciones del hackatón **sin Docker** (verificado en este nodo Ubuntu): gracias a los **Puertos Hexagonales** en `backend/src/application/ports/out/`, el backend debe soportar `DB_DRIVER=sqlite` (con `contracts/schema.sqlite.sql`) y `TLS_MODE=node` para desarrollar y probar localmente sin bloqueo alguno.
 
 ---
 
 ## 6. Protocolo de Entrega de Cualquier Agente
 
-Al cerrar cada tarea en tu rama `feat/<rol>-<modulo>`:
-1. Confirmar que **no** modificaste carpetas ajenas ni hiciste commits en `main`.
-2. Adjuntar evidencia real de ejecución (`npm test`, `npm run build`, pruebas HTTP/curl).
-3. Actualizar `TASKS.md` (y `SYSTEM_GRAPH.md` si agregaste/podaste interfaces).
-4. Subir **únicamente a GitHub (`origin`)**; jamás a GitLab sin `/push gitlab final`.
+Al cerrar una tarea en tu rama `feat/<rol>-<modulo>`:
+1. Verificar que **no** modificaste `main` ni carpetas ajenas.
+2. Ejecutar y adjuntar evidencia real de tests/build (`npm test`, vectores RFC 6238, `npm run build`).
+3. Actualizar `TASKS.md` y `SYSTEM_GRAPH.md`.
+4. Hacer `push` **exclusivamente a GitHub (`origin`)**; jamás a GitLab sin `/push gitlab final`.

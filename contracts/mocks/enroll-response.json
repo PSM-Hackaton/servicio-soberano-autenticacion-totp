@@ -1,10 +1,10 @@
 {
-  "enrollmentId": "9f3b8c2a-6e11-4d8a-9c52-2a1d84e901ab",
-  "externalUserId": "usr-reto1-evaluador-01",
-  "algorithm": "SHA256",
-  "digits": 6,
-  "stepSeconds": 30,
-  "otpauthUri": "otpauth://totp/MincytSoberanoMFA:elena.rivas%40institucion.gob.ve?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&issuer=MincytSoberanoMFA&algorithm=SHA256&digits=6&period=30",
-  "qrCodeDataUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxODAiIGhlaWdodD0iMTgwIj48cmVjdCB3aWR0aD0iMTgwIiBoZWlnaHQ9IjE4MCIgZmlsbD0iI2ZmZiIvPjx0ZXh0IHg9IjIwIiB5PSI5NSIgZm9udC1zaXplPSIxNCI+UVIgTU9DSyBUT1RQPC90ZXh0Pjwvc3ZnPg==",
-  "createdAt": "2026-11-26T16:00:00.000Z"
+  "enrollment_id": "9f3b8c2a-6e11-4d8a-9c52-2a1d84e901ab",
+  "estado": "pendiente",
+  "algoritmo": "SHA256",
+  "digitos": 6,
+  "periodo": 30,
+  "otpauth_uri": "otpauth://totp/MincytSoberanoTOTP:ciudadano-demo?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&issuer=MincytSoberanoTOTP&algorithm=SHA256&digits=6&period=30",
+  "qr_svg": "<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><rect width='180' height='180' fill='#fff'/><text x='20' y='95' font-size='14'>QR MOCK TOTP</text></svg>",
+  "expires_at": "2026-11-26T16:10:00.000Z"
 }
