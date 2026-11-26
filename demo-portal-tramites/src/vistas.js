@@ -2,6 +2,7 @@
 
 import { html, crudo } from './html.js';
 import { TRAMITES } from './tramites.js';
+import { formatearCedula } from './cedula.js';
 
 const ICONOS = {
   documento: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M10 13h6M10 17h6"/>',
@@ -15,6 +16,15 @@ const ICONOS = {
   reloj: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   nube: '<path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 19 10a4 4 0 0 1 0 8z"/><path d="M4 4l16 16"/>',
   ok: '<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>',
+  menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  cerrar: '<path d="M6 6l12 12M18 6L6 18"/>',
+  flecha: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  casa: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
+  ayuda: '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.4M12 16.8h.01"/>',
+  usuario: '<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1.4-3.7 4.2-5.5 7.5-5.5s6.1 1.8 7.5 5.5"/>',
+  servidor: '<rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="13" width="16" height="7" rx="1.5"/><path d="M8 7.5h.01M8 16.5h.01M12 7.5h4M12 16.5h4"/>',
+  codigo: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M10 9h4M10 12h4M10 15h2"/>',
+  tramites: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
 };
 
 export function icono(nombre, clase = 'icono') {
@@ -29,7 +39,7 @@ const csrf = (s) => html`<input type="hidden" name="_csrf" value="${s.csrf}">`;
 
 /** Indicador de pasos del ingreso. @param {number} actual 1..3 */
 function pasos(actual, segundo = 'Segundo factor') {
-  const items = ['Usuario y contraseña', segundo, 'Acceso a trámites'];
+  const items = ['Cédula y contraseña', segundo, 'Acceso a trámites'];
   return html`<ol class="pasos" aria-label="Progreso del ingreso">${items.map((t, i) => html`
     <li class="${i + 1 < actual ? 'hecho' : i + 1 === actual ? 'actual' : ''}" ${i + 1 === actual ? crudo('aria-current="step"') : ''}>
       <span class="pasos-num">${i + 1 < actual ? '✓' : i + 1}</span><span>${t}</span></li>`)}
@@ -73,17 +83,50 @@ function campoCodigo({ etiqueta = 'Código de 6 dígitos', ayuda = 'Lo muestra s
 
 // ---------------------------------------------------------------- layout
 
+const ZONA = 'America/Caracas';
+const fechaLarga = (d) => new Intl.DateTimeFormat('es-VE', { timeZone: ZONA, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(d);
+const fechaIso = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: ZONA }).format(d);
+
+/** Bandera nacional (SVG propio: tres franjas y arco de ocho estrellas, sin escudo). */
+const bandera = (clase, ancho = 48) => html`<img class="${clase}" src="/publico/bandera.svg" alt="" width="${ancho}" height="${Math.round((ancho * 2) / 3)}">`;
+
+/** Migas de pan. @param {Array<[string, string?]>} items [texto, enlace?]; el último es la página actual. */
+export function migas(items) {
+  return html`<nav class="migas" aria-label="Migas de pan"><ol>
+    <li><a href="/">${icono('casa', 'icono icono-mini')}<span>Inicio</span></a></li>${items.map(([t, h], i) => html`
+    <li>${i === items.length - 1 || !h ? html`<span aria-current="page">${t}</span>` : html`<a href="${h}">${t}</a>`}</li>`)}
+  </ol></nav>`;
+}
+
+/** Menú principal: solo vistas existentes y anclas. */
+function menu({ autenticado, ruta }) {
+  const enTramites = ruta.startsWith('/tramites/') || ruta.startsWith('/comprobantes/');
+  const items = [
+    { t: 'Inicio', h: '/', ic: 'casa', activo: (ruta === '/ingresar' || ruta === '/panel') },
+    { t: 'Trámites en línea', h: autenticado ? '/panel#tramites' : '/ingresar#tramites', ic: 'tramites', activo: enTramites },
+    { t: 'Seguridad de su cuenta', h: autenticado ? '/panel#seguridad' : '/ingresar#como-protege', ic: 'escudo', activo: false },
+    { t: 'Ayuda', h: '#ayuda', ic: 'ayuda', activo: false },
+  ];
+  return html`<ul class="menu-lista">${items.map((i) => html`
+    <li><a class="menu-enlace" href="${i.h}" ${i.activo ? crudo('aria-current="page"') : ''}>${icono(i.ic, 'icono icono-chico')}<span>${i.t}</span></a></li>`)}
+  </ul>`;
+}
+
 /**
- * @param {{ titulo: string, sesion: any, usuario?: any, contenido: any, ancho?: 'estrecho' | 'amplio', ruta: string }} o
+ * @param {{ titulo: string, sesion: any, usuario?: any, contenido: any, ancho?: 'estrecho' | 'amplio' | 'portada', ruta: string }} o
  */
 export function layout({ titulo, sesion, usuario, contenido, ancho = 'estrecho', ruta }) {
   const conTrazas = sesion.trazasVisibles;
+  const conSesion = Boolean(usuario) && sesion.etapa !== 'anonima';
+  const autenticado = conSesion && sesion.etapa === 'autenticado';
+  const hoy = new Date();
   return `<!doctype html>${html`
 <html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
+<meta name="theme-color" content="#00247D">
 <title>${titulo} · Portal de Trámites del Estado</title>
 <link rel="icon" href="/publico/emblema.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/publico/estilos.css">
@@ -91,35 +134,48 @@ export function layout({ titulo, sesion, usuario, contenido, ancho = 'estrecho',
 </head>
 <body>
 <a class="saltar" href="#contenido">Saltar al contenido</a>
-<div class="franja-tricolor" aria-hidden="true"></div>
-<div class="cintillo">
-  <div class="contenedor cintillo-fila">
-    <span class="cintillo-pais">República Bolivariana de Venezuela</span>
-    <span class="cintillo-servicio">Servicio Soberano de Autenticación</span>
-  </div>
-</div>
-<header class="cabecera">
-  <div class="contenedor cabecera-fila">
-    <a class="marca" href="/" aria-label="Portal de Trámites del Estado, inicio">
-      <img class="marca-emblema" src="/publico/emblema.svg" alt="" width="44" height="44">
-      <span class="marca-texto"><strong>Portal de Trámites</strong><span>del Estado</span></span>
-    </a>
-    <div class="cabecera-acciones">
-      <form method="post" action="/trazas" class="form-en-linea">
-        ${csrf(sesion)}<input type="hidden" name="volver" value="${ruta}">
-        <button type="submit" class="boton-trazas" aria-pressed="${conTrazas ? 'true' : 'false'}">
-          <span class="interruptor" aria-hidden="true"></span><span>Lo que ocurre por dentro</span>
-        </button>
-      </form>
-      ${usuario && sesion.etapa !== 'anonima' ? html`
-      <form method="post" action="/salir" class="form-en-linea">
-        ${csrf(sesion)}
-        <button type="submit" class="boton boton-secundario boton-chico">Salir</button>
-      </form>` : ''}
+<header class="encabezado">
+  <div class="cintillo">
+    <div class="contenedor cintillo-fila">
+      <a class="cintillo-marca" href="/" aria-label="Portal de Trámites del Estado, República Bolivariana de Venezuela. Ir al inicio">
+        ${bandera('cintillo-bandera', 54)}
+        <span class="cintillo-textos">
+          <span class="cintillo-pais">República Bolivariana de Venezuela</span>
+          <span class="cintillo-portal">Portal de Trámites del Estado</span>
+        </span>
+      </a>
+      <div class="cintillo-datos">
+        <time class="cintillo-fecha" datetime="${fechaIso(hoy)}">${fechaLarga(hoy)}</time>
+        <span class="cintillo-servicio">${icono('escudo', 'icono icono-chico')}<span>Servicio Soberano de Autenticación</span></span>
+      </div>
     </div>
   </div>
+  <div class="franja-tricolor" aria-hidden="true"></div>
+  <nav class="menu" aria-label="Menú principal" data-menu>
+    <div class="contenedor menu-fila">
+      <button type="button" class="menu-boton" aria-expanded="false" aria-controls="menu-panel" hidden data-menu-boton>
+        ${icono('menu', 'icono menu-icono-abrir')}${icono('cerrar', 'icono menu-icono-cerrar')}<span>Menú</span>
+      </button>
+      <div class="menu-panel" id="menu-panel">
+        ${menu({ autenticado, ruta })}
+        <div class="menu-acciones">
+          <form method="post" action="/trazas" class="form-en-linea">
+            ${csrf(sesion)}<input type="hidden" name="volver" value="${ruta}">
+            <button type="submit" class="boton-trazas" aria-pressed="${conTrazas ? 'true' : 'false'}">
+              <span class="interruptor" aria-hidden="true"></span><span>Lo que ocurre por dentro</span>
+            </button>
+          </form>
+          ${conSesion ? html`
+          <form method="post" action="/salir" class="form-en-linea">
+            ${csrf(sesion)}
+            <button type="submit" class="boton-salir">${icono('usuario', 'icono icono-chico')}<span>Salir</span></button>
+          </form>` : ''}
+        </div>
+      </div>
+    </div>
+  </nav>
 </header>
-<div class="franja-demo" role="note"><div class="contenedor franja-demo-fila">${icono('alerta', 'icono icono-chico')}<span><strong>Sitio de demostración.</strong> Institución, personas y datos son ficticios.</span></div></div>
+<div class="franja-demo" role="note"><div class="contenedor franja-demo-fila">${icono('alerta', 'icono icono-chico')}<span><strong>Sitio de demostración.</strong> Institución, personas, cédulas y datos son ficticios; no es un sitio oficial.</span></div></div>
 <div class="contenedor disposicion ${conTrazas ? 'con-trazas' : ''}">
   <main id="contenido" class="principal principal-${ancho}" tabindex="-1">
     ${contenido}
@@ -129,19 +185,40 @@ export function layout({ titulo, sesion, usuario, contenido, ancho = 'estrecho',
 <footer class="pie">
   <div class="franja-tricolor" aria-hidden="true"></div>
   <div class="contenedor pie-rejilla">
-    <div class="pie-marca">
-      <p class="pie-titulo">Servicio Soberano de Autenticación</p>
-      <p>Portal de Trámites del Estado · Demostración de integración con el segundo factor TOTP.</p>
-    </div>
-    <ul class="pie-sellos">
-      <li>${icono('documento', 'icono icono-chico')}<span>Software libre · AGPL-3.0</span></li>
-      <li>${icono('escudo', 'icono icono-chico')}<span>Infraestructura nacional · Sin dependencias extranjeras</span></li>
-      <li>${icono('candado', 'icono icono-chico')}<span>Sin rastreadores ni recursos externos</span></li>
-    </ul>
+    <section class="pie-columna pie-marca" aria-labelledby="pie-servicio">
+      <div class="pie-marca-fila">${bandera('pie-bandera', 42)}<h2 id="pie-servicio" class="pie-titulo">Servicio Soberano de Autenticación</h2></div>
+      <p>Portal de Trámites del Estado: demostración de un portal institucional que protege sus trámites con un segundo factor TOTP verificado en infraestructura propia.</p>
+    </section>
+    <section class="pie-columna" aria-labelledby="pie-enlaces">
+      <h2 id="pie-enlaces" class="pie-subtitulo">Enlaces</h2>
+      <ul class="pie-enlaces">
+        <li><a href="#">Términos de uso</a></li>
+        <li><a href="#">Política de privacidad</a></li>
+        <li><a href="#">Accesibilidad</a></li>
+        <li><a href="#">Código fuente (AGPL-3.0)</a></li>
+      </ul>
+    </section>
+    <section class="pie-columna" id="ayuda" aria-labelledby="pie-ayuda" tabindex="-1">
+      <h2 id="pie-ayuda" class="pie-subtitulo">Ayuda</h2>
+      <ul class="pie-enlaces">
+        <li><a href="/recuperar">¿Perdió su teléfono? Use un código de recuperación</a></li>
+        <li><span>¿El código no funciona? Verifique que la hora de su teléfono sea automática.</span></li>
+        <li><span>Ingrese con su cédula: V o E y el número, con o sin puntos.</span></li>
+      </ul>
+    </section>
+    <section class="pie-columna" aria-labelledby="pie-garantias">
+      <h2 id="pie-garantias" class="pie-subtitulo">Garantías</h2>
+      <ul class="pie-sellos">
+        <li>${icono('documento', 'icono icono-chico')}<span>Software libre · AGPL-3.0</span></li>
+        <li>${icono('servidor', 'icono icono-chico')}<span>Infraestructura nacional · Sin dependencias extranjeras</span></li>
+        <li>${icono('candado', 'icono icono-chico')}<span>Sin rastreadores ni recursos externos</span></li>
+      </ul>
+    </section>
   </div>
   <div class="pie-legal">
-    <div class="contenedor">
-      <p>Sitio de demostración. Institución, personas y datos son ficticios. El segundo factor se verifica en un servicio propio, en infraestructura local.</p>
+    <div class="contenedor pie-legal-fila">
+      <p><strong>Sitio de demostración.</strong> Institución, personas y datos son ficticios. El segundo factor se verifica en un servicio propio, en infraestructura local.</p>
+      <p>Portal de Trámites del Estado · ${String(hoy.getFullYear())}</p>
     </div>
   </div>
 </footer>
@@ -173,38 +250,97 @@ const ETIQUETAS = { servicio: 'Servicio TOTP', local: 'Portal', jwt: 'JWT', deci
 
 // ---------------------------------------------------------------- páginas
 
-export function paginaIngresar({ sesion, error, usuario = '', demo = [] }) {
+/** Servicios destacados de la portada (accesos rápidos). */
+const SERVICIOS = [
+  { icono: 'documento', titulo: 'Solicitud de certificado', texto: 'Residencia, antecedentes o estado civil con validez digital.', sello: 'Confirmación con código' },
+  { icono: 'banco', titulo: 'Cambio de datos bancarios', texto: 'Actualice la cuenta donde recibe pagos y devoluciones.', sello: 'Confirmación con código' },
+  { icono: 'lista', titulo: 'Consulta de trámites', texto: 'Revise el estado de sus solicitudes y comprobantes.', sello: 'Consulta' },
+  { icono: 'escudo', titulo: 'Seguridad de la cuenta', texto: 'Vincule, cambie o revoque su autenticador.', sello: 'Segundo factor' },
+];
+
+export function paginaIngresar({ sesion, error, errorCedula = false, previo = {}, demo = [] }) {
+  const nac = previo.nacionalidad === 'E' ? 'E' : 'V';
   return html`
-  ${pasos(1)}
-  <section class="tarjeta">
-    <h1>Ingresar al portal</h1>
-    <p class="entradilla">Acceda con su usuario y contraseña. Después le pediremos un código de su app autenticadora.</p>
-    ${error ? aviso(error.tipo ?? 'error', error.titulo, error.texto) : ''}
-    ${sesion.aviso ? aviso(sesion.aviso.tipo, sesion.aviso.texto, null) : ''}
-    <form method="post" action="/ingresar" class="formulario" data-un-envio>
-      ${csrf(sesion)}
-      <div class="campo">
-        <label for="usuario">Usuario</label>
-        <input id="usuario" name="usuario" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="64" value="${usuario}">
-      </div>
-      <div class="campo">
-        <label for="contrasena">Contraseña</label>
-        <input id="contrasena" name="contrasena" type="password" autocomplete="current-password" required maxlength="128">
-      </div>
-      <button type="submit" class="boton boton-primario boton-ancho">Continuar</button>
-    </form>
+  <section class="portada" aria-labelledby="portada-titulo">
+    <div class="portada-texto">
+      <p class="portada-sobretitulo">Oficina virtual del ciudadano</p>
+      <h1 id="portada-titulo">Trámites en línea seguros con segundo factor soberano</h1>
+      <p class="portada-entradilla">Ingrese con su cédula de identidad y confirme con el código de 6 dígitos de su app autenticadora. Su cuenta queda protegida aunque alguien conozca su contraseña.</p>
+      <ul class="portada-claves">
+        <li>${icono('codigo', 'icono')}<span>Código que cambia cada 30 segundos</span></li>
+        <li>${icono('servidor', 'icono')}<span>Verificado en infraestructura nacional</span></li>
+        <li>${icono('candado', 'icono')}<span>Sus claves no salen de su teléfono</span></li>
+      </ul>
+    </div>
+    <div class="acceso" id="acceso">
+      <h2 class="acceso-titulo">${icono('usuario', 'icono')}<span>Ingresar al portal</span></h2>
+      ${pasos(1, 'Código')}
+      ${error ? aviso(error.tipo ?? 'error', error.titulo, error.texto) : ''}
+      ${sesion.aviso ? aviso(sesion.aviso.tipo, sesion.aviso.texto, null) : ''}
+      <form method="post" action="/ingresar" class="formulario" data-un-envio>
+        ${csrf(sesion)}
+        <fieldset class="campo campo-cedula">
+          <legend>Cédula de identidad</legend>
+          <div class="cedula-fila">
+            <label class="solo-lectores" for="nacionalidad">Nacionalidad</label>
+            <select id="nacionalidad" name="nacionalidad" class="cedula-nacionalidad" data-cedula-nacionalidad>
+              <option value="V" ${nac === 'V' ? crudo('selected') : ''}>V</option>
+              <option value="E" ${nac === 'E' ? crudo('selected') : ''}>E</option>
+            </select>
+            <label class="solo-lectores" for="cedula">Número de cédula</label>
+            <input id="cedula" name="cedula" type="text" inputmode="numeric" autocomplete="username" spellcheck="false" required
+              maxlength="14" placeholder="12.345.678" value="${previo.cedula ?? ''}"
+              pattern="(?:[VvEe](?:-| )?)?(?:[1-9][0-9]{2}[.]?[0-9]{3}|[1-9][0-9]{0,2}[.]?[0-9]{3}[.]?[0-9]{3})"
+              aria-describedby="cedula-ayuda" ${errorCedula ? crudo('aria-invalid="true"') : ''} data-cedula>
+          </div>
+          <p class="ayuda" id="cedula-ayuda" data-cedula-ayuda>V venezolano o E extranjero, y de 6 a 9 dígitos, con o sin puntos.</p>
+        </fieldset>
+        <div class="campo">
+          <label for="contrasena">Contraseña</label>
+          <input id="contrasena" name="contrasena" type="password" autocomplete="current-password" required maxlength="128">
+        </div>
+        <button type="submit" class="boton boton-primario boton-ancho">Continuar${icono('flecha', 'icono icono-chico')}</button>
+      </form>
+    </div>
+    ${demo.length ? html`
+    <section class="demo" aria-labelledby="demo-titulo">
+      <h2 id="demo-titulo" class="demo-titulo">Cuentas de demostración</h2>
+      <p class="demo-nota">Personas y cédulas ficticias. Contraseña de todas: <code>Tramites-Demo-2026</code></p>
+      <ul class="lista-demo">${demo.map((u) => html`<li><code>${u.cedulaFormateada}</code><span class="lista-demo-nombre">${u.nombre}</span><span class="etiqueta ${u.conFactor ? 'etiqueta-ok' : ''}">${u.conFactor ? 'Con segundo factor' : 'Sin segundo factor'}</span></li>`)}</ul>
+    </section>` : ''}
   </section>
-  ${demo.length ? html`
-  <section class="tarjeta tarjeta-suave" aria-labelledby="demo-titulo">
-    <h2 id="demo-titulo" class="titulo-chico">Cuentas de demostración</h2>
-    <p class="ayuda">Personas ficticias. Contraseña de todas: <code>Tramites-Demo-2026</code></p>
-    <ul class="lista-demo">${demo.map((u) => html`<li><code>${u.usuario}</code><span>${u.nombre}</span><span class="etiqueta ${u.conFactor ? 'etiqueta-ok' : ''}">${u.conFactor ? 'Con segundo factor' : 'Sin segundo factor'}</span></li>`)}</ul>
-  </section>` : ''}`;
+
+  <section class="bloque" id="tramites" aria-labelledby="servicios-titulo" tabindex="-1">
+    <div class="bloque-cabecera">
+      <h2 id="servicios-titulo" class="titulo-bloque">Trámites en línea</h2>
+      <p>Disponibles las 24 horas tras ingresar. Las operaciones sensibles se confirman con un código nuevo.</p>
+    </div>
+    <ul class="servicios">${SERVICIOS.map((t) => html`
+      <li class="servicio">
+        <span class="servicio-icono">${icono(t.icono)}</span>
+        <h3><a href="#acceso">${t.titulo}</a></h3>
+        <p>${t.texto}</p>
+        <span class="servicio-pie"><span class="etiqueta">${t.sello}</span><span class="servicio-ir">Ingresar${icono('flecha', 'icono icono-mini')}</span></span>
+      </li>`)}
+    </ul>
+  </section>
+
+  <section class="bloque bloque-info" id="como-protege" aria-labelledby="como-titulo" tabindex="-1">
+    <div class="bloque-cabecera">
+      <h2 id="como-titulo" class="titulo-bloque">¿Cómo protege su cuenta el segundo factor?</h2>
+      <p>Dos pruebas distintas: algo que usted sabe y algo que usted tiene.</p>
+    </div>
+    <ol class="pasos-info">
+      <li><span class="pasos-info-num">1</span><div><h3>Ingrese su cédula y contraseña</h3><p>Es el primer factor, propio del portal. Por sí solo no basta para entrar.</p></div></li>
+      <li><span class="pasos-info-num">2</span><div><h3>Confirme con el código de su teléfono</h3><p>Su app autenticadora genera un código de 6 dígitos que cambia cada 30 segundos, incluso sin conexión.</p></div></li>
+      <li><span class="pasos-info-num">3</span><div><h3>Los trámites sensibles piden otro código</h3><p>Antes de emitir un certificado o cambiar sus datos bancarios, se le pide un código nuevo.</p></div></li>
+    </ol>
+  </section>`;
 }
 
 export function paginaEnrolar({ sesion, usuario, enrolamiento, resultado, autenticadorUrl, errorServicio }) {
   if (errorServicio) {
-    return html`${pasos(2, 'Vincular autenticador')}
+    return html`${migas([['Ingreso', '/ingresar'], ['Vincular autenticador']])}${pasos(2, 'Vincular autenticador')}
     <section class="tarjeta">
       <h1>Vincule su autenticador</h1>
       ${avisoSegundoFactor({ ok: false, tipo: 'servicio' })}
@@ -216,6 +352,7 @@ export function paginaEnrolar({ sesion, usuario, enrolamiento, resultado, autent
   const clave = (enrolamiento.claveManual ?? '').replace(/(.{4})/g, '$1 ').trim();
   const qrData = `data:image/svg+xml;base64,${Buffer.from(enrolamiento.qrSvg).toString('base64')}`;
   return html`
+  ${migas([['Ingreso', '/ingresar'], ['Vincular autenticador']])}
   ${pasos(2, 'Vincular autenticador')}
   <section class="tarjeta">
     <h1>Vincule su autenticador</h1>
@@ -254,6 +391,7 @@ export function paginaEnrolar({ sesion, usuario, enrolamiento, resultado, autent
 
 export function paginaCodigosRecuperacion({ sesion, codigos }) {
   return html`
+  ${migas([['Ingreso', '/ingresar'], ['Códigos de recuperación']])}
   ${pasos(2, 'Vincular autenticador')}
   <section class="tarjeta">
     ${aviso('exito', 'Segundo factor activado', 'Su autenticador quedó vinculado a la cuenta.')}
@@ -275,6 +413,7 @@ export function paginaCodigosRecuperacion({ sesion, codigos }) {
 export function paginaVerificar({ sesion, usuario, resultado }) {
   const bloqueado = resultado?.tipo === 'bloqueo';
   return html`
+  ${migas([['Ingreso', '/ingresar'], ['Verificación en dos pasos']])}
   ${pasos(2)}
   <section class="tarjeta">
     <h1>Verificación en dos pasos</h1>
@@ -294,6 +433,7 @@ export function paginaVerificar({ sesion, usuario, resultado }) {
 
 export function paginaRecuperar({ sesion, resultado }) {
   return html`
+  ${migas([['Ingreso', '/ingresar'], ['Código de recuperación']])}
   ${pasos(2)}
   <section class="tarjeta">
     <h1>Ingresar con un código de recuperación</h1>
@@ -315,38 +455,54 @@ export function paginaRecuperar({ sesion, resultado }) {
 
 export function paginaPanel({ sesion, usuario }) {
   const mfa = sesion.mfa;
+  const cedula = usuario.cedulaFormateada ?? formatearCedula(usuario.cedula);
   return html`
-  <section class="bienvenida">
-    <div>
-      <p class="sobretitulo">Área personal</p>
-      <h1>Hola, ${usuario.nombre}</h1>
-      <p class="entradilla">Documento ${usuario.documento} · Sesión protegida con verificación en dos pasos.</p>
+  ${migas([['Oficina virtual']])}
+  <section class="oficina" aria-labelledby="oficina-titulo">
+    <div class="oficina-identidad">
+      <span class="oficina-avatar">${icono('usuario')}</span>
+      <div>
+        <p class="oficina-sobretitulo">Oficina virtual</p>
+        <h1 id="oficina-titulo">Hola, ${usuario.nombre}</h1>
+        <p class="oficina-datos">Cédula de identidad <strong>${cedula}</strong></p>
+      </div>
     </div>
-    <dl class="estado-sesion">
-      <div><dt>Segundo factor</dt><dd>${icono('escudo', 'icono icono-chico')} Verificado a las ${hora(mfa.en)}</dd></div>
-      <div><dt>Método</dt><dd>${(mfa.amr ?? []).join(', ').toUpperCase() || 'OTP'} · firma EdDSA</dd></div>
-      <div><dt>Constancia</dt><dd>${mfa.modo}</dd></div>
-    </dl>
+    <p class="oficina-estado">${icono('escudo', 'icono icono-chico')}<span>Sesión protegida con verificación en dos pasos</span></p>
   </section>
   ${sesion.aviso ? aviso(sesion.aviso.tipo, sesion.aviso.texto, null) : ''}
-  <section aria-labelledby="tramites-titulo">
-    <h2 id="tramites-titulo" class="titulo-seccion">Trámites disponibles</h2>
-    <ul class="rejilla-tramites">${TRAMITES.map((t) => html`
-      <li class="tramite ${t.peligro ? 'tramite-peligro' : ''}">
-        <div class="tramite-icono">${icono(t.icono)}</div>
-        <div class="tramite-cuerpo">
-          <h3><a href="/tramites/${t.id}">${t.titulo}</a></h3>
-          <p>${t.resumen}</p>
-          ${t.sensible ? html`<span class="etiqueta etiqueta-sensible">${icono('candado', 'icono icono-mini')} Requiere confirmar con código</span>` : html`<span class="etiqueta">Consulta</span>`}
-        </div>
-      </li>`)}
-    </ul>
-  </section>`;
+  <div class="oficina-rejilla">
+    <section id="tramites" aria-labelledby="tramites-titulo" tabindex="-1">
+      <h2 id="tramites-titulo" class="titulo-bloque">Trámites en línea</h2>
+      <ul class="rejilla-tramites">${TRAMITES.map((t) => html`
+        <li class="tramite ${t.peligro ? 'tramite-peligro' : ''}">
+          <div class="tramite-icono">${icono(t.icono)}</div>
+          <div class="tramite-cuerpo">
+            <h3><a href="/tramites/${t.id}">${t.titulo}</a></h3>
+            <p>${t.resumen}</p>
+            ${t.sensible ? html`<span class="etiqueta etiqueta-sensible">${icono('candado', 'icono icono-mini')} Requiere confirmar con código</span>` : html`<span class="etiqueta">Consulta</span>`}
+          </div>
+        </li>`)}
+      </ul>
+    </section>
+    <aside class="seguridad" id="seguridad" aria-labelledby="seguridad-titulo" tabindex="-1">
+      <h2 id="seguridad-titulo" class="seguridad-titulo">${icono('escudo', 'icono')}<span>Seguridad de su cuenta</span></h2>
+      <dl class="estado-sesion">
+        <div><dt>Segundo factor</dt><dd>Verificado a las ${hora(mfa.en)}</dd></div>
+        <div><dt>Método</dt><dd>${(mfa.amr ?? []).join(', ').toUpperCase() || 'OTP'} · firma EdDSA</dd></div>
+        <div><dt>Constancia</dt><dd>${mfa.modo}</dd></div>
+      </dl>
+      <p class="ayuda">El servicio de autenticación no conoce su cédula: solo recibe un seudónimo.</p>
+      <ul class="seguridad-enlaces">
+        <li><a href="/tramites/consulta">Ver mis trámites y comprobantes</a></li>
+        <li><a href="/tramites/desactivar-factor">Cambié de teléfono: revocar el autenticador</a></li>
+      </ul>
+    </aside>
+  </div>`;
 }
 
 export function paginaTramite({ sesion, tramite, resultado, error, valores = {} }) {
   return html`
-  <nav class="migas" aria-label="Ruta"><a href="/panel">Área personal</a><span aria-hidden="true">›</span><span>${tramite.titulo}</span></nav>
+  ${migas([['Oficina virtual', '/panel'], [tramite.titulo]])}
   <section class="tarjeta">
     <h1>${tramite.titulo}</h1>
     <p class="entradilla">${tramite.resumen}</p>
@@ -377,7 +533,7 @@ export function paginaTramite({ sesion, tramite, resultado, error, valores = {} 
 
 export function paginaComprobante({ comprobante }) {
   return html`
-  <nav class="migas" aria-label="Ruta"><a href="/panel">Área personal</a><span aria-hidden="true">›</span><span>Comprobante</span></nav>
+  ${migas([['Oficina virtual', '/panel'], [`Comprobante ${comprobante.folio}`]])}
   <section class="tarjeta comprobante">
     ${aviso('exito', 'Trámite completado', comprobante.mensaje)}
     <h1>Comprobante ${comprobante.folio}</h1>
@@ -387,7 +543,7 @@ export function paginaComprobante({ comprobante }) {
       <div><dt>Confirmado con</dt><dd>Código TOTP verificado por el servicio soberano (jti ${comprobante.jti.slice(0, 8)}…)</dd></div>
     </dl>
     <div class="acciones">
-      <a class="boton boton-primario" href="/panel">Volver al área personal</a>
+      <a class="boton boton-primario" href="/panel">Volver a la oficina virtual</a>
       <button type="button" class="boton boton-secundario" data-imprimir>Imprimir comprobante</button>
     </div>
   </section>`;
@@ -395,7 +551,7 @@ export function paginaComprobante({ comprobante }) {
 
 export function paginaConsulta({ sesion }) {
   return html`
-  <nav class="migas" aria-label="Ruta"><a href="/panel">Área personal</a><span aria-hidden="true">›</span><span>Consulta de mis trámites</span></nav>
+  ${migas([['Oficina virtual', '/panel'], ['Consulta de mis trámites']])}
   <section class="tarjeta">
     <h1>Consulta de mis trámites</h1>
     ${sesion.comprobantes.length === 0

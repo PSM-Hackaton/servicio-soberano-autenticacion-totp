@@ -17,8 +17,8 @@ let csrfToken = null;
 
 export function fijarCsrf(token) { csrfToken = token || null; }
 
-/** Operaciones opcionales que dependen de la versión de la API. */
-export const capacidades = Object.freeze({ accionesEnrolamiento: esMock });
+/** Operaciones opcionales que dependen de la versión de la API (todas disponibles desde el #21). */
+export const capacidades = Object.freeze({ accionesEnrolamiento: true });
 
 /** Error de la API con estado HTTP y cuerpo normalizado. */
 export class ErrorApi extends Error {
@@ -42,7 +42,8 @@ export function mensajeDeError(e) {
     case 403: return 'No tienes permisos para realizar esta acción.';
     case 404: return 'El recurso solicitado no existe.';
     case 405: return 'La API no expone esta operación.';
-    case 409: return 'La operación entra en conflicto con el estado actual.';
+    // Los 409 de la consola traen un motivo fijo del servidor (nunca datos de la entrada).
+    case 409: return e.codigo === 'CONFLICT' && typeof e.cuerpo?.message === 'string' ? e.cuerpo.message : 'La operación entra en conflicto con el estado actual.';
     case 429: return `Demasiadas solicitudes. Reintenta en ${e.reintentarEn ?? 30} s.`;
     case 503: return 'Servicio no disponible temporalmente.';
     default: return e.status >= 500 ? 'Error interno del servicio.' : 'No se pudo completar la operación.';
@@ -136,8 +137,21 @@ function normalizarApp(a) {
     modo_heuristica: primero(a, 'modo_heuristica', 'heuristicsMode') ?? 'bloqueo',
     permitir_sha1: aBool(primero(a, 'permitir_sha1', 'allowSha1')),
     estado: primero(a, 'estado', 'status') ?? 'activo',
+    user_ref_desde_cedula: primero(a, 'user_ref_desde_cedula') ?? 'ninguno',
+    cedula_prefijo: primero(a, 'cedula_prefijo') ?? '',
     created_at: primero(a, 'created_at', 'createdAt'),
     updated_at: primero(a, 'updated_at', 'updatedAt'),
+  };
+}
+
+function normalizarAdmin(a) {
+  return {
+    id: primero(a, 'id'),
+    usuario: primero(a, 'usuario') ?? '—',
+    rol: primero(a, 'rol') ?? 'Auditor',
+    activo: aBool(primero(a, 'activo')),
+    totp_estado: primero(a, 'totp_estado') ?? 'sin_totp',
+    created_at: primero(a, 'created_at', 'createdAt'),
   };
 }
 
@@ -278,6 +292,19 @@ export const api = {
     const d = await post('/admin/api/apps', cuerpo);
     return normalizarApp(d?.app ?? d ?? cuerpo);
   },
+  /**
+   * POST /admin/api/apps sin `id`: registra la app. Devuelve las credenciales que el servidor
+   * entrega UNA sola vez (client_secret y, si la app deriva el user_ref desde la cédula, el secreto de derivación).
+   */
+  async registrarApp(datos) {
+    const d = await post('/admin/api/apps', datos);
+    return { app: normalizarApp(d?.app ?? {}), client_id: d?.client_id, client_secret: d?.client_secret, cedula_secreto: d?.cedula_secreto ?? null };
+  },
+  /** POST /admin/api/apps/{id}/secret: nuevo client_secret (el anterior deja de valer al instante). */
+  async regenerarSecreto(id) {
+    const d = await post(`/admin/api/apps/${encodeURIComponent(id)}/secret`, {});
+    return { app: normalizarApp(d?.app ?? {}), client_id: d?.client_id, client_secret: d?.client_secret };
+  },
 
   async enrolamientos(filtros = {}) {
     const q = new URLSearchParams();
@@ -286,12 +313,34 @@ export const api = {
     return lista(d, 'enrollments', 'enrolamientos').map(normalizarEnrolamiento);
   },
   /**
-   * Acciones de ciclo de vida desde la consola. La API actual no las expone (la revocación la hace
-   * la app integradora con DELETE /api/v1/enrollments/{id}); solo se habilitan en modo demostración.
+   * Búsqueda de soporte: por cédula (si la app deriva el user_ref desde ella) o por user_ref exacto.
+   * El servidor audita cada búsqueda sin guardar la cédula en claro.
+   * @param {{ app_id: string, cedula?: string, user_ref?: string }} criterio
+   */
+  async buscarEnrolamientos(criterio) {
+    return this.enrolamientos(criterio);
+  },
+  /**
+   * Ciclo de vida desde la consola (Administrador y Operador): activo ↔ suspendido, → revocado (final).
    * @param {'suspend' | 'reactivate' | 'revoke'} accion
    */
   async accionEnrolamiento(id, accion) {
-    return normalizarEnrolamiento(await post(`/admin/api/enrollments/${encodeURIComponent(id)}/${accion}`, {}));
+    const d = await post(`/admin/api/enrollments/${encodeURIComponent(id)}/${accion}`, {});
+    return normalizarEnrolamiento(d?.enrollment ?? d);
+  },
+
+  /** Cuentas de la consola (solo Administrador). */
+  async administradores() {
+    return lista(await get('/admin/api/admins'), 'admins').map(normalizarAdmin);
+  },
+  /** Crea una cuenta: devuelve UNA sola vez la contraseña, la URI otpauth y el QR SVG de su TOTP. */
+  async crearAdministrador(usuario, rol) {
+    const d = await post('/admin/api/admins', { usuario, rol });
+    return { admin: normalizarAdmin(d?.admin ?? {}), password: d?.password, otpauth_uri: d?.otpauth_uri, qr_svg: d?.qr_svg };
+  },
+  async deshabilitarAdministrador(id) {
+    const d = await post(`/admin/api/admins/${encodeURIComponent(id)}/disable`, {});
+    return normalizarAdmin(d?.admin ?? {});
   },
 
   async anomalias() {

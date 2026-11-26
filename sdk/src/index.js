@@ -5,3 +5,4 @@ export { verificarTokenLocal } from './local.js';
 export { crearCacheJwks } from './jwks.js';
 export { decodificarSinVerificar } from './jwt.js';
 export { ErrorTotp, CODIGOS_LOCALES } from './errores.js';
+export { normalizarCedula, derivarUserRefDesdeCedula } from './cedula.js';

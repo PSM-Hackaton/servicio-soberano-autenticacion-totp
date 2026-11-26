@@ -7,26 +7,35 @@ import {
   errorGenerico, generarClientId, generarSecretoCliente, hashSecretoAsync, verificarSecretoAsync,
 } from '../../security/index.js';
 import { verificarCadena, respuestaVerificacion } from '../../audit/index.js';
+import { hashPepper } from '../../core/vault/vault.js';
+import { derivarUserRefDesdeCedula, normalizarCedula } from '../../core/identidad/cedula.js';
+import { contextoCedula } from '../../infrastructure/persistence/rotacionLlaveMaestra.js';
 import {
-  HASH_FICTICIO, anonimizarIp, derivaAGuardar, errorEntrada, topeDeriva, iso, noEncontrado, prohibido, separarEntrada, validar,
+  HASH_FICTICIO, PATRON_UUID, anonimizarIp, conflicto, derivaAGuardar, errorEntrada, topeDeriva, iso, noEncontrado, prohibido,
+  separarEntrada, validar,
 } from './comun.js';
 import {
   ESQUEMA_ADMIN_ANOMALIAS, ESQUEMA_ADMIN_APP, ESQUEMA_ADMIN_AUDITORIA, ESQUEMA_ADMIN_ENROLAMIENTOS,
-  ESQUEMA_ADMIN_LOGIN, ESQUEMA_VACIO,
+  ESQUEMA_ADMIN_CREAR_ADMIN, ESQUEMA_ADMIN_LOGIN, ESQUEMA_VACIO,
 } from './esquemas.js';
 import { puede } from './rbac.js';
+import { provisionarAdministrador } from './administradores.js';
 
 /** @typedef {import('./comun.js').Respuesta} Respuesta */
 
 const MAX_INTENTOS_ADMIN = 5;
 const RIESGO_MINIMO_ANOMALIA = 60;
 
-/** Fila de app sin el hash del secreto. */
+/** Fila de app sin el hash del secreto ni el secreto de derivación de la cédula (ni cifrado). */
 function appPublica(app) {
   if (!app) return null;
-  const { secret_hash: _omitido, ...resto } = app;
+  const {
+    secret_hash: _a, cedula_secreto_ct: _b, cedula_secreto_nonce: _c, cedula_secreto_auth_tag: _d, cedula_key_version: _e, ...resto
+  } = app;
   return resto;
 }
+
+const MENSAJE_SIN_CEDULA = 'La aplicación no declara cómo deriva el user_ref desde la cédula.';
 
 /** Nivel y acción del contrato a partir de un intento guardado. */
 function nivelDe(score) {
@@ -49,6 +58,27 @@ function eventoPublico(fila) {
   }
 }
 
+/** Fila de enrolamiento para la API: sin material cifrado. */
+function enrolamientoPublico(e) {
+  const { seed_ct: _a, seed_nonce: _b, seed_auth_tag: _c, ...resto } = e;
+  return resto;
+}
+
+/** Transiciones del ciclo de vida desde la consola: acción → estados de origen, destino y evento de auditoría. */
+const TRANSICIONES = Object.freeze({
+  suspender: { desde: ['activo'], hacia: 'suspendido', evento: 'enrolamiento.suspendido' },
+  reactivar: { desde: ['suspendido'], hacia: 'activo', evento: 'enrolamiento.reactivado' },
+  revocar: { desde: ['activo', 'suspendido'], hacia: 'revocado', evento: 'enrolamiento.revocado' },
+});
+
+/** Cuenta de la consola para la API: sin hash de contraseña; con el estado de su factor TOTP. */
+function adminPublico(a, enrol) {
+  return {
+    id: a.id, usuario: a.usuario, rol: a.rol, activo: a.activo === true, created_at: a.created_at,
+    totp_estado: enrol?.estado ?? 'sin_totp',
+  };
+}
+
 /** Entero de un parámetro de consulta ya validado, acotado a [1, maximo]. */
 const entero = (texto, porDefecto, maximo) => Math.min(maximo, Math.max(1, texto === undefined ? porDefecto : Number(texto)));
 
@@ -57,7 +87,9 @@ const entero = (texto, porDefecto, maximo) => Math.min(maximo, Math.max(1, texto
  *   reloj: () => number, consultas: any, bloqueos: any }} d
  */
 export function crearCasosAdmin(d) {
-  const { repos, vault, firmas, bitacora, metricas, config, reloj, consultas, bloqueos } = d;
+  const { repos, vault, firmas, bitacora, metricas, config, reloj, consultas, bloqueos, mfa } = d;
+  /** Usuarios en alta ahora mismo: evita que dos altas simultáneas del mismo nombre se pisen el factor. */
+  const altasEnCurso = new Set();
   const auditar = (actor, accion, objetivo, detalle) => bitacora.registrar({ actor, accion, objetivo, detalle });
   const actorAdmin = (admin) => `admin:${admin.usuario}`;
 
@@ -181,20 +213,28 @@ export function crearCasosAdmin(d) {
     const v = validar(cuerpo, ESQUEMA_ADMIN_APP);
     if (!v) return errorEntrada();
     const id = v.id ?? (typeof idRuta === 'string' ? idRuta : undefined);
-    const { id: _i, nombre, ...politica } = v;
+    const {
+      id: _i, nombre, user_ref_desde_cedula: modoCedula, cedula_prefijo: prefijoCedula, cedula_secreto: secretoCedula, ...politica
+    } = v;
+    const pideCedula = modoCedula !== undefined || prefijoCedula !== undefined || secretoCedula !== undefined;
 
     if (id === undefined) {
       if (!nombre) return errorEntrada();
       if ((politica.algoritmo ?? 'SHA256') === 'SHA1' && !politica.permitir_sha1) return errorEntrada();
+      const planCedula = pideCedula ? planDerivacion(null, modoCedula, prefijoCedula, secretoCedula) : null;
+      if (pideCedula && !planCedula) return errorEntrada();
       const clientId = generarClientId('app');
       const clientSecret = generarSecretoCliente();
-      const app = repos.apps.crear({ nombre, client_id: clientId, secret_hash: await hashSecretoAsync(clientSecret), ...politica });
-      auditar(actorAdmin(ctx.admin), 'app.registrada', app.id, { nombre, client_id: clientId, ...politica });
-      return {
-        status: 201,
-        cuerpo: { app: appPublica(app), client_id: clientId, client_secret: clientSecret },
-        cabeceras: { 'Cache-Control': 'no-store' },
-      };
+      const secretHash = await hashSecretoAsync(clientSecret);
+      const app = repos.transaccion(() => {
+        const creada = repos.apps.crear({ nombre, client_id: clientId, secret_hash: secretHash, ...politica });
+        if (planCedula) aplicarDerivacion(creada.id, planCedula);
+        return repos.apps.buscarPorId(creada.id);
+      });
+      auditar(actorAdmin(ctx.admin), 'app.registrada', app.id, { nombre, client_id: clientId, ...politica, ...planCedula?.detalle });
+      const cuerpoRespuesta = { app: appPublica(app), client_id: clientId, client_secret: clientSecret };
+      if (planCedula?.generado) cuerpoRespuesta.cedula_secreto = planCedula.generado;
+      return { status: 201, cuerpo: cuerpoRespuesta, cabeceras: { 'Cache-Control': 'no-store' } };
     }
 
     if (nombre !== undefined) return errorEntrada();
@@ -202,9 +242,90 @@ export function crearCasosAdmin(d) {
     if (!actual) return noEncontrado();
     const final = { ...actual, ...politica };
     if (final.algoritmo === 'SHA1' && !final.permitir_sha1) return errorEntrada();
-    if (Object.keys(politica).length > 0) repos.apps.actualizarPolitica(id, politica);
-    auditar(actorAdmin(ctx.admin), 'app.politica_actualizada', id, politica);
-    return { status: 200, cuerpo: { app: appPublica(repos.apps.buscarPorId(id)) }, cabeceras: {} };
+    const planCedula = pideCedula ? planDerivacion(actual, modoCedula, prefijoCedula, secretoCedula) : null;
+    if (pideCedula && !planCedula) return errorEntrada();
+    repos.transaccion(() => {
+      if (Object.keys(politica).length > 0) repos.apps.actualizarPolitica(id, politica);
+      if (planCedula) aplicarDerivacion(id, planCedula);
+    });
+    auditar(actorAdmin(ctx.admin), 'app.politica_actualizada', id, { ...politica, ...planCedula?.detalle });
+    const cuerpoRespuesta = { app: appPublica(repos.apps.buscarPorId(id)) };
+    if (planCedula?.generado) cuerpoRespuesta.cedula_secreto = planCedula.generado;
+    return { status: 200, cuerpo: cuerpoRespuesta, cabeceras: planCedula?.generado ? { 'Cache-Control': 'no-store' } : {} };
+  }
+
+  /**
+   * Decide la derivación del user_ref desde la cédula a partir de la app actual (null al registrar)
+   * y de los campos recibidos. null → combinación inválida (400). Con 'hmac' y sin secreto aportado
+   * se conserva el que ya hubiera o se genera uno nuevo (32 bytes aleatorios) que se devuelve una vez.
+   * El detalle para la bitácora nunca incluye el secreto.
+   */
+  function planDerivacion(actual, modo, prefijo, secreto) {
+    const modoFinal = modo ?? actual?.user_ref_desde_cedula ?? 'ninguno';
+    if (modoFinal === 'ninguno') {
+      if (prefijo !== undefined || secreto !== undefined) return null;
+      return { modo: 'ninguno', prefijo: '', cifrado: null, claro: null, generado: null, detalle: { user_ref_desde_cedula: 'ninguno' } };
+    }
+    const prefijoFinal = prefijo ?? actual?.cedula_prefijo ?? '';
+    let origen;
+    let generado = null;
+    let claro = null;
+    let cifrado = null;
+    if (secreto !== undefined) {
+      claro = Buffer.from(secreto, 'base64url');
+      if (claro.length < 32 || claro.length > 64) return null;
+      origen = 'aportado';
+    } else if (actual?.cedula_secreto_ct) {
+      cifrado = { ct: actual.cedula_secreto_ct, nonce: actual.cedula_secreto_nonce, authTag: actual.cedula_secreto_auth_tag, keyVersion: actual.cedula_key_version };
+      origen = 'conservado';
+    } else {
+      claro = randomBytes(32);
+      generado = claro.toString('base64url');
+      origen = 'generado';
+    }
+    return {
+      modo: 'hmac', prefijo: prefijoFinal, cifrado, claro, generado,
+      detalle: { user_ref_desde_cedula: 'hmac', cedula_prefijo: prefijoFinal, secreto_cedula: origen },
+    };
+  }
+
+  /** Guarda el plan (cifra el secreto en claro con la bóveda, AAD 'cedula:' + app_id) y borra el claro. */
+  function aplicarDerivacion(appId, plan) {
+    let cifrado = plan.cifrado;
+    if (plan.claro) {
+      try {
+        cifrado = vault.encryptBlob(plan.claro, contextoCedula(appId));
+      } finally {
+        plan.claro.fill(0);
+        plan.claro = null;
+      }
+    }
+    repos.apps.configurarCedula(appId, { modo: plan.modo, prefijo: plan.prefijo, cifrado });
+  }
+
+  /**
+   * POST /admin/api/apps/:id/secret — permiso apps.secreto (solo Administrador). Sin cuerpo.
+   * Genera un client_secret nuevo (scrypt) que sustituye al anterior de inmediato; el servidor
+   * invalida su caché de autenticación de apps. 200 { app, client_id, client_secret } (una sola vez,
+   * Cache-Control no-store) | 404.
+   * @param {unknown} entrada @param {{ admin: any }} ctx @returns {Promise<Respuesta>}
+   */
+  async function adminRegenerarSecretoApp(entrada, ctx) {
+    const negado = exigir(ctx, 'apps.secreto');
+    if (negado) return negado;
+    const { id, cuerpo } = separarEntrada(entrada ?? {});
+    if (cuerpo !== undefined && cuerpo !== null && !validar(cuerpo, ESQUEMA_VACIO)) return errorEntrada();
+    if (typeof id !== 'string' || id.length === 0 || id.length > 64) return noEncontrado();
+    const app = repos.apps.buscarPorId(id);
+    if (!app) return noEncontrado();
+    const clientSecret = generarSecretoCliente();
+    if (!repos.apps.actualizarSecreto(app.id, await hashSecretoAsync(clientSecret))) return noEncontrado();
+    auditar(actorAdmin(ctx.admin), 'app.secreto_regenerado', app.id, { client_id: app.client_id });
+    return {
+      status: 200,
+      cuerpo: { app: appPublica(repos.apps.buscarPorId(app.id)), client_id: app.client_id, client_secret: clientSecret },
+      cabeceras: { 'Cache-Control': 'no-store' },
+    };
   }
 
   // ------------------------------------------------------------------ enrolamientos
@@ -218,9 +339,164 @@ export function crearCasosAdmin(d) {
     if (negado) return negado;
     const q = consulta(entrada, ESQUEMA_ADMIN_ENROLAMIENTOS);
     if (!q) return errorEntrada();
+    if (q.cedula !== undefined || q.user_ref !== undefined) return buscarEnrolamientos(q, ctx);
     const filas = consultas.listarEnrolamientos({ appId: q.app_id, estado: q.estado, limite: entero(q.limite, 100, 500) });
-    const enrollments = filas.map(({ seed_ct: _a, seed_nonce: _b, seed_auth_tag: _c, ...resto }) => resto);
+    const enrollments = filas.map(enrolamientoPublico);
     return { status: 200, cuerpo: { enrollments }, cabeceras: {} };
+  }
+
+  /**
+   * Búsqueda de soporte (GET /admin/api/enrollments con `cedula` o `user_ref`, excluyentes, y
+   * `app_id` obligatorio). Con `cedula`, la app debe haber declarado user_ref_desde_cedula = 'hmac':
+   * el servicio descifra su secreto de derivación, recalcula user_ref = prefijo + HMAC y busca por
+   * user_ref_hash. 400 entrada inválida | 404 app inexistente | 409 la app no deriva desde la cédula.
+   * Cada búsqueda queda en la bitácora sin la cédula ni el user_ref en claro: solo
+   * HMAC-SHA256('cedula:' + canónica, USER_REF_PEPPER) o el user_ref_hash.
+   */
+  function buscarEnrolamientos(q, ctx) {
+    if (q.cedula !== undefined && q.user_ref !== undefined) return errorEntrada();
+    if (q.app_id === undefined) return errorEntrada();
+    const cedula = q.cedula === undefined ? null : normalizarCedula(q.cedula);
+    if (q.cedula !== undefined && !cedula) return errorEntrada();
+    const app = repos.apps.buscarPorId(q.app_id);
+    if (!app) return noEncontrado();
+
+    let userRef = q.user_ref;
+    if (cedula) {
+      if (app.user_ref_desde_cedula !== 'hmac' || !app.cedula_secreto_ct) return conflicto(MENSAJE_SIN_CEDULA);
+      const claro = vault.decryptBlob({
+        ct: app.cedula_secreto_ct, nonce: app.cedula_secreto_nonce, authTag: app.cedula_secreto_auth_tag, keyVersion: app.cedula_key_version,
+      }, contextoCedula(app.id));
+      try {
+        userRef = derivarUserRefDesdeCedula(cedula.canonica, claro.toString('base64url'), app.cedula_prefijo ?? '');
+      } finally {
+        claro.fill(0);
+      }
+    }
+    const urh = hashPepper(userRef, config.userRefPepper);
+    const filas = consultas.listarEnrolamientos({ appId: app.id, userRefHash: urh, estado: q.estado, limite: entero(q.limite, 100, 500) });
+    auditar(actorAdmin(ctx.admin), 'enrolamientos.busqueda', app.id, cedula
+      ? { criterio: 'cedula', cedula_hmac: hashPepper(`cedula:${cedula.canonica}`, config.userRefPepper), resultados: filas.length }
+      : { criterio: 'user_ref', user_ref_hash: urh, resultados: filas.length });
+    return { status: 200, cuerpo: { enrollments: filas.map(enrolamientoPublico) }, cabeceras: { 'Cache-Control': 'no-store' } };
+  }
+
+  /**
+   * POST /admin/api/enrollments/:id/{suspend|reactivate|revoke} — permiso enrolamientos.gestionar
+   * (Administrador y Operador). Sin cuerpo (o {}). Transiciones: activo ↔ suspendido y
+   * activo | suspendido → revocado (final). 200 { enrollment } | 404 genérico (id inexistente o no
+   * UUID) | 409 transición no válida, otro enrolamiento activo del mismo usuario (reactivar) o factor
+   * de un administrador de la consola (se gestiona con /admin/api/admins).
+   * Un enrolamiento suspendido no aparece como activo: verify responde igual que un código incorrecto.
+   * @param {'suspender' | 'reactivar' | 'revocar'} accion
+   */
+  function cambiarEstadoEnrolamiento(accion) {
+    const t = TRANSICIONES[accion];
+    return async (entrada, ctx) => {
+      const negado = exigir(ctx, 'enrolamientos.gestionar');
+      if (negado) return negado;
+      const { id, cuerpo } = separarEntrada(entrada ?? {});
+      if (cuerpo !== undefined && cuerpo !== null && !validar(cuerpo, ESQUEMA_VACIO)) return errorEntrada();
+      if (typeof id !== 'string' || !PATRON_UUID.test(id)) return noEncontrado();
+      const ahora = iso(reloj());
+      const r = repos.transaccion(() => {
+        const e = repos.enrollments.buscarPorId(id.toLowerCase());
+        if (!e) return { status: 404 };
+        if (repos.admins.buscarPorEnrolamiento(e.id)) return { status: 409, mensaje: 'El factor de un administrador se gestiona desde Administradores.' };
+        if (!t.desde.includes(e.estado)) return { status: 409, mensaje: 'La transición de estado no es válida.' };
+        if (accion === 'reactivar') {
+          const otro = repos.enrollments.buscarActivoPorUsuario(e.app_id, e.user_ref_hash);
+          if (otro && otro.id !== e.id) return { status: 409, mensaje: 'El usuario ya tiene otro enrolamiento activo en la aplicación.' };
+        }
+        const ok = accion === 'suspender' ? repos.enrollments.suspender(e.id)
+          : accion === 'reactivar' ? repos.enrollments.reactivar(e.id)
+            : repos.enrollments.revocarVigente(e.id, ahora);
+        if (!ok) return { status: 409, mensaje: 'La transición de estado no es válida.' };
+        return { status: 200, previo: e.estado, enrol: repos.enrollments.buscarPorId(e.id) };
+      });
+      if (r.status === 404) return noEncontrado();
+      if (r.status === 409) return conflicto(r.mensaje);
+      auditar(actorAdmin(ctx.admin), t.evento, r.enrol.id, { app_id: r.enrol.app_id, estado_previo: r.previo, motivo: 'consola' });
+      return { status: 200, cuerpo: { enrollment: enrolamientoPublico(r.enrol) }, cabeceras: {} };
+    };
+  }
+
+  // ------------------------------------------------------------------ administradores
+  /**
+   * GET /admin/api/admins — permiso admins.leer (solo Administrador). Sin parámetros.
+   * 200 { admins: [{ id, usuario, rol, activo, created_at, totp_estado }] } (nunca hashes).
+   * @param {unknown} entrada @param {{ admin: any }} ctx @returns {Promise<Respuesta>}
+   */
+  async function adminListarAdministradores(entrada, ctx) {
+    const negado = exigir(ctx, 'admins.leer');
+    if (negado) return negado;
+    if (!consulta(entrada, ESQUEMA_VACIO)) return errorEntrada();
+    const admins = repos.admins.listar().map((a) => adminPublico(a, a.totp_enrollment_id ? repos.enrollments.buscarPorId(a.totp_enrollment_id) : null));
+    return { status: 200, cuerpo: { admins }, cabeceras: {} };
+  }
+
+  /**
+   * POST /admin/api/admins { usuario, rol } — permiso admins.escribir (solo Administrador).
+   * Crea la cuenta con contraseña aleatoria (144 bits) y TOTP propio ya activo en la app interna
+   * "Consola Administrativa" (ver administradores.js). 201 { admin, password, otpauth_uri, qr_svg }
+   * con Cache-Control no-store: se muestran UNA sola vez. 409 si el usuario ya existe.
+   * @param {unknown} entrada @param {{ admin: any }} ctx @returns {Promise<Respuesta>}
+   */
+  async function adminCrearAdministrador(entrada, ctx) {
+    const negado = exigir(ctx, 'admins.escribir');
+    if (negado) return negado;
+    const v = validar(separarEntrada(entrada).cuerpo, ESQUEMA_ADMIN_CREAR_ADMIN);
+    if (!v) return errorEntrada();
+    if (!mfa) throw new Error('Gestión de administradores no disponible');
+    if (altasEnCurso.has(v.usuario) || repos.admins.buscarPorUsuario(v.usuario)) return conflicto('El usuario ya existe.');
+    altasEnCurso.add(v.usuario);
+    try {
+      const r = await provisionarAdministrador({
+        repos, reloj, usuario: v.usuario, rol: v.rol, ctxAdmin: ctx,
+        casos: { enrolar: mfa.enrolar, activar: mfa.activar, adminActualizarApp },
+      });
+      auditar(actorAdmin(ctx.admin), 'admin.creado', r.admin.id, { usuario: v.usuario, rol: v.rol });
+      return {
+        status: 201,
+        cuerpo: {
+          admin: adminPublico(r.admin, repos.enrollments.buscarPorId(r.admin.totp_enrollment_id)),
+          password: r.password, otpauth_uri: r.otpauthUri, qr_svg: r.qrSvg,
+        },
+        cabeceras: { 'Cache-Control': 'no-store' },
+      };
+    } finally {
+      altasEnCurso.delete(v.usuario);
+    }
+  }
+
+  /**
+   * POST /admin/api/admins/:id/disable — permiso admins.escribir (solo Administrador). Sin cuerpo.
+   * 200 { admin } | 404 | 409 si es la propia cuenta, ya está deshabilitada o es el último
+   * Administrador activo. El servidor cierra además las sesiones abiertas de esa cuenta.
+   * @param {unknown} entrada @param {{ admin: any }} ctx @returns {Promise<Respuesta>}
+   */
+  async function adminDeshabilitarAdministrador(entrada, ctx) {
+    const negado = exigir(ctx, 'admins.escribir');
+    if (negado) return negado;
+    const { id, cuerpo } = separarEntrada(entrada ?? {});
+    if (cuerpo !== undefined && cuerpo !== null && !validar(cuerpo, ESQUEMA_VACIO)) return errorEntrada();
+    if (typeof id !== 'string' || id.length === 0 || id.length > 64) return noEncontrado();
+    const r = repos.transaccion(() => {
+      const a = repos.admins.buscarPorId(id);
+      if (!a) return { status: 404 };
+      if (a.id === ctx.admin.id) return { status: 409, mensaje: 'No puede deshabilitar su propia cuenta.' };
+      if (!a.activo) return { status: 409, mensaje: 'La cuenta ya está deshabilitada.' };
+      if (a.rol === 'Administrador' && repos.admins.contarActivosPorRol('Administrador') <= 1) {
+        return { status: 409, mensaje: 'No se puede deshabilitar al último Administrador activo.' };
+      }
+      if (!repos.admins.deshabilitar(a.id)) return { status: 409, mensaje: 'La cuenta ya está deshabilitada.' };
+      return { status: 200, admin: repos.admins.buscarPorId(a.id) };
+    });
+    if (r.status === 404) return noEncontrado();
+    if (r.status === 409) return conflicto(r.mensaje);
+    auditar(actorAdmin(ctx.admin), 'admin.deshabilitado', r.admin.id, { usuario: r.admin.usuario, rol: r.admin.rol });
+    const enrol = r.admin.totp_enrollment_id ? repos.enrollments.buscarPorId(r.admin.totp_enrollment_id) : null;
+    return { status: 200, cuerpo: { admin: adminPublico(r.admin, enrol) }, cabeceras: {} };
   }
 
   // ------------------------------------------------------------------ llaves
@@ -340,7 +616,11 @@ export function crearCasosAdmin(d) {
   }
 
   return {
-    autenticarApp, adminLogin, adminListarApps, adminActualizarApp, adminListarEnrolamientos,
+    autenticarApp, adminLogin, adminListarApps, adminActualizarApp, adminRegenerarSecretoApp, adminListarEnrolamientos,
+    adminSuspenderEnrolamiento: cambiarEstadoEnrolamiento('suspender'),
+    adminReactivarEnrolamiento: cambiarEstadoEnrolamiento('reactivar'),
+    adminRevocarEnrolamiento: cambiarEstadoEnrolamiento('revocar'),
+    adminListarAdministradores, adminCrearAdministrador, adminDeshabilitarAdministrador,
     adminListarLlaves, adminRotarLlaves, adminAuditoria, adminVerificarCadena, adminAnomalias, adminMetricas,
   };
 }

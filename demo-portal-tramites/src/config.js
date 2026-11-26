@@ -68,6 +68,8 @@ export function configuracion(env = cargarEnv()) {
     autenticadorUrl: env.AUTENTICADOR_URL ?? 'https://localhost:8443/app/',
     etiquetaCuenta: env.PORTAL_ETIQUETA_CUENTA ?? 'Portal de Trámites',
     archivoUsuarios: rutaRel(env.PORTAL_USUARIOS ?? 'datos/usuarios.json'),
+    // Secreto del HMAC que convierte la cédula en el seudónimo `user_ref` (vacío = datos/seudonimos.clave).
+    secretoSeudonimos: (env.PORTAL_SECRETO_SEUDONIMOS ?? '').trim(),
     trazasPorDefecto: (env.PORTAL_TRAZAS ?? '1') !== '0',
     sesionMinutos: Number(env.PORTAL_SESION_MINUTOS ?? 15),
     stepUpMinutos: Number(env.PORTAL_STEPUP_MINUTOS ?? 0),

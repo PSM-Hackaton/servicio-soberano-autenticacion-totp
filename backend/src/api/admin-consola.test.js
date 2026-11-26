@@ -10,6 +10,7 @@ import { validarConfig } from '../infrastructure/config/config.js';
 import { generateTotp } from '../core/totp/totp.js';
 import { base32Decode } from '../core/totp/base32.js';
 import { hashSecretoAsync } from '../security/index.js';
+import { derivarUserRefDesdeCedula } from '../core/identidad/cedula.js';
 
 const SILENCIO = { info() {}, warn() {}, error() {} };
 const PASSWORD = 'clave-de-prueba-larga';
@@ -113,5 +114,94 @@ describe('consola: rutas de gestión contra el servicio real', () => {
     }
     assert.equal((await pedir(svc.puerto, { ruta: '/admin/api/keys' })).status, 401);
     assert.equal((await como('Auditor', { ruta: '/admin/api/keys?x=1' })).status, 400);
+  });
+
+  test('POST /admin/api/enrollments/:id/{suspend,reactivate,revoke}: CSRF, RBAC, 404 y 409', async () => {
+    const alta = await como('Administrador', { metodo: 'POST', ruta: '/admin/api/apps', cuerpo: { nombre: 'Portal de prueba' } });
+    assert.equal(alta.status, 201);
+    const app = svc.repos.apps.buscarPorId(alta.json.app.id);
+    const ctxApp = { app, ip: '127.0.0.1' };
+    const enrol = await svc.casos.enrolar({ user_ref: 'ciudadana-http' }, ctxApp);
+    const semilla = base32Decode(new URL(enrol.cuerpo.otpauth_uri).searchParams.get('secret'));
+    const act = await svc.casos.activar({ id: enrol.cuerpo.enrollment_id, cuerpo: { code: generateTotp(semilla, Date.now(), { algoritmo: 'SHA256', digitos: 6, periodo: 30 }) } }, ctxApp);
+    assert.equal(act.status, 200);
+    const ruta = (accion) => `/admin/api/enrollments/${enrol.cuerpo.enrollment_id}/${accion}`;
+
+    const sinCsrf = await pedir(svc.puerto, { metodo: 'POST', ruta: ruta('suspend'), cabeceras: { cookie: sesiones.Operador.cookie }, cuerpo: {} });
+    assert.equal(sinCsrf.status, 403, 'sin X-CSRF-Token');
+    assert.equal((await como('Auditor', { metodo: 'POST', ruta: ruta('suspend'), cuerpo: {} })).status, 403, 'Auditor');
+    const s = await como('Operador', { metodo: 'POST', ruta: ruta('suspend') });
+    assert.equal(s.status, 200, s.texto);
+    assert.equal(s.json.enrollment.estado, 'suspendido');
+    assert.equal((await como('Operador', { metodo: 'POST', ruta: ruta('suspend'), cuerpo: {} })).status, 409);
+    assert.equal((await como('Administrador', { metodo: 'POST', ruta: ruta('reactivate'), cuerpo: {} })).json.enrollment.estado, 'activo');
+    assert.equal((await como('Administrador', { metodo: 'POST', ruta: ruta('revoke'), cuerpo: {} })).json.enrollment.estado, 'revocado');
+    assert.equal((await como('Administrador', { metodo: 'POST', ruta: ruta('reactivate'), cuerpo: {} })).status, 409, 'revocado es final');
+    const no = await como('Administrador', { metodo: 'POST', ruta: '/admin/api/enrollments/00000000-0000-4000-8000-000000000000/revoke', cuerpo: {} });
+    assert.equal(no.status, 404);
+    assert.equal((await como('Administrador', { metodo: 'POST', ruta: ruta('revoke'), cuerpo: { extra: 1 } })).status, 400);
+  });
+
+  test('POST /admin/api/apps/:id/secret invalida la caché de autenticación; búsqueda por cédula por HTTP', async () => {
+    const alta = await como('Operador', {
+      metodo: 'POST', ruta: '/admin/api/apps', cuerpo: { nombre: 'Portal con cédula', user_ref_desde_cedula: 'hmac', cedula_prefijo: 'c_' },
+    });
+    assert.equal(alta.status, 201);
+    assert.equal(alta.cabeceras['cache-control'], 'no-store');
+    const { client_id: clientId, client_secret: secreto, cedula_secreto: secretoCedula } = alta.json;
+    const verificar = (s) => pedir(svc.puerto, {
+      metodo: 'POST', ruta: '/api/v1/verify', cabeceras: { 'x-client-id': clientId, 'x-client-secret': s }, cuerpo: { user_ref: 'nadie', code: '123456' },
+    });
+    assert.equal((await verificar(secreto)).status, 401, 'credenciales válidas: falla el código, no la app');
+    assert.equal((await verificar(secreto)).json.error, 'VERIFICATION_FAILED', 'la app quedó en la caché');
+
+    assert.equal((await como('Operador', { metodo: 'POST', ruta: `/admin/api/apps/${alta.json.app.id}/secret`, cuerpo: {} })).status, 403);
+    const nuevo = await como('Administrador', { metodo: 'POST', ruta: `/admin/api/apps/${alta.json.app.id}/secret` });
+    assert.equal(nuevo.status, 200, nuevo.texto);
+    assert.notEqual(nuevo.json.client_secret, secreto);
+    assert.equal((await verificar(secreto)).json.error, 'UNAUTHORIZED', 'el secreto anterior ya no vale (caché invalidada)');
+    assert.equal((await verificar(nuevo.json.client_secret)).json.error, 'VERIFICATION_FAILED');
+    assert.equal((await como('Administrador', { metodo: 'POST', ruta: '/admin/api/apps/no-existe/secret', cuerpo: {} })).status, 404);
+
+    const app = svc.repos.apps.buscarPorId(alta.json.app.id);
+    const ref = derivarUserRefDesdeCedula('V-12.345.678', secretoCedula, 'c_');
+    const enrol = await svc.casos.enrolar({ user_ref: ref }, { app, ip: '127.0.0.1' });
+    const q = `/admin/api/enrollments?app_id=${encodeURIComponent(app.id)}&cedula=${encodeURIComponent('V-12.345.678')}`;
+    const r = await como('Operador', { ruta: q });
+    assert.equal(r.status, 200, r.texto);
+    assert.deepEqual(r.json.enrollments.map((e) => e.id), [enrol.cuerpo.enrollment_id]);
+    assert.equal((await como('Auditor', { ruta: q })).status, 403);
+    assert.equal((await como('Operador', { ruta: `/admin/api/enrollments?cedula=V12345678` })).status, 400);
+  });
+
+  test('administradores: alta (una vez), login con lo entregado, deshabilitar cierra sus sesiones', async () => {
+    const sinCsrf = await pedir(svc.puerto, { metodo: 'POST', ruta: '/admin/api/admins', cabeceras: { cookie: sesiones.Administrador.cookie }, cuerpo: { usuario: 'nuevo', rol: 'Auditor' } });
+    assert.equal(sinCsrf.status, 403);
+    assert.equal((await como('Operador', { metodo: 'POST', ruta: '/admin/api/admins', cuerpo: { usuario: 'nuevo', rol: 'Auditor' } })).status, 403);
+    const alta = await como('Administrador', { metodo: 'POST', ruta: '/admin/api/admins', cuerpo: { usuario: 'nuevo', rol: 'Auditor' } });
+    assert.equal(alta.status, 201, alta.texto);
+    assert.equal(alta.cabeceras['cache-control'], 'no-store');
+    assert.equal((await como('Administrador', { metodo: 'POST', ruta: '/admin/api/admins', cuerpo: { usuario: 'nuevo', rol: 'Auditor' } })).status, 409);
+
+    const semilla = base32Decode(new URL(alta.json.otpauth_uri).searchParams.get('secret'));
+    const nueva = await entrar(svc.puerto, 'nuevo', semilla, new Set([Math.floor(Date.now() / 30_000)]), alta.json.password);
+    assert.equal(nueva.json.rol, 'Auditor');
+    const sesionNueva = () => pedir(svc.puerto, { ruta: '/admin/api/session', cabeceras: { cookie: nueva.cookie } });
+    assert.equal((await sesionNueva()).status, 200);
+
+    const lista = await como('Administrador', { ruta: '/admin/api/admins' });
+    assert.equal(lista.status, 200);
+    assert.ok(lista.json.admins.some((a) => a.usuario === 'nuevo' && a.activo && a.totp_estado === 'activo'));
+    assert.doesNotMatch(lista.texto, /password|scrypt/);
+    assert.equal((await como('Auditor', { ruta: '/admin/api/admins' })).status, 403);
+
+    const id = alta.json.admin.id;
+    const d = await como('Administrador', { metodo: 'POST', ruta: `/admin/api/admins/${id}/disable`, cuerpo: {} });
+    assert.equal(d.status, 200, d.texto);
+    assert.equal(d.json.admin.activo, false);
+    assert.equal((await sesionNueva()).status, 401, 'sus sesiones abiertas se cierran');
+    assert.equal((await como('Administrador', { ruta: '/admin/api/session' })).status, 200, 'las demás siguen');
+    const yo = lista.json.admins.find((a) => a.usuario === 'jefa');
+    assert.equal((await como('Administrador', { metodo: 'POST', ruta: `/admin/api/admins/${yo.id}/disable`, cuerpo: {} })).status, 409);
   });
 });

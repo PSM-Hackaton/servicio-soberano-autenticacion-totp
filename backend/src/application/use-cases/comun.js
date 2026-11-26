@@ -59,6 +59,16 @@ export function prohibido() {
   return { status: 403, cuerpo: { error: 'FORBIDDEN', message: 'Acceso denegado.' }, cabeceras: {} };
 }
 
+/**
+ * Respuesta 409: la operación no es válida en el estado actual (transición no permitida, nombre
+ * duplicado, último Administrador…). Solo se usa en la consola, nunca en la API de integradores.
+ * @param {string} [mensaje] texto fijo, sin datos de la entrada
+ * @returns {Respuesta}
+ */
+export function conflicto(mensaje = 'La operación no es válida en el estado actual.') {
+  return { status: 409, cuerpo: { error: 'CONFLICT', message: mensaje }, cabeceras: {} };
+}
+
 /** @param {number} ms */
 export const iso = (ms) => new Date(ms).toISOString();
 

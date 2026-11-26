@@ -29,7 +29,8 @@ try {
   console.log(`Versión activa de la llave maestra: ${r.versionActiva}`);
   console.log(`  Semillas recifradas:                 ${r.semillas}`);
   console.log(`  Claves privadas de firma recifradas: ${r.clavesFirma}`);
-  if (r.semillas + r.clavesFirma === 0) console.log('  Nada que rotar: todo el material ya usa la versión activa.');
+  console.log(`  Secretos de derivación de cédula:    ${r.secretosCedula}`);
+  if (r.semillas + r.clavesFirma + r.secretosCedula === 0) console.log('  Nada que rotar: todo el material ya usa la versión activa.');
 } catch (e) {
   console.error(`Rotación abortada (no se modificó nada): ${e?.message ?? e}`);
   process.exitCode = 1;

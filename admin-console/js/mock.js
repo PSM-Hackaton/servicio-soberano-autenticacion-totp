@@ -31,11 +31,11 @@ async function cargar(nombre) {
 
 async function inicializar() {
   if (estado) return estado;
-  const [apps, enrol, anomalias, llaves, auditoria, metricas, salud, tablero, jwks, cadena, bloqueo] = await Promise.all([
+  const [apps, enrol, anomalias, llaves, auditoria, metricas, salud, tablero, jwks, cadena, bloqueo, administradores] = await Promise.all([
     cargar('consola-apps.json'), cargar('consola-enrolamientos.json'), cargar('consola-anomalias.json'),
     cargar('consola-llaves.json'), cargar('consola-auditoria.json'), cargar('consola-metricas.json'),
     cargar('consola-salud.json'), cargar('admin-dashboard.json'), cargar('jwks.json'), cargar('audit-chain.json'),
-    cargar('verify-anomaly-blocked.json'),
+    cargar('verify-anomaly-blocked.json'), cargar('consola-administradores.json'),
   ]);
   const eventos = auditoria.eventos;
   const alterar = Number(parametros.get('alterar'));
@@ -50,7 +50,10 @@ async function inicializar() {
     const existente = anomalias.alerts.find((a) => a.id === 'alrt-008');
     if (existente) existente.inferenceMs = bloqueo.riskAssessment?.inferenceMs ?? existente.inferenceMs;
   }
-  estado = { apps: apps.apps, enrolamientos: enrol.enrollments, anomalias, llaves, eventos, metricas, salud, tablero, jwks, cadena, tick: 0 };
+  estado = {
+    apps: apps.apps, enrolamientos: enrol.enrollments, anomalias, llaves, eventos, metricas, salud, tablero, jwks, cadena, tick: 0,
+    admins: administradores.admins, demoAlta: administradores.demo_alta,
+  };
   return estado;
 }
 
@@ -80,6 +83,23 @@ const json = (status, cuerpo, cabeceras = {}) => new Response(cuerpo === null ? 
 });
 const error = (status, codigo, mensaje, extra = {}) => json(status, { error: codigo, message: mensaje, ...extra }, extra.retry_after_seconds ? { 'Retry-After': String(extra.retry_after_seconds) } : {});
 const espera = (t) => new Promise((r) => setTimeout(r, t));
+const aleatorioB64 = (n) => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(n)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const aleatorioHex = (n) => [...crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, '0')).join('');
+/** Campos de demostración (cédula y user_ref ficticios) que nunca salen en las respuestas simuladas. */
+const sinDemo = ({ cedula_demo: _c, user_ref_demo: _u, ...e }) => e;
+/** Misma regla que backend/src/core/identidad/cedula.js (V o E, 6 a 9 dígitos, sin ceros a la izquierda). */
+function cedulaCanonica(texto) {
+  const m = /^([VvEe])[- ]?([1-9][0-9]{0,2}(?:\.[0-9]{3}){1,2}|[1-9][0-9]{5,8})$/.exec(String(texto ?? '').trim());
+  if (!m) return null;
+  const n = m[2].replaceAll('.', '');
+  return n.length >= 6 && n.length <= 9 ? `${m[1].toUpperCase()}${n}` : null;
+}
+/** Huella ficticia para la bitácora simulada: nunca se registra la cédula en claro. */
+async function huellaDemo(texto) {
+  const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`demo:${texto}`));
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+const conflicto = (mensaje) => error(409, 'CONFLICT', mensaje);
 
 /** Avanza las métricas simuladas para que el refresco periódico muestre actividad. */
 function avanzarMetricas(m) {
@@ -179,6 +199,34 @@ export async function mockFetch(url, opciones = {}) {
 
   // ---- aplicaciones
   if (ruta === '/admin/api/apps' && metodo === 'GET') return exigir('apps.ver') ?? json(200, { apps: estado.apps });
+  if (ruta === '/admin/api/apps' && metodo === 'POST' && cuerpo.id === undefined) {
+    const prohibido = exigir('apps.editar');
+    if (prohibido) return prohibido;
+    const nombre = String(cuerpo.nombre ?? '').trim();
+    const hmac = cuerpo.user_ref_desde_cedula === 'hmac';
+    if (nombre.length < 2 || nombre.length > 120 || (!hmac && cuerpo.cedula_prefijo)) return error(400, 'INVALID_REQUEST', 'Solicitud inválida.');
+    const ahora = new Date().toISOString();
+    const app = {
+      id: crypto.randomUUID(), nombre, client_id: `app_${aleatorioHex(16)}`, algoritmo: 'SHA256', digitos: 6, periodo: 30, ventana: 1,
+      max_intentos: 5, umbral_riesgo_bloqueo: 75, modo_heuristica: 'bloqueo', permitir_sha1: false, estado: 'activo',
+      user_ref_desde_cedula: hmac ? 'hmac' : 'ninguno', cedula_prefijo: hmac ? (cuerpo.cedula_prefijo ?? '') : '', created_at: ahora, updated_at: ahora,
+    };
+    estado.apps.push(app);
+    await registrarAuditoria(`admin:${sesion.usuario}`, 'app.registrada', app.id, { nombre, client_id: app.client_id, user_ref_desde_cedula: app.user_ref_desde_cedula });
+    const respuesta = { app, client_id: app.client_id, client_secret: aleatorioB64(32) };
+    if (hmac) respuesta.cedula_secreto = aleatorioB64(32);
+    return json(201, respuesta, { 'Cache-Control': 'no-store' });
+  }
+  const mSecreto = ruta.match(/^\/admin\/api\/apps\/([^/]+)\/secret$/);
+  if (mSecreto && metodo === 'POST') {
+    const prohibido = exigir('apps.secreto');
+    if (prohibido) return prohibido;
+    const app = estado.apps.find((a) => a.id === decodeURIComponent(mSecreto[1]));
+    if (!app) return error(404, 'NOT_FOUND', 'Recurso no encontrado.');
+    app.updated_at = new Date().toISOString();
+    await registrarAuditoria(`admin:${sesion.usuario}`, 'app.secreto_regenerado', app.id, { client_id: app.client_id });
+    return json(200, { app, client_id: app.client_id, client_secret: aleatorioB64(32) }, { 'Cache-Control': 'no-store' });
+  }
   if (ruta === '/admin/api/apps' && metodo === 'POST') {
     const prohibido = exigir('apps.editar');
     if (prohibido) return prohibido;
@@ -197,8 +245,25 @@ export async function mockFetch(url, opciones = {}) {
     if (prohibido) return prohibido;
     const filtroEstado = destino.searchParams.get('estado');
     const filtroApp = destino.searchParams.get('app_id');
+    const cedula = destino.searchParams.get('cedula');
+    const userRef = destino.searchParams.get('user_ref');
+    if (cedula !== null || userRef !== null) {
+      // Búsqueda de soporte: mismas reglas que el servidor (app_id obligatorio, criterios excluyentes).
+      if ((cedula !== null && userRef !== null) || !filtroApp) return error(400, 'INVALID_REQUEST', 'Solicitud inválida.');
+      const app = estado.apps.find((a) => a.id === filtroApp);
+      if (!app) return error(404, 'NOT_FOUND', 'Recurso no encontrado.');
+      const canonica = cedula !== null ? cedulaCanonica(cedula) : null;
+      if (cedula !== null && !canonica) return error(400, 'INVALID_REQUEST', 'Solicitud inválida.');
+      if (canonica && app.user_ref_desde_cedula !== 'hmac') return conflicto('La aplicación no declara cómo deriva el user_ref desde la cédula.');
+      const lista = estado.enrolamientos.filter((e) => e.app_id === app.id && (!filtroEstado || e.estado === filtroEstado)
+        && (canonica ? e.cedula_demo === canonica : e.user_ref_demo === userRef));
+      await registrarAuditoria(`admin:${sesion.usuario}`, 'enrolamientos.busqueda', app.id, canonica
+        ? { criterio: 'cedula', cedula_hmac: await huellaDemo(canonica), resultados: lista.length }
+        : { criterio: 'user_ref', user_ref_hash: await huellaDemo(userRef), resultados: lista.length });
+      return json(200, { enrollments: lista.map(sinDemo) });
+    }
     const lista = estado.enrolamientos.filter((e) => (!filtroEstado || e.estado === filtroEstado) && (!filtroApp || e.app_id === filtroApp));
-    return json(200, { enrollments: lista, total: lista.length });
+    return json(200, { enrollments: lista.map(sinDemo) });
   }
   const mEnr = ruta.match(/^\/admin\/api\/enrollments\/([^/]+)\/(suspend|reactivate|revoke)$/);
   if (mEnr && metodo === 'POST') {
@@ -207,11 +272,48 @@ export async function mockFetch(url, opciones = {}) {
     if (prohibido) return prohibido;
     const e = estado.enrolamientos.find((x) => x.id === decodeURIComponent(id));
     if (!e) return error(404, 'NOT_FOUND', 'Recurso no encontrado.');
-    if (e.estado === 'revocado') return error(409, 'CONFLICT', 'El enrolamiento ya está revocado.');
+    // Transiciones del servidor: activo ↔ suspendido; activo | suspendido → revocado (final).
+    const desde = { suspend: ['activo'], reactivate: ['suspendido'], revoke: ['activo', 'suspendido'] }[accion];
+    if (!desde.includes(e.estado)) return conflicto('La transición de estado no es válida.');
+    if (accion === 'reactivate' && estado.enrolamientos.some((x) => x !== e && x.app_id === e.app_id && x.user_ref_hash === e.user_ref_hash && x.estado === 'activo')) {
+      return conflicto('El usuario ya tiene otro enrolamiento activo en la aplicación.');
+    }
+    const previo = e.estado;
     e.estado = accion === 'suspend' ? 'suspendido' : accion === 'reactivate' ? 'activo' : 'revocado';
     if (accion === 'revoke') e.revoked_at = new Date().toISOString();
-    await registrarAuditoria(sesion.usuario, `enrolamiento.${accion === 'suspend' ? 'suspender' : accion === 'reactivate' ? 'reactivar' : 'revocar'}`, e.id, { estado: e.estado });
-    return json(200, e);
+    await registrarAuditoria(`admin:${sesion.usuario}`, `enrolamiento.${accion === 'suspend' ? 'suspendido' : accion === 'reactivate' ? 'reactivado' : 'revocado'}`, e.id, { app_id: e.app_id, estado_previo: previo, motivo: 'consola' });
+    return json(200, { enrollment: sinDemo(e) });
+  }
+
+  // ---- administradores (solo Administrador)
+  if (ruta === '/admin/api/admins' && metodo === 'GET') return exigir('admins.ver') ?? json(200, { admins: estado.admins });
+  if (ruta === '/admin/api/admins' && metodo === 'POST') {
+    const prohibido = exigir('admins.editar');
+    if (prohibido) return prohibido;
+    const usuario = String(cuerpo.usuario ?? '');
+    if (!/^[a-z0-9][a-z0-9._-]{2,31}$/.test(usuario) || !['Administrador', 'Operador', 'Auditor'].includes(cuerpo.rol)) return error(400, 'INVALID_REQUEST', 'Solicitud inválida.');
+    if (estado.admins.some((a) => a.usuario === usuario)) return conflicto('El usuario ya existe.');
+    const admin = { id: crypto.randomUUID(), usuario, rol: cuerpo.rol, activo: true, created_at: new Date().toISOString(), totp_estado: 'activo' };
+    estado.admins.push(admin);
+    await registrarAuditoria(`admin:${sesion.usuario}`, 'admin.creado', admin.id, { usuario, rol: admin.rol });
+    // Demostración: URI y QR ficticios pregenerados (mocks/consola-administradores.json); la contraseña sí es aleatoria.
+    const uri = estado.demoAlta.otpauth_uri.replace('operadora.demo', encodeURIComponent(usuario));
+    return json(201, { admin, password: aleatorioB64(18), otpauth_uri: uri, qr_svg: estado.demoAlta.qr_svg }, { 'Cache-Control': 'no-store' });
+  }
+  const mAdm = ruta.match(/^\/admin\/api\/admins\/([^/]+)\/disable$/);
+  if (mAdm && metodo === 'POST') {
+    const prohibido = exigir('admins.editar');
+    if (prohibido) return prohibido;
+    const a = estado.admins.find((x) => x.id === decodeURIComponent(mAdm[1]));
+    if (!a) return error(404, 'NOT_FOUND', 'Recurso no encontrado.');
+    if (a.usuario === sesion.usuario) return conflicto('No puede deshabilitar su propia cuenta.');
+    if (!a.activo) return conflicto('La cuenta ya está deshabilitada.');
+    if (a.rol === 'Administrador' && estado.admins.filter((x) => x.activo && x.rol === 'Administrador').length <= 1) {
+      return conflicto('No se puede deshabilitar al último Administrador activo.');
+    }
+    a.activo = false;
+    await registrarAuditoria(`admin:${sesion.usuario}`, 'admin.deshabilitado', a.id, { usuario: a.usuario, rol: a.rol });
+    return json(200, { admin: a });
   }
 
   // ---- detector de anomalías

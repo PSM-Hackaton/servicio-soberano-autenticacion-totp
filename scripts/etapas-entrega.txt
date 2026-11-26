@@ -1,0 +1,122 @@
+# Etapas de la subida progresiva al GitLab del evento (día 1). Las usa scripts/subir-por-etapas.sh.
+#
+# Cada etapa es un commit sobre la copia limpia (la de scripts/preparar-entrega.sh) y AÑADE sus archivos
+# a lo ya subido. El orden y la autoría siguen cómo se construyó el proyecto (git log -- <ruta>): las
+# partes de Juan Laya son las de sus commits en GitHub; el resto, de Diego Landaeta. Cuando una parte
+# mezcla autores, cada archivo va a la etapa de quien lo creó o lo dejó en su forma actual.
+#
+# Formato: una línea "clave valor"; "etapa <id>" abre una etapa nueva.
+#   etapa    identificador corto (único)
+#   mensaje  mensaje del commit, en castellano
+#   autor    "Nombre Apellido <correo>"; AUTOR_LAYA se sustituye por el valor de --autor-laya (obligatorio)
+#   rama     rama de trabajo de GitLab que recibe el commit: diego o laya
+#   ruta     archivos que incorpora (repetible). Misma sintaxis que exclusiones-entrega.txt:
+#            sin "/" coincide en cualquier carpeta, por eso los archivos de la raíz llevan "/" delante;
+#            "carpeta/" es todo su contenido; "*" no cruza carpetas; "!patrón" lo quita de ESTA etapa.
+#
+# Reglas de reparto: cada archivo de la copia limpia va a la PRIMERA etapa que lo incluye; ningún
+# archivo puede quedar sin etapa, ninguna etapa puede quedar vacía y una ruta que no coincide con nada
+# es un error (así se detectan erratas y archivos renombrados). Lo excluido nunca llega aquí.
+
+etapa    estructura
+mensaje  Estructura del repositorio, material del reto y análisis técnico
+autor    Diego Landaeta <diego.a.programmer@gmail.com>
+rama     diego
+ruta     /.gitignore
+ruta     /SECURITY.md
+ruta     docs/reto/
+ruta     docs/analisis/
+
+etapa    arquitectura
+mensaje  Arquitectura hexagonal, contratos de la API (OpenAPI y esquema SQLite) y reglas de trabajo del equipo
+autor    AUTOR_LAYA
+rama     laya
+ruta     /ARCHITECTURE.md
+ruta     /CONTRIBUTING.md
+ruta     /.env.example
+ruta     admin-console/.gitkeep
+ruta     contracts/openapi.yaml
+ruta     contracts/schema.sql
+ruta     contracts/schema.sqlite.sql
+ruta     contracts/mocks/activate-response.json
+ruta     contracts/mocks/admin-dashboard.json
+ruta     contracts/mocks/audit-chain.json
+ruta     contracts/mocks/enroll-response.json
+ruta     contracts/mocks/jwks.json
+ruta     contracts/mocks/verify-anomaly-blocked.json
+ruta     contracts/mocks/verify-replay-blocked.json
+ruta     contracts/mocks/verify-success.json
+
+etapa    nucleo
+mensaje  Núcleo criptográfico propio: motor TOTP (RFC 6238/4226), bóveda AES-256-GCM, tokens Ed25519 y generador QR, con pruebas
+autor    Diego Landaeta <diego.a.programmer@gmail.com>
+rama     diego
+ruta     backend/package.json
+ruta     backend/src/core/
+
+etapa    persistencia
+mensaje  Persistencia SQLite, seguridad, auditoría encadenada y detector de anomalías local, con pruebas
+autor    Diego Landaeta <diego.a.programmer@gmail.com>
+rama     diego
+ruta     backend/migrations/
+ruta     backend/src/infrastructure/persistence/
+ruta     backend/src/security/
+ruta     backend/src/audit/
+ruta     backend/src/heuristics/
+
+etapa    servidor
+mensaje  Casos de uso, servidor HTTPS con TLS 1.3, arranque, scripts de instalación y respuestas de ejemplo de la API
+autor    Diego Landaeta <diego.a.programmer@gmail.com>
+rama     diego
+ruta     backend/src/application/
+ruta     backend/src/api/
+ruta     backend/src/main.js
+ruta     backend/src/infrastructure/config/
+ruta     backend/scripts/
+ruta     contracts/mocks/
+
+etapa    aplicaciones
+mensaje  App autenticadora, consola administrativa, SDK para integradores y Portal de Trámites de demostración
+autor    Diego Landaeta <diego.a.programmer@gmail.com>
+rama     diego
+ruta     authenticator-app/
+ruta     admin-console/
+ruta     sdk/
+ruta     !sdk/INTEGRACION_RETO1.md
+ruta     demo-portal-tramites/
+ruta     docs/api/
+ruta     docs/manual/
+
+etapa    laboratorio-despliegue
+mensaje  Laboratorio de ataques y pruebas de caos; despliegue como servicio y respaldos cifrados
+autor    Diego Landaeta <diego.a.programmer@gmail.com>
+rama     diego
+ruta     attack-lab/
+ruta     !attack-lab/escenarios/dast.js
+ruta     !attack-lab/tests/dast.test.js
+ruta     docs/evidencias/attack-lab-informe-*
+ruta     deploy/
+ruta     !deploy/verificar-despliegue.js
+
+etapa    verificacion
+mensaje  Escaneo dinámico de seguridad, verificación del despliegue, SBOM CycloneDX, guion de demostración y guía de integración del Reto 1
+autor    AUTOR_LAYA
+rama     laya
+ruta     attack-lab/escenarios/dast.js
+ruta     attack-lab/tests/dast.test.js
+ruta     deploy/verificar-despliegue.js
+ruta     docs/evidencias/dast-informe-*
+ruta     docs/evidencias/prueba-despliegue-systemd.md
+ruta     docs/sbom/
+ruta     docs/GUION_DEMO.md
+ruta     sdk/INTEGRACION_RETO1.md
+
+etapa    documentacion
+mensaje  Documentación de entrega: README de 6 apartados, licencia, matriz de cumplimiento, escalabilidad y presentación
+autor    Diego Landaeta <diego.a.programmer@gmail.com>
+rama     diego
+ruta     /README.md
+ruta     /LICENSE
+ruta     docs/cumplimiento/
+ruta     docs/escalabilidad/
+ruta     docs/presentacion/

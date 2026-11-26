@@ -21,7 +21,15 @@
 //   POST   /admin/api/login                   → adminLogin         200 | 400 | 401 | 429
 //   GET    /admin/api/apps                    → adminListarApps    200 | 401 | 403
 //   POST   /admin/api/apps                    → adminActualizarApp 201 | 200 | 400 | 401 | 403 | 404
-//   GET    /admin/api/enrollments             → adminListarEnrolamientos 200 | 400 | 401 | 403
+//   POST   /admin/api/apps/{id}/secret        → adminRegenerarSecretoApp 200 | 400 | 401 | 403 | 404
+//   GET    /admin/api/enrollments             → adminListarEnrolamientos 200 | 400 | 401 | 403 | 404 | 409
+//          (con ?cedula= o ?user_ref= y app_id: búsqueda de soporte auditada)
+//   POST   /admin/api/enrollments/{id}/suspend    → adminSuspenderEnrolamiento 200 | 400 | 401 | 403 | 404 | 409
+//   POST   /admin/api/enrollments/{id}/reactivate → adminReactivarEnrolamiento 200 | 400 | 401 | 403 | 404 | 409
+//   POST   /admin/api/enrollments/{id}/revoke     → adminRevocarEnrolamiento   200 | 400 | 401 | 403 | 404 | 409
+//   GET    /admin/api/admins                  → adminListarAdministradores 200 | 400 | 401 | 403
+//   POST   /admin/api/admins                  → adminCrearAdministrador    201 | 400 | 401 | 403 | 409
+//   POST   /admin/api/admins/{id}/disable     → adminDeshabilitarAdministrador 200 | 400 | 401 | 403 | 404 | 409
 //   GET    /admin/api/keys                    → adminListarLlaves  200 | 400 | 401 | 403
 //   POST   /admin/api/keys/rotate             → adminRotarLlaves   200 | 400 | 401 | 403
 //   GET    /admin/api/audit                   → adminAuditoria     200 | 400 | 401 | 403
@@ -84,5 +92,7 @@ export function crearCasosDeUso(deps) {
   const bloqueos = crearControlBloqueos({ repos, reloj, ventanaInexistentesMin: config.ventanaInexistentesMin });
   const comunes = { repos, vault, firmas, detector, bitacora, metricas, config, reloj, consultas, bloqueos };
 
-  return Object.freeze({ ...crearCasosMfa(comunes), ...crearCasosAdmin(comunes) });
+  const mfa = crearCasosMfa(comunes);
+  // La gestión de administradores reutiliza enrolar/activar para el TOTP propio de cada cuenta.
+  return Object.freeze({ ...mfa, ...crearCasosAdmin({ ...comunes, mfa }) });
 }

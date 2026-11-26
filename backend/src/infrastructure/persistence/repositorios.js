@@ -33,7 +33,13 @@ function valorSql(v) {
 /** @param {Fila | undefined} f */
 function mapearApp(f) {
   if (!f) return null;
-  return { ...f, permitir_sha1: f.permitir_sha1 === 1 };
+  return {
+    ...f,
+    permitir_sha1: f.permitir_sha1 === 1,
+    cedula_secreto_ct: deBase64(f.cedula_secreto_ct),
+    cedula_secreto_nonce: deBase64(f.cedula_secreto_nonce),
+    cedula_secreto_auth_tag: deBase64(f.cedula_secreto_auth_tag),
+  };
 }
 
 /** @param {Fila | undefined} f */
@@ -125,6 +131,13 @@ export function crearRepositorios(db) {
     porId: db.prepare('SELECT * FROM apps WHERE id = ?'),
     porClientId: db.prepare('SELECT * FROM apps WHERE client_id = ?'),
     listar: db.prepare('SELECT * FROM apps ORDER BY created_at, id'),
+    secreto: db.prepare('UPDATE apps SET secret_hash = ?, updated_at = ? WHERE id = ?'),
+    cedula: db.prepare(`UPDATE apps SET user_ref_desde_cedula = ?, cedula_prefijo = ?, cedula_secreto_ct = ?,
+      cedula_secreto_nonce = ?, cedula_secreto_auth_tag = ?, cedula_key_version = ?, updated_at = ? WHERE id = ?`),
+    cedulaFueraDeVersion: db.prepare(`SELECT id, cedula_secreto_ct, cedula_secreto_nonce, cedula_secreto_auth_tag, cedula_key_version
+      FROM apps WHERE cedula_secreto_ct IS NOT NULL AND cedula_key_version <> ? ORDER BY id`),
+    recifrarCedula: db.prepare(`UPDATE apps SET cedula_secreto_ct = ?, cedula_secreto_nonce = ?, cedula_secreto_auth_tag = ?,
+      cedula_key_version = ? WHERE id = ? AND cedula_key_version = ?`),
   };
   const apps = {
     /** @param {Fila} datos Columnas de apps; id opcional (UUID si falta). */
@@ -149,6 +162,28 @@ export function crearRepositorios(db) {
       const r = db.prepare(sql).run(...columnas.map((c) => valorSql(cambios[c])), ahoraIso(), id);
       return r.changes === 1;
     },
+    /** Sustituye el hash scrypt del client_secret. @param {string} id @param {string} hash @returns {boolean} */
+    actualizarSecreto: (id, hash) => sApp.secreto.run(hash, ahoraIso(), id).changes === 1,
+    /**
+     * Fija la derivación del user_ref desde la cédula. Con modo 'ninguno' se borra el secreto.
+     * @param {string} id
+     * @param {{ modo: 'ninguno' | 'hmac', prefijo: string, cifrado: { ct: Uint8Array, nonce: Uint8Array, authTag: Uint8Array, keyVersion: string } | null }} c
+     * @returns {boolean}
+     */
+    configurarCedula(id, { modo, prefijo, cifrado }) {
+      const x = modo === 'hmac' ? cifrado : null;
+      return sApp.cedula.run(modo, modo === 'hmac' ? prefijo : '', x ? aBase64(x.ct) : null, x ? aBase64(x.nonce) : null,
+        x ? aBase64(x.authTag) : null, x ? x.keyVersion : null, ahoraIso(), id).changes === 1;
+    },
+    /** Secretos de derivación cifrados con otra versión de la llave maestra (rotación). @param {string} version */
+    listarCedulaFueraDeVersion: (version) => sApp.cedulaFueraDeVersion.all(version).map(mapearApp),
+    /**
+     * Recifra el secreto de derivación (control optimista sobre la versión anterior).
+     * @param {string} id @param {{ ct: Uint8Array, nonce: Uint8Array, authTag: Uint8Array, keyVersion: string }} n
+     * @param {string} versionAnterior @returns {boolean}
+     */
+    recifrarCedula: (id, n, versionAnterior) => sApp.recifrarCedula.run(aBase64(n.ct), aBase64(n.nonce), aBase64(n.authTag),
+      n.keyVersion, id, versionAnterior).changes === 1,
   };
 
   // ---------------------------------------------------------------- enrollments
@@ -161,6 +196,11 @@ export function crearRepositorios(db) {
     activar: db.prepare(`UPDATE enrollments SET estado = 'activo', activated_at = ?, pending_expires_at = NULL
       WHERE id = ? AND estado = 'pendiente' AND (pending_expires_at IS NULL OR pending_expires_at > ?)`),
     revocar: db.prepare(`UPDATE enrollments SET estado = 'revocado', revoked_at = ? WHERE id = ? AND estado <> 'revocado'`),
+    // Ciclo de vida desde la consola: activo ↔ suspendido; activo | suspendido → revocado (final).
+    suspender: db.prepare(`UPDATE enrollments SET estado = 'suspendido' WHERE id = ? AND estado = 'activo'`),
+    reactivar: db.prepare(`UPDATE enrollments SET estado = 'activo' WHERE id = ? AND estado = 'suspendido'`),
+    revocarVigente: db.prepare(`UPDATE enrollments SET estado = 'revocado', revoked_at = ?
+      WHERE id = ? AND estado IN ('activo', 'suspendido')`),
     // ADR-003: anti replay atómico. Solo una petición puede avanzar last_step a T.
     pasoAceptado: db.prepare(`UPDATE enrollments SET last_step = ?, drift_steps = ?, failed_attempts = 0, locked_until = NULL
       WHERE id = ? AND last_step < ?`),
@@ -203,6 +243,12 @@ export function crearRepositorios(db) {
     },
     /** @param {string} id @param {string} [ahora] @returns {boolean} */
     revocar: (id, ahora = ahoraIso()) => sEnrol.revocar.run(ahora, id).changes === 1,
+    /** activo → suspendido. @param {string} id @returns {boolean} */
+    suspender: (id) => sEnrol.suspender.run(id).changes === 1,
+    /** suspendido → activo. @param {string} id @returns {boolean} */
+    reactivar: (id) => sEnrol.reactivar.run(id).changes === 1,
+    /** activo | suspendido → revocado (un pendiente no se revoca por esta vía). @param {string} id @param {string} [ahora] */
+    revocarVigente: (id, ahora = ahoraIso()) => sEnrol.revocarVigente.run(ahora, id).changes === 1,
     /**
      * Registra el paso T aceptado. Devuelve true solo si last_step < T (anti replay atómico):
      * dos peticiones con el mismo código no pueden ganar las dos.
@@ -380,6 +426,10 @@ export function crearRepositorios(db) {
   const sAdmin = {
     porUsuario: db.prepare('SELECT * FROM admins WHERE usuario = ?'),
     porId: db.prepare('SELECT * FROM admins WHERE id = ?'),
+    porEnrolamiento: db.prepare('SELECT * FROM admins WHERE totp_enrollment_id = ?'),
+    listar: db.prepare('SELECT * FROM admins ORDER BY created_at, usuario'),
+    activosPorRol: db.prepare('SELECT COUNT(*) AS n FROM admins WHERE rol = ? AND activo = 1'),
+    deshabilitar: db.prepare('UPDATE admins SET activo = 0 WHERE id = ? AND activo = 1'),
   };
   const admins = {
     /** @param {Fila} datos */
@@ -390,6 +440,16 @@ export function crearRepositorios(db) {
     },
     /** @param {string} usuario */
     buscarPorUsuario: (usuario) => mapearAdmin(sAdmin.porUsuario.get(usuario)),
+    /** @param {string} id */
+    buscarPorId: (id) => mapearAdmin(sAdmin.porId.get(id)),
+    /** Administrador cuyo factor TOTP es este enrolamiento (o null). @param {string} enrollmentId */
+    buscarPorEnrolamiento: (enrollmentId) => mapearAdmin(sAdmin.porEnrolamiento.get(enrollmentId)),
+    /** Todas las filas (con password_hash: quien las expone debe quitarlo). */
+    listar: () => sAdmin.listar.all().map(mapearAdmin),
+    /** @param {string} rol @returns {number} administradores activos con ese rol */
+    contarActivosPorRol: (rol) => sAdmin.activosPorRol.get(rol).n,
+    /** activo → inactivo. @param {string} id @returns {boolean} */
+    deshabilitar: (id) => sAdmin.deshabilitar.run(id).changes === 1,
   };
 
   // ---------------------------------------------------------------- audit_log

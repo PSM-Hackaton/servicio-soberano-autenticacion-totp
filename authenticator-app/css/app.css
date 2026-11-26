@@ -147,6 +147,8 @@ code {
   padding: 5px 16px; background: var(--cintillo-fondo); color: var(--cintillo-texto);
   font-size: 0.6875rem; line-height: 1.5; border-bottom: 1px solid var(--linea);
 }
+.cintillo-identidad { display: inline-flex; align-items: center; gap: 8px; }
+.cintillo-bandera { display: block; flex: none; width: 27px; height: 18px; border-radius: 1.5px; box-shadow: 0 0 0 1px rgba(20, 27, 45, 0.18); }
 .cintillo-pais { font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
 .cintillo-servicio { color: var(--cintillo-texto-2); font-weight: 600; }
 

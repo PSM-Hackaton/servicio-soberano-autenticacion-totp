@@ -3,7 +3,7 @@
 // No intercepta nada fuera de su alcance (/app/) ni peticiones que no sean GET,
 // por lo que /health siempre va a la red.
 
-const VERSION = 'autenticador-v1.1.0';
+const VERSION = 'autenticador-v1.2.0';
 const ARCHIVOS = [
   './',
   './index.html',
@@ -17,6 +17,7 @@ const ARCHIVOS = [
   './js/otpauth.js',
   './js/totp.js',
   './icons/icono.svg',
+  './icons/bandera.svg',
   './icons/icono-mascara.svg',
   './icons/icono-192.png',
   './icons/icono-512.png',

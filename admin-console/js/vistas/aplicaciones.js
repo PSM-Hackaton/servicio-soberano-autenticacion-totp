@@ -2,7 +2,7 @@
 import { h, reemplazar, numero, decimal, tiempo, idUnico } from '../dom.js';
 import { icono } from '../iconos.js';
 import { api, mensajeDeError } from '../api.js';
-import { cabeceraPagina, tarjeta, estadoError, esqueleto, insigniaEstado, vacio, abrirDialogo, notificar, botonConPermiso } from '../ui.js';
+import { cabeceraPagina, tarjeta, estadoError, esqueleto, insigniaEstado, vacio, abrirDialogo, notificar, botonConPermiso, confirmar, mostrarUnaVez } from '../ui.js';
 
 const ALGORITMOS = [
   { valor: 'SHA256', texto: 'SHA-256', ayuda: 'Recomendado' },
@@ -20,6 +20,7 @@ const ETIQUETAS = {
   algoritmo: 'Algoritmo', digitos: 'Dígitos', periodo: 'Periodo', ventana: 'Ventana de tolerancia', max_intentos: 'Máximo de intentos',
   umbral_riesgo_bloqueo: 'Umbral de riesgo', modo_heuristica: 'Modo del detector', estado: 'Estado', permitir_sha1: 'Permitir SHA-1',
 };
+const RE_PREFIJO = /^[A-Za-z0-9_.:-]{0,32}$/;
 const formatoValor = (campo, v) => {
   if (campo === 'algoritmo') return NOMBRE_ALG[v] ?? v;
   if (campo === 'periodo') return `${v} s`;
@@ -33,19 +34,29 @@ const formatoValor = (campo, v) => {
 
 export function montar(raiz, ctx) {
   const puedeEditar = ctx.puede('apps.editar');
+  const puedeSecreto = ctx.puede('apps.secreto');
   const zona = h('div', null, esqueleto(6));
   let apps = [];
 
+  const registrar = botonConPermiso({ permitido: puedeEditar, motivo: ctx.motivo('apps.editar'), class: 'boton boton--primario' }, icono('aplicaciones'), h('span', { text: 'Registrar aplicación' }));
+  registrar.addEventListener('click', () => registrarApp());
+
   reemplazar(raiz,
-    cabeceraPagina({ titulo: 'Aplicaciones integradoras', descripcion: 'Sistemas que consumen el servicio y la política TOTP que se les aplica.' }),
+    cabeceraPagina({ titulo: 'Aplicaciones integradoras', descripcion: 'Sistemas que consumen el servicio y la política TOTP que se les aplica.', acciones: [registrar] }),
     puedeEditar ? null : h('p.aviso-rol', null, icono('candado'), `Tu rol (${ctx.sesion.rol}) permite consultar las políticas, no modificarlas.`),
     tarjeta({ titulo: 'Aplicaciones registradas', clase: 'tarjeta--tabla' }, zona));
 
   function fila(app) {
     const editar = botonConPermiso({ permitido: puedeEditar, motivo: ctx.motivo('apps.editar'), class: 'boton boton--secundario boton--compacto', 'aria-label': `Editar política de ${app.nombre}`, title: 'Editar política' }, icono('editar'), h('span.texto-accion', { text: 'Editar' }));
     editar.addEventListener('click', () => editarPolitica(app));
+    const secreto = botonConPermiso({ permitido: puedeSecreto, motivo: ctx.motivo('apps.secreto'), class: 'boton boton--fantasma boton--compacto', 'aria-label': `Regenerar el secreto de ${app.nombre}`, title: 'Regenerar secreto' }, icono('llaves'), h('span.texto-accion', { text: 'Secreto' }));
+    secreto.addEventListener('click', () => regenerarSecreto(app));
     return h('tr', null,
-      h('td', { dataset: { etiqueta: 'Aplicación' } }, h('div.celda-principal.celda-principal--app', null, h('strong', { text: app.nombre }), h('code.tenue', { text: app.client_id }))),
+      h('td', { dataset: { etiqueta: 'Aplicación' } }, h('div.celda-principal.celda-principal--app', null,
+        h('strong', { text: app.nombre }), h('code.tenue', { text: app.client_id }),
+        app.user_ref_desde_cedula === 'hmac'
+          ? h('span.chip.chip--cedula', { title: `user_ref = ${app.cedula_prefijo || '(sin prefijo)'} + HMAC-SHA256 de la cédula` }, icono('usuario'), 'Búsqueda por cédula')
+          : null)),
       h('td', { dataset: { etiqueta: 'Código' } }, h('div.celda-codigo', null,
         h('span', { class: `chip${app.algoritmo === 'SHA1' ? ' chip--aviso' : ''}` }, app.algoritmo === 'SHA1' ? icono('aviso') : null, NOMBRE_ALG[app.algoritmo] ?? app.algoritmo),
         h('span.num', { text: `${app.digitos} díg. · ${app.periodo} s` }))),
@@ -54,12 +65,12 @@ export function montar(raiz, ctx) {
       h('td', { dataset: { etiqueta: 'Detector' } }, insigniaEstado(app.modo_heuristica)),
       h('td', { dataset: { etiqueta: 'Estado' } }, insigniaEstado(app.estado, app.estado === 'activo' ? 'Activa' : 'Suspendida')),
       h('td', { dataset: { etiqueta: 'Actualizada' } }, tiempo(app.updated_at, { relativa: true })),
-      h('td.celda-acciones', null, h('div.grupo-acciones', null, editar)));
+      h('td.celda-acciones', null, h('div.grupo-acciones', null, editar, secreto)));
   }
 
   function pintar() {
     reemplazar(zona, apps.length
-      ? h('div.tabla-contenedor', null, h('table.tabla.tabla--apilable', null,
+      ? h('div.tabla-contenedor', null, h('table.tabla.tabla--apilable.tabla--apps', null,
         h('caption.solo-lectores', { text: 'Aplicaciones integradoras y su política' }),
         h('thead', null, h('tr', null, ['Aplicación', 'Código', 'Verificación', 'Umbral riesgo', 'Detector', 'Estado', 'Actualizada'].map((t, i) => h('th', { scope: 'col', class: i === 3 ? 'num' : null, text: t })), h('th', null, h('span.solo-lectores', { text: 'Acciones' })))),
         h('tbody', null, apps.map(fila))))
@@ -72,6 +83,114 @@ export function montar(raiz, ctx) {
       pintar();
     } catch (e) {
       if (e?.status !== 401) reemplazar(zona, estadoError(mensajeDeError(e), cargar));
+    }
+  }
+
+  // ---------------------------------------------------------------- registro y secreto
+  function registrarApp() {
+    const datos = { nombre: '', user_ref_desde_cedula: 'ninguno', cedula_prefijo: '' };
+    const idNombre = idUnico('nombre');
+    const idPrefijo = idUnico('prefijo');
+    const nombre = h('input', { id: idNombre, type: 'text', required: true, minlength: 2, maxlength: 120, autocomplete: 'off', 'aria-describedby': `${idNombre}-ayuda ${idNombre}-error` });
+    const errorNombre = h('p.campo-error', { id: `${idNombre}-error`, hidden: true, text: 'Escribe un nombre de 2 a 120 caracteres.' });
+    const prefijo = h('input', { id: idPrefijo, type: 'text', maxlength: 32, autocomplete: 'off', spellcheck: 'false', placeholder: 'ciud_', 'aria-describedby': `${idPrefijo}-ayuda ${idPrefijo}-error` });
+    const errorPrefijo = h('p.campo-error', { id: `${idPrefijo}-error`, hidden: true, text: 'Solo letras, números y _ . : - (máximo 32).' });
+    const campoPrefijo = h('div.campo', { hidden: true }, h('label', { for: idPrefijo, text: 'Prefijo del user_ref (opcional)' }), prefijo,
+      h('p.ayuda', { id: `${idPrefijo}-ayuda`, text: 'Se antepone al HMAC para distinguir el origen del identificador.' }), errorPrefijo);
+
+    const opciones = [
+      { valor: 'ninguno', texto: 'Identificador opaco', ayuda: 'El soporte busca por user_ref exacto' },
+      { valor: 'hmac', texto: 'Derivado de la cédula', ayuda: 'HMAC-SHA256 con secreto compartido' },
+    ];
+    const nombreGrupo = idUnico('derivacion');
+    const derivacion = h('fieldset.segmentado', null, h('legend', { text: 'Cómo forma la aplicación el user_ref' }),
+      h('div.segmentado-opciones', null, opciones.map((o) => {
+        const id = idUnico('deriv');
+        const radio = h('input', { type: 'radio', name: nombreGrupo, id, value: o.valor, checked: o.valor === datos.user_ref_desde_cedula });
+        radio.addEventListener('change', () => { datos.user_ref_desde_cedula = o.valor; campoPrefijo.hidden = o.valor !== 'hmac'; nota.hidden = o.valor !== 'hmac'; });
+        return h('label.segmentado-opcion', { for: id }, radio, h('span.segmentado-texto', null, h('strong', { text: o.texto }), h('small', { text: o.ayuda })));
+      })));
+    const nota = h('div.alerta.alerta--info', { role: 'note', hidden: true }, icono('info'),
+      h('p', null, 'La aplicación calculará ', h('code', { text: 'user_ref = prefijo + HMAC-SHA256(cédula, secreto)' }),
+        ' con el SDK (derivarUserRefDesdeCedula). El servicio genera el secreto, lo guarda cifrado y lo muestra una sola vez; la cédula nunca llega al servicio.'));
+
+    const formulario = h('form.formulario', { novalidate: true },
+      h('div.campo', null, h('label', { for: idNombre, text: 'Nombre de la aplicación' }), nombre,
+        h('p.ayuda', { id: `${idNombre}-ayuda`, text: 'Nombre institucional del sistema integrador. No se puede cambiar después.' }), errorNombre),
+      derivacion, nota, campoPrefijo,
+      h('p.ayuda', { text: 'La aplicación queda con la política por defecto (SHA-256, 6 dígitos, 30 s); puedes ajustarla después con «Editar».' }));
+
+    const cancelar = h('button.boton.boton--secundario', { type: 'button', text: 'Cancelar' });
+    const enviar = h('button.boton.boton--primario', { type: 'button', text: 'Registrar' });
+    const cerrar = abrirDialogo({ titulo: 'Registrar aplicación', contenido: formulario, pie: [cancelar, enviar] });
+    cancelar.addEventListener('click', cerrar);
+    nombre.focus();
+
+    const enviarFormulario = async () => {
+      datos.nombre = nombre.value.trim();
+      datos.cedula_prefijo = prefijo.value.trim();
+      const okNombre = datos.nombre.length >= 2 && datos.nombre.length <= 120;
+      const okPrefijo = datos.user_ref_desde_cedula !== 'hmac' || RE_PREFIJO.test(datos.cedula_prefijo);
+      nombre.setAttribute('aria-invalid', String(!okNombre)); errorNombre.hidden = okNombre;
+      prefijo.setAttribute('aria-invalid', String(!okPrefijo)); errorPrefijo.hidden = okPrefijo;
+      if (!okNombre) { nombre.focus(); return; }
+      if (!okPrefijo) { prefijo.focus(); return; }
+      const cuerpo = { nombre: datos.nombre };
+      if (datos.user_ref_desde_cedula === 'hmac') {
+        cuerpo.user_ref_desde_cedula = 'hmac';
+        if (datos.cedula_prefijo) cuerpo.cedula_prefijo = datos.cedula_prefijo;
+      }
+      enviar.disabled = true;
+      enviar.replaceChildren(h('span.spinner.spinner--claro', { 'aria-hidden': 'true' }), 'Registrando…');
+      try {
+        const r = await api.registrarApp(cuerpo);
+        apps.push(r.app);
+        pintar();
+        cerrar();
+        mostrarUnaVez({
+          titulo: 'Aplicación registrada',
+          intro: h('p', null, 'Entrega estas credenciales al equipo de ', h('strong', { text: r.app.nombre }), ' por un canal seguro. Se usan en las cabeceras X-Client-Id y X-Client-Secret.'),
+          datos: [
+            { etiqueta: 'client_id', valor: r.client_id },
+            { etiqueta: 'client_secret', valor: r.client_secret },
+            { etiqueta: 'Secreto de derivación de cédula', valor: r.cedula_secreto },
+          ],
+          extra: r.cedula_secreto
+            ? h('p.ayuda', null, 'Con el SDK: ', h('code', { text: `derivarUserRefDesdeCedula(cedula, secreto, '${r.app.cedula_prefijo}')` }), '.')
+            : null,
+        });
+        notificar(`Aplicación «${r.app.nombre}» registrada.`, 'ok');
+      } catch (e) {
+        enviar.disabled = false;
+        enviar.textContent = 'Registrar';
+        notificar(mensajeDeError(e), e?.status === 403 ? 'aviso' : 'peligro');
+      }
+    };
+    formulario.addEventListener('submit', (e) => { e.preventDefault(); enviarFormulario(); });
+    enviar.addEventListener('click', (e) => { e.preventDefault(); enviarFormulario(); });
+  }
+
+  async function regenerarSecreto(app) {
+    const ok = await confirmar({
+      titulo: 'Regenerar secreto',
+      mensaje: h('p', null, 'Se generará un client_secret nuevo para ', h('strong', { text: app.nombre }), '. El actual deja de funcionar de inmediato: la aplicación fallará hasta que configure el nuevo.'),
+      confirmar: 'Regenerar secreto',
+      tono: 'peligro',
+      detalle: h('dl.datos-clave', null, h('dt', { text: 'client_id' }), h('dd', null, h('code', { text: app.client_id }))),
+    });
+    if (!ok) return;
+    try {
+      const r = await api.regenerarSecreto(app.id);
+      const i = apps.findIndex((a) => a.id === app.id);
+      if (i >= 0 && r.app?.id) apps[i] = { ...apps[i], ...r.app };
+      pintar();
+      mostrarUnaVez({
+        titulo: 'Secreto regenerado',
+        intro: h('p', null, 'Nuevo secreto de ', h('strong', { text: app.nombre }), '. Queda registrado en la bitácora de auditoría.'),
+        datos: [{ etiqueta: 'client_id', valor: r.client_id ?? app.client_id }, { etiqueta: 'client_secret', valor: r.client_secret }],
+      });
+    } catch (e) {
+      notificar(mensajeDeError(e), e?.status === 403 ? 'aviso' : 'peligro');
     }
   }
 

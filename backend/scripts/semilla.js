@@ -3,7 +3,6 @@
 // en ADMIN_QR_PATH o, por defecto, admin-qr.svg junto a SQLITE_DB_PATH). Idempotente: lo que ya existe no se toca ni se vuelve a mostrar.
 // Uso: node scripts/semilla.js   (lee backend/.env o ENV_FILE)
 
-import { randomBytes } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
@@ -12,14 +11,11 @@ import { crearFirmas } from '../src/infrastructure/config/firmas.js';
 import { abrirBaseDatos } from '../src/infrastructure/persistence/db.js';
 import { crearRepositorios } from '../src/infrastructure/persistence/repositorios.js';
 import { crearVault } from '../src/core/vault/vault.js';
-import { generateTotp } from '../src/core/totp/totp.js';
-import { base32Decode } from '../src/core/totp/base32.js';
 import { crearBitacora, crearMetricas } from '../src/audit/index.js';
-import { hashSecretoAsync } from '../src/security/index.js';
 import { crearCasosDeUso } from '../src/application/use-cases/index.js';
+import { provisionarAdministrador } from '../src/application/use-cases/administradores.js';
 
 const APPS_INTEGRADORAS = ['Portal de Trámites', 'Reto 1'];
-const APP_CONSOLA = 'Consola Administrativa';
 const ACTOR_SEMILLA = Object.freeze({ id: 'semilla', usuario: 'semilla', rol: 'Administrador' });
 
 const config = cargarConfig();
@@ -61,23 +57,10 @@ try {
   if (repos.admins.buscarPorUsuario(usuario)) {
     console.log(`El administrador "${usuario}" ya existe: no se modifica.`);
   } else {
-    // App interna que aloja el factor TOTP de la consola (su secreto se descarta: no integra a nadie).
-    const { app: consola } = await asegurarApp(APP_CONSOLA);
-    const ctxApp = { app: consola, ip: '127.0.0.1' };
-    const enrol = await casos.enrolar({ user_ref: `admin:${usuario}`, account_label: usuario }, ctxApp);
-    if (enrol.status !== 201) throw new Error(`No se pudo crear el enrolamiento del admin (HTTP ${enrol.status})`);
-    const { enrollment_id: enrollmentId, otpauth_uri: uri, qr_svg: qr, algoritmo, digitos, periodo } = enrol.cuerpo;
-
-    // Activación con el código actual derivado de la propia URI (la semilla no se guarda en ningún sitio).
-    const semilla = base32Decode(new URL(uri).searchParams.get('secret') ?? '');
-    const codigo = generateTotp(semilla, Date.now(), { algoritmo, digitos, periodo });
-    semilla.fill(0);
-    const act = await casos.activar({ id: enrollmentId, cuerpo: { code: codigo } }, ctxApp);
-    if (act.status !== 200) throw new Error(`No se pudo activar el TOTP del admin (HTTP ${act.status})`);
-
-    const password = randomBytes(18).toString('base64url');
-    const admin = repos.admins.crear({
-      usuario, password_hash: await hashSecretoAsync(password), rol: 'Administrador', totp_enrollment_id: enrollmentId,
+    // Misma lógica que POST /admin/api/admins: contraseña aleatoria y TOTP propio ya activo en la
+    // app interna "Consola Administrativa" (src/application/use-cases/administradores.js).
+    const { admin, password, otpauthUri: uri, qrSvg: qr, codigosRecuperacion } = await provisionarAdministrador({
+      repos, casos, usuario, rol: 'Administrador', ctxAdmin: ctxSemilla,
     });
     bitacora.registrar({ actor: 'admin:semilla', accion: 'admin.creado', objetivo: admin.id, detalle: { usuario, rol: 'Administrador' } });
 
@@ -91,7 +74,7 @@ try {
     console.log(`  URI TOTP:   ${uri}`);
     console.log(`  QR SVG:     ${RUTA_QR} (escanéelo con la app autenticadora y luego bórrelo)`);
     console.log('  Códigos de recuperación:');
-    for (const c of act.cuerpo.recovery_codes ?? []) console.log(`    ${c}`);
+    for (const c of codigosRecuperacion) console.log(`    ${c}`);
     console.log('  Nota: el código del paso actual ya se consumió al activar; espere al siguiente para iniciar sesión.');
   }
   console.log(linea);

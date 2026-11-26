@@ -31,6 +31,8 @@ export function crearConsultas({ repos, db = null }) {
     s.enrolEstado = db.prepare(`SELECT ${COLUMNAS_ENROL} FROM enrollments WHERE estado = ? ORDER BY created_at DESC, id LIMIT ?`);
     s.enrolAppEstado = db.prepare(`SELECT ${COLUMNAS_ENROL} FROM enrollments WHERE app_id = ? AND estado = ?
       ORDER BY created_at DESC, id LIMIT ?`);
+    s.enrolAppUsuario = db.prepare(`SELECT ${COLUMNAS_ENROL} FROM enrollments WHERE app_id = ? AND user_ref_hash = ?
+      ORDER BY created_at DESC, id LIMIT ?`);
     s.riesgo = db.prepare(`SELECT * FROM attempts WHERE risk_score >= ? OR resultado = 'anomaly_blocked'
       ORDER BY ts DESC, id DESC LIMIT ?`);
   }
@@ -41,12 +43,16 @@ export function crearConsultas({ repos, db = null }) {
       if (typeof repos.attempts?.ultimosPorUsuario === 'function') return repos.attempts.ultimosPorUsuario(userRefHash, limite);
       return s.ultimosUsuario ? s.ultimosUsuario.all(userRefHash, limite).map(intento) : [];
     },
-    /** @param {{ appId?: string, estado?: string, limite?: number }} filtro */
-    listarEnrolamientos({ appId, estado, limite = 100 } = {}) {
-      if (typeof repos.enrollments?.listar === 'function') return repos.enrollments.listar({ appId, estado, limite });
+    /**
+     * `userRefHash` (con `appId`) limita el listado a una cuenta: búsqueda de soporte por cédula o user_ref.
+     * @param {{ appId?: string, estado?: string, limite?: number, userRefHash?: string }} filtro
+     */
+    listarEnrolamientos({ appId, estado, limite = 100, userRefHash } = {}) {
+      if (typeof repos.enrollments?.listar === 'function') return repos.enrollments.listar({ appId, estado, limite, userRefHash });
       if (!db) return [];
       let filas;
-      if (appId && estado) filas = s.enrolAppEstado.all(appId, estado, limite);
+      if (appId && userRefHash) filas = s.enrolAppUsuario.all(appId, userRefHash, limite).filter((f) => !estado || f.estado === estado);
+      else if (appId && estado) filas = s.enrolAppEstado.all(appId, estado, limite);
       else if (appId) filas = s.enrolApp.all(appId, limite);
       else if (estado) filas = s.enrolEstado.all(estado, limite);
       else filas = s.enrolTodos.all(limite);

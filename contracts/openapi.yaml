@@ -584,6 +584,7 @@ paths:
                 required: [app]
                 properties:
                   app: { $ref: '#/components/schemas/App' }
+                  cedula_secreto: { type: string, description: 'Solo al pasar a hmac sin secreto previo ni aportado (una sola vez, no-store).' }
         '201':
           description: App registrada (Cache-Control no-store)
           content:
@@ -596,6 +597,7 @@ paths:
                   app: { $ref: '#/components/schemas/App' }
                   client_id: { type: string, pattern: '^app_[0-9a-f]{32}$' }
                   client_secret: { type: string, description: Se muestra una sola vez; se guarda con scrypt. }
+                  cedula_secreto: { type: string, description: 'Solo si user_ref_desde_cedula = hmac y el servicio generó el secreto: se muestra una sola vez.' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -611,7 +613,13 @@ paths:
       tags: [Admin]
       summary: Lista enrolamientos sin material cifrado (permiso enrolamientos.leer)
       operationId: adminListarEnrolamientos
-      description: Parámetros de consulta cerrados; un parámetro no declarado produce 400.
+      description: |
+        Parámetros de consulta cerrados; un parámetro no declarado produce 400.
+        Búsqueda de soporte: `cedula` o `user_ref` (excluyentes) exigen `app_id`. Con `cedula` la app
+        debe declarar `user_ref_desde_cedula = hmac` (si no, 409): el servicio recalcula
+        user_ref = prefijo + HMAC-SHA256(cédula canónica, secreto) y busca por user_ref_hash. Cada
+        búsqueda se audita (`enrolamientos.busqueda`) solo con HMAC de la cédula o el user_ref_hash.
+        App inexistente: 404.
       security:
         - adminSession: []
       parameters:
@@ -622,6 +630,14 @@ paths:
           in: query
           schema: { type: string, enum: [pendiente, activo, suspendido, revocado] }
         - $ref: '#/components/parameters/Limite100'
+        - name: cedula
+          in: query
+          description: 'Cédula venezolana (V o E, 6 a 9 dígitos sin ceros a la izquierda): V-12.345.678, v12345678, E 80.000.003…'
+          schema: { type: string, minLength: 6, maxLength: 24 }
+        - name: user_ref
+          in: query
+          description: user_ref exacto (mismo patrón que en /api/v1/verify).
+          schema: { type: string, minLength: 1, maxLength: 128 }
       responses:
         '200':
           description: Enrolamientos
@@ -638,6 +654,8 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
 
@@ -833,6 +851,239 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /admin/api/enrollments/{id}/suspend:
+    post:
+      tags: [Admin]
+      summary: Suspende un enrolamiento activo (permiso enrolamientos.gestionar)
+      operationId: adminSuspenderEnrolamiento
+      description: |
+        activo → suspendido. Administrador y Operador. Mientras está suspendido, verify responde
+        exactamente igual que con un código incorrecto (401 VERIFICATION_FAILED). Sin cuerpo o `{}`.
+        404 genérico si el id no existe (o no es UUID); 409 si el estado no lo permite o si el factor
+        pertenece a un administrador de la consola.
+      security:
+        - adminSession: []
+          csrfToken: []
+      parameters:
+        - $ref: '#/components/parameters/IdEnrolamientoAdmin'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '200': { $ref: '#/components/responses/EnrolamientoGestionado' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /admin/api/enrollments/{id}/reactivate:
+    post:
+      tags: [Admin]
+      summary: Reactiva un enrolamiento suspendido (permiso enrolamientos.gestionar)
+      operationId: adminReactivarEnrolamiento
+      description: suspendido → activo. 409 si no está suspendido o si el usuario ya tiene otro enrolamiento activo en la app.
+      security:
+        - adminSession: []
+          csrfToken: []
+      parameters:
+        - $ref: '#/components/parameters/IdEnrolamientoAdmin'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '200': { $ref: '#/components/responses/EnrolamientoGestionado' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /admin/api/enrollments/{id}/revoke:
+    post:
+      tags: [Admin]
+      summary: Revoca un enrolamiento activo o suspendido (permiso enrolamientos.gestionar)
+      operationId: adminRevocarEnrolamiento
+      description: activo | suspendido → revocado. Revocado es final (cualquier acción posterior responde 409); un pendiente tampoco se revoca por esta vía.
+      security:
+        - adminSession: []
+          csrfToken: []
+      parameters:
+        - $ref: '#/components/parameters/IdEnrolamientoAdmin'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '200': { $ref: '#/components/responses/EnrolamientoGestionado' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /admin/api/apps/{id}/secret:
+    post:
+      tags: [Admin]
+      summary: Regenera el client_secret de una app (permiso apps.secreto, solo Administrador)
+      operationId: adminRegenerarSecretoApp
+      description: |
+        El secreto anterior deja de valer de inmediato: el servidor vacía su caché de autenticación de
+        apps. El nuevo se muestra una sola vez (Cache-Control no-store). Auditado como app.secreto_regenerado.
+      security:
+        - adminSession: []
+          csrfToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '200':
+          description: Secreto regenerado
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [app, client_id, client_secret]
+                properties:
+                  app: { $ref: '#/components/schemas/App' }
+                  client_id: { type: string }
+                  client_secret: { type: string, description: Se muestra una sola vez; se guarda con scrypt. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /admin/api/admins:
+    get:
+      tags: [Admin]
+      summary: Lista las cuentas de la consola sin hashes (permiso admins.leer, solo Administrador)
+      operationId: adminListarAdministradores
+      description: Sin parámetros (cualquier parámetro de consulta es 400).
+      security:
+        - adminSession: []
+      responses:
+        '200':
+          description: Cuentas
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [admins]
+                properties:
+                  admins:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdminCuenta' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    post:
+      tags: [Admin]
+      summary: Crea una cuenta con contraseña aleatoria y TOTP propio ya activo (permiso admins.escribir, solo Administrador)
+      operationId: adminCrearAdministrador
+      description: |
+        El servicio genera una contraseña aleatoria (144 bits) y un enrolamiento TOTP en la app interna
+        "Consola Administrativa", que activa en el mismo acto (misma lógica que la semilla): no existe
+        ninguna ventana con solo contraseña. La contraseña, la URI otpauth y el QR SVG se devuelven una
+        sola vez (no-store). El código del paso de alta queda consumido: el primer login usa el
+        siguiente. 409 si el usuario ya existe.
+      security:
+        - adminSession: []
+          csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [usuario, rol]
+              properties:
+                usuario: { type: string, minLength: 3, maxLength: 32, pattern: '^[a-z0-9][a-z0-9._-]{2,31}$' }
+                rol: { type: string, enum: [Administrador, Operador, Auditor] }
+      responses:
+        '201':
+          description: Cuenta creada (datos de acceso una sola vez)
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [admin, password, otpauth_uri, qr_svg]
+                properties:
+                  admin: { $ref: '#/components/schemas/AdminCuenta' }
+                  password: { type: string, pattern: '^[A-Za-z0-9_-]{24}$' }
+                  otpauth_uri: { type: string }
+                  qr_svg: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /admin/api/admins/{id}/disable:
+    post:
+      tags: [Admin]
+      summary: Deshabilita una cuenta de la consola (permiso admins.escribir, solo Administrador)
+      operationId: adminDeshabilitarAdministrador
+      description: |
+        409 si es la propia cuenta, si ya está deshabilitada o si es el último Administrador activo.
+        El servidor cierra además las sesiones abiertas de esa cuenta.
+      security:
+        - adminSession: []
+          csrfToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '200':
+          description: Cuenta deshabilitada
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [admin]
+                properties:
+                  admin: { $ref: '#/components/schemas/AdminCuenta' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
   # --- fin del bloque de gestión desde la consola
 
 components:
@@ -878,7 +1129,12 @@ components:
       in: query
       description: Entero en texto; por defecto 100, máximo efectivo 500.
       schema: { type: string, pattern: '^[0-9]{1,9}$' }
-
+    IdEnrolamientoAdmin:
+      name: id
+      in: path
+      required: true
+      description: UUID del enrolamiento (otro valor responde 404 genérico).
+      schema: { type: string, maxLength: 128 }
   headers:
     RetryAfter:
       description: Segundos hasta poder reintentar (igual que retry_after_seconds).
@@ -918,6 +1174,22 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/GenericError' }
           example: { error: NOT_FOUND, message: Recurso no encontrado. }
+    EnrolamientoGestionado:
+      description: Enrolamiento tras la transición (sin material cifrado)
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [enrollment]
+            properties:
+              enrollment: { $ref: '#/components/schemas/EnrollmentAdmin' }
+    Conflict:
+      description: 'La operación no es válida en el estado actual (solo consola): transición de estado no permitida, usuario duplicado, último Administrador, app sin derivación desde la cédula… El mensaje es fijo y nunca contiene datos de la entrada.'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/GenericError' }
+          example: { error: CONFLICT, message: La transición de estado no es válida. }
     RequestTimeout:
       description: El cuerpo no llegó completo en 10 s (la conexión se cierra)
       content:
@@ -1108,6 +1380,15 @@ components:
         modo_heuristica: { type: string, enum: [monitorizacion, bloqueo] }
         permitir_sha1: { type: boolean }
         estado: { type: string, enum: [activo, suspendido] }
+        user_ref_desde_cedula:
+          type: string
+          enum: [ninguno, hmac]
+          description: |
+            Cómo deriva la app su user_ref desde la cédula (migración 002). `hmac`: user_ref =
+            cedula_prefijo + base64url(HMAC-SHA256(cédula canónica, secreto)); habilita la búsqueda de
+            soporte por cédula. Sin `cedula_secreto`, el servicio genera uno (32 bytes) y lo devuelve una vez.
+        cedula_prefijo: { type: string, maxLength: 32, pattern: '^[A-Za-z0-9_.:-]{0,32}$', description: Solo con hmac. }
+        cedula_secreto: { type: string, pattern: '^[A-Za-z0-9_-]{43,86}$', description: 'Secreto de derivación aportado por la app (base64url, 32 a 64 bytes). Solo con hmac; se guarda cifrado (AES-256-GCM) y nunca se devuelve.' }
 
     EnrollmentCreatedResponse:
       type: object
@@ -1203,7 +1484,7 @@ components:
 
     App:
       type: object
-      description: Fila de la tabla apps sin secret_hash.
+      description: Fila de la tabla apps sin secret_hash ni el secreto de derivación de la cédula (ni cifrado).
       required: [id, nombre, client_id, algoritmo, digitos, periodo, ventana, max_intentos, umbral_riesgo_bloqueo, modo_heuristica, permitir_sha1, estado, created_at, updated_at]
       properties:
         id: { type: string, format: uuid }
@@ -1218,8 +1499,23 @@ components:
         modo_heuristica: { type: string, enum: [monitorizacion, bloqueo] }
         permitir_sha1: { type: boolean }
         estado: { type: string, enum: [activo, suspendido] }
+        user_ref_desde_cedula: { type: string, enum: [ninguno, hmac] }
+        cedula_prefijo: { type: string }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+
+    AdminCuenta:
+      type: object
+      additionalProperties: false
+      description: Cuenta de la consola sin hash de contraseña; totp_estado es el estado de su enrolamiento TOTP.
+      required: [id, usuario, rol, activo, created_at, totp_estado]
+      properties:
+        id: { type: string, format: uuid }
+        usuario: { type: string }
+        rol: { type: string, enum: [Administrador, Operador, Auditor] }
+        activo: { type: boolean }
+        created_at: { type: string, format: date-time }
+        totp_estado: { type: string, enum: [pendiente, activo, suspendido, revocado, sin_totp] }
 
     EnrollmentAdmin:
       type: object

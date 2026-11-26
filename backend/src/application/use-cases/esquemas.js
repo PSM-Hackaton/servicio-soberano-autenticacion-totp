@@ -92,16 +92,36 @@ export const ESQUEMA_ADMIN_APP = {
     modo_heuristica: { type: 'string', enum: ['monitorizacion', 'bloqueo'] },
     permitir_sha1: { type: 'boolean' },
     estado: { type: 'string', enum: ['activo', 'suspendido'] },
+    // Derivación del user_ref desde la cédula (migración 002). Con 'hmac' y sin cedula_secreto el
+    // servicio genera el secreto y lo devuelve una sola vez.
+    user_ref_desde_cedula: { type: 'string', enum: ['ninguno', 'hmac'] },
+    cedula_prefijo: { type: 'string', maxLength: 32, pattern: '^[A-Za-z0-9_.:-]{0,32}$' },
+    cedula_secreto: { type: 'string', minLength: 43, maxLength: 86, pattern: '^[A-Za-z0-9_-]{43,86}$' },
   },
 };
 
-/** GET /admin/api/enrollments?app_id&estado&limite (parámetros de consulta: texto). */
+/**
+ * GET /admin/api/enrollments?app_id&estado&limite[&cedula|&user_ref] (parámetros de consulta: texto).
+ * `cedula` o `user_ref` (excluyentes) convierten el listado en búsqueda de soporte y exigen `app_id`.
+ */
 export const ESQUEMA_ADMIN_ENROLAMIENTOS = {
   type: 'object',
   properties: {
     app_id: { type: 'string', minLength: 1, maxLength: 64 },
     estado: { type: 'string', enum: ['pendiente', 'activo', 'suspendido', 'revocado'] },
     limite: ENTERO_TEXTO,
+    cedula: { type: 'string', minLength: 6, maxLength: 24 },
+    user_ref: USER_REF,
+  },
+};
+
+/** POST /admin/api/admins { usuario, rol }: la contraseña y el TOTP los genera el servicio. */
+export const ESQUEMA_ADMIN_CREAR_ADMIN = {
+  type: 'object',
+  required: ['usuario', 'rol'],
+  properties: {
+    usuario: { type: 'string', minLength: 3, maxLength: 32, pattern: '^[a-z0-9][a-z0-9._-]{2,31}$' },
+    rol: { type: 'string', enum: ['Administrador', 'Operador', 'Auditor'] },
   },
 };
 

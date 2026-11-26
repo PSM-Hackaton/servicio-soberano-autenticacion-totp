@@ -17,11 +17,11 @@ servicio deben seguir siendo abiertas.
 
 ## 2. Participantes
 
-- Juan Laya — Líder técnico: arquitectura, contratos e integración
-- Diego Landaeta — Backend, criptografía y seguridad
-- Javier Rodríguez — Frontend y experiencia de usuario
-- Giovani Marcano — Seguridad, pruebas y laboratorio de ataques
-- Enggel Rodríguez — Inteligencia artificial local, documentación y presentación
+- Juan Laya — C.I. 31.902.000 — Líder técnico: arquitectura, contratos e integración
+- Diego Landaeta — C.I. 30.613.562 — Backend, criptografía y seguridad
+- Javier Rodríguez — C.I. 30.722.161 — Frontend y experiencia de usuario
+- Giovani Marcano — C.I. 31.920.153 — Seguridad, pruebas y laboratorio de ataques
+- Enggel Rodríguez — C.I. 32.821.429 — Inteligencia artificial local, documentación y presentación
 
 El equipo del **Reto 1** consume el servicio como aplicación cliente (`Reto 1`) mediante el SDK
 ([`sdk/INTEGRACION_RETO1.md`](sdk/INTEGRACION_RETO1.md)).
@@ -297,7 +297,7 @@ General → Información → Ajustes de confianza de certificados. Abra `https:/
 ```bash
 cd demo-portal-tramites
 cp .env.example .env   # TOTP_CLIENT_ID y TOTP_CLIENT_SECRET de "Portal de Trámites" (Paso 3)
-npm run usuarios       # ana.rivera, bruno.mendez, carla.ortiz (clave Tramites-Demo-2026), sin segundo factor
+npm run usuarios       # cédulas de prueba V-10.000.001 (Ana), V-10.000.002 (Bruno), E-80.000.003 (Carla); clave Tramites-Demo-2026; sin segundo factor
 npm start              # «Portal de Trámites del Estado en https://localhost:8444 (HTTPS)»
 ```
 

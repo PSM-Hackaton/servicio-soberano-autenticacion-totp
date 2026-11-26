@@ -10,8 +10,22 @@ import { crearServicioFalso } from '../../sdk/testing/servicio-falso.js';
 import { configuracion, parsearEnv } from '../src/config.js';
 import { crearPortal, ipCiudadano } from '../src/portal.js';
 import { generarUsuarios, USUARIOS_DEMO } from '../src/usuarios.js';
+import { normalizarCedula, formatearCedula, seudonimo } from '../src/cedula.js';
 
 const CLAVE = 'Tramites-Demo-2026';
+
+// Escenarios con su ciudadano ficticio (cédulas de prueba). Ana es la cuenta demo V-10.000.001.
+const ESCENARIOS = ['malo', 'bloqueo', 'caido', 'lento', 'alterado', 'offline', 'recupera', 'ip'];
+const CEDULAS = {
+  'ana': 'V10000001',
+  ...Object.fromEntries(ESCENARIOS.map((n, i) => [`prueba.${n}`, `V2000001${i}`])),
+};
+const ced = (alias) => CEDULAS[alias];
+/** Campos del formulario de ingreso: la cédula se escribe con puntos, como lo haría un ciudadano. */
+const ingreso = (alias, contrasena = CLAVE) => {
+  const c = ced(alias);
+  return { nacionalidad: c[0], cedula: formatearCedula(c).slice(2), contrasena };
+};
 
 class Navegador {
   constructor(base) { this.base = base; this.cookies = new Map(); this.csrf = null; this.html = ''; }
@@ -59,9 +73,7 @@ describe('Portal de Trámites con servicio TOTP falso', () => {
     const urlServicio = await falso.iniciar();
     dir = mkdtempSync(join(tmpdir(), 'portal-'));
     // Un ciudadano ficticio por escenario para que los estados (bloqueos, factores) no se mezclen.
-    const extra = ['malo', 'bloqueo', 'caido', 'lento', 'alterado', 'offline', 'recupera', 'ip'].map((n) => ({
-      usuario: `prueba.${n}`, nombre: `Persona ${n}`, documento: `DEMO-${n}`, contrasena: CLAVE,
-    }));
+    const extra = ESCENARIOS.map((n) => ({ cedula: ced(`prueba.${n}`), nombre: `Persona ${n}`, contrasena: CLAVE }));
     await generarUsuarios(join(dir, 'usuarios.json'), [...USUARIOS_DEMO, ...extra]);
     const config = configuracion({
       TOTP_BASE_URL: urlServicio,
@@ -86,12 +98,12 @@ describe('Portal de Trámites con servicio TOTP falso', () => {
     Object.assign(falso.modo, { caido: false, fallos503: 0, retardoMs: 0, cortes: 0, cortesTrasProcesar: 0, rutasCaidas: [], tokenAlterado: false });
   });
 
-  const userRef = (u) => portal.usuarios.buscar(u).userRef;
+  const userRef = (u) => portal.usuarios.buscar(ced(u)).userRef;
 
   /** Ingresa con contraseña, enrola, activa y deja al navegador en /verificar. */
   async function enrolarYActivar(nav, usuario) {
     await nav.get('/ingresar');
-    const r = await nav.post('/ingresar', { usuario, contrasena: CLAVE });
+    const r = await nav.post('/ingresar', ingreso(usuario));
     assert.equal(r.url, '/enrolar');
     const id = [...falso.enrolamientos.values()].reverse().find((e) => e.userRef === userRef(usuario)).id;
     const act = await nav.post('/enrolar/activar', { codigo: falso.codigoDeEnrolamiento(id) });
@@ -122,19 +134,38 @@ describe('Portal de Trámites con servicio TOTP falso', () => {
   test('login con contraseña incorrecta: 401 y sin sesión', async () => {
     const nav = new Navegador(base);
     await nav.get('/ingresar');
-    const r = await nav.post('/ingresar', { usuario: 'ana.rivera', contrasena: 'mala' });
+    const r = await nav.post('/ingresar', ingreso('ana', 'mala'));
     assert.equal(r.status, 401);
-    assert.match(r.html, /Usuario o contraseña incorrectos/);
+    assert.match(r.html, /Cédula o contraseña incorrectas/);
     const p = await nav.get('/panel');
     assert.equal(p.url, '/ingresar');
+  });
+
+  test('cédula: formato validado en el servidor y el servicio solo recibe un seudónimo', async () => {
+    const nav = new Navegador(base);
+    await nav.get('/ingresar');
+    for (const mala of ['12a45678', '1.2345.678', '12345', '1234567890', '012345678']) {
+      const r = await nav.post('/ingresar', { nacionalidad: 'V', cedula: mala, contrasena: CLAVE });
+      assert.equal(r.status, 400, mala);
+      assert.match(r.html, /Cédula de identidad no válida/);
+    }
+    assert.equal((await nav.post('/ingresar', { nacionalidad: 'X', cedula: '10000001', contrasena: CLAVE })).status, 400);
+    // Con prefijo en el propio campo y sin puntos también vale.
+    const r = await nav.post('/ingresar', { nacionalidad: 'E', cedula: 'v-10000002', contrasena: CLAVE });
+    assert.equal(r.url, '/enrolar');
+    const ref = portal.usuarios.buscar('V10000002').userRef;
+    assert.match(ref, /^ptd-[0-9a-f]{32}$/);
+    const enrol = [...falso.enrolamientos.values()].reverse().find((e) => e.userRef === ref);
+    assert.ok(enrol, 'el servicio recibió el seudónimo');
+    assert.doesNotMatch(r.html.match(/#add=([^"]+)"/)[1], /10000002|10\.000\.002/, 'la cédula no viaja en el otpauth');
   });
 
   test('CSRF: formulario sin token u otro origen se rechaza con 403', async () => {
     const nav = new Navegador(base);
     await nav.get('/ingresar');
-    const sin = await nav.pedir('/ingresar', { metodo: 'POST', campos: { usuario: 'ana.rivera', contrasena: CLAVE } });
+    const sin = await nav.pedir('/ingresar', { metodo: 'POST', campos: ingreso('ana') });
     assert.equal(sin.status, 403);
-    const otro = await nav.post('/ingresar', { usuario: 'ana.rivera', contrasena: CLAVE }, { cabeceras: { origin: 'https://atacante.example' } });
+    const otro = await nav.post('/ingresar', ingreso('ana'), { cabeceras: { origin: 'https://atacante.example' } });
     assert.equal(otro.status, 403);
   });
 
@@ -142,7 +173,7 @@ describe('Portal de Trámites con servicio TOTP falso', () => {
     const nav = new Navegador(base);
     await nav.get('/ingresar');
     const sidAnonimo = nav.cookies.get('ptd_sesion');
-    const r = await nav.post('/ingresar', { usuario: 'ana.rivera', contrasena: CLAVE });
+    const r = await nav.post('/ingresar', ingreso('ana'));
     assert.equal(r.url, '/enrolar');
     assert.notEqual(nav.cookies.get('ptd_sesion'), sidAnonimo, 'rota la sesión al validar la contraseña');
     assert.match(r.html, /<img class="qr" src="data:image\/svg\+xml;base64,/);
@@ -155,12 +186,12 @@ describe('Portal de Trámites con servicio TOTP falso', () => {
     assert.equal(malo.status, 401);
     assert.match(malo.html, /Código incorrecto/);
 
-    const id = [...falso.enrolamientos.values()].reverse().find((e) => e.userRef === userRef('ana.rivera')).id;
+    const id = [...falso.enrolamientos.values()].reverse().find((e) => e.userRef === userRef('ana')).id;
     const act = await nav.post('/enrolar/activar', { codigo: falso.codigoDeEnrolamiento(id) });
     assert.equal(act.url, '/enrolar/codigos');
     const codigos = [...act.html.matchAll(/<li><code>([A-Z2-7]{4}-[A-Z2-7]{4})<\/code><\/li>/g)];
     assert.equal(codigos.length, 10);
-    assert.deepEqual(portal.usuarios.buscar('ana.rivera').factor.enrollmentId, id);
+    assert.deepEqual(portal.usuarios.buscar(ced('ana')).factor.enrollmentId, id);
 
     const otraVez = await nav.get('/enrolar/codigos');
     assert.doesNotMatch(otraVez.html, /<li><code>[A-Z2-7]{4}-/, 'los códigos se muestran una sola vez');
@@ -168,10 +199,11 @@ describe('Portal de Trámites con servicio TOTP falso', () => {
     await nav.post('/enrolar/confirmar', { guardados: 'si' });
     avanzar();
     const sidAntes = nav.cookies.get('ptd_sesion');
-    const v = await nav.post('/verificar', { codigo: falso.codigoPara(userRef('ana.rivera')) });
+    const v = await nav.post('/verificar', { codigo: falso.codigoPara(userRef('ana')) });
     assert.equal(v.url, '/panel');
     assert.equal(v.status, 200);
     assert.match(v.html, /Hola, Ana Rivera Soto/);
+    assert.match(v.html, /V-10\.000\.001/, 'el panel muestra la cédula formateada');
     assert.match(v.html, /Validada en el servicio/);
     assert.notEqual(nav.cookies.get('ptd_sesion'), sidAntes, 'rota la sesión tras el segundo factor');
     assert.match(v.html, /Lo que ocurre por dentro/);
@@ -184,7 +216,7 @@ describe('Portal de Trámites con servicio TOTP falso', () => {
     const sinCodigo = await nav.post('/tramites/datos-bancarios', { entidad: 'Banco Ejemplo Uno', cuenta: '01020304050607080900', codigo: '000000' });
     assert.equal(sinCodigo.status, 401);
     avanzar();
-    const ok = await nav.post('/tramites/datos-bancarios', { entidad: 'Banco Ejemplo Uno', cuenta: '01020304050607080900', codigo: falso.codigoPara(userRef('ana.rivera')) });
+    const ok = await nav.post('/tramites/datos-bancarios', { entidad: 'Banco Ejemplo Uno', cuenta: '01020304050607080900', codigo: falso.codigoPara(userRef('ana')) });
     assert.match(ok.url, /^\/comprobantes\/PT-\d{4}-[0-9A-F]{6}$/);
     assert.match(ok.html, /Trámite completado/);
     assert.match(ok.html, /terminada en 0900/);
@@ -307,9 +339,27 @@ describe('Portal de Trámites con servicio TOTP falso', () => {
     const r = await nav.post('/recuperar', { recuperacion: codigo });
     assert.equal(r.url, '/enrolar');
     assert.match(r.html, /Vincule su autenticador/);
-    assert.equal(portal.usuarios.buscar('prueba.recupera').factor, null);
+    assert.equal(portal.usuarios.buscar(ced('prueba.recupera')).factor, null);
     assert.notEqual((await nav.get('/panel')).url, '/panel');
   });
+});
+
+test('cédula: normalización, formato y seudónimo', () => {
+  assert.equal(normalizarCedula('V', '12.345.678'), 'V12345678');
+  assert.equal(normalizarCedula('V', '12345678'), 'V12345678');
+  assert.equal(normalizarCedula('V', 'E-81.234.567'), 'E81234567');
+  assert.equal(normalizarCedula('e', ' 123456 '), 'E123456');
+  assert.equal(normalizarCedula('V', '123.456.789'), 'V123456789');
+  for (const mala of ['', '12345', '1234567890', '12.34.5678', '0123456', 'V-12-345-678', 'J-12345678']) assert.equal(normalizarCedula('V', mala), null, mala);
+  assert.equal(normalizarCedula('J', '12345678'), null);
+  assert.equal(formatearCedula('V12345678'), 'V-12.345.678');
+  assert.equal(formatearCedula('E123456'), 'E-123.456');
+  const s = 'x'.repeat(32);
+  assert.equal(seudonimo('V12345678', s), seudonimo('V12345678', s));
+  assert.notEqual(seudonimo('V12345678', s), seudonimo('V12345678', 'y'.repeat(32)));
+  assert.doesNotMatch(seudonimo('V12345678', s), /12345678/);
+  assert.throws(() => seudonimo('V12345678', 'corto'));
+  assert.ok(USUARIOS_DEMO.every((u) => normalizarCedula('V', u.cedula)));
 });
 
 test('parser .env propio', () => {

@@ -14,6 +14,7 @@ const SECCIONES = [
   { ruta: 'anomalias', texto: 'Detector de anomalías', icono: 'anomalias', permiso: 'anomalias.ver', cargar: () => import('./vistas/anomalias.js') },
   { ruta: 'llaves', texto: 'Llaves de firma', icono: 'llaves', permiso: 'llaves.ver', cargar: () => import('./vistas/llaves.js') },
   { ruta: 'auditoria', texto: 'Auditoría', icono: 'auditoria', permiso: 'auditoria.ver', cargar: () => import('./vistas/auditoria.js') },
+  { ruta: 'administradores', texto: 'Administradores', icono: 'usuario', permiso: 'admins.ver', cargar: () => import('./vistas/administradores.js') },
 ];
 
 const INACTIVIDAD_MS = 15 * 60 * 1000;
