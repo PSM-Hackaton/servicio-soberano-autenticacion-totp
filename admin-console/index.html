@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Consola Administrativa — Servicio Soberano TOTP</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>🛡️ Consola Administrativa — TOTP Soberano</h1>
+      <small>RBAC + TOTP propio · Auditoría encadenada SHA-256 · IA local · 0 dependencias</small>
+    </div>
+    <div class="conn-bar">
+      <label for="data-mode" class="muted">Fuente:</label>
+      <select id="data-mode">
+        <option value="mock" selected>Mocks (contracts/mocks)</option>
+        <option value="live">API Real (HTTPS)</option>
+      </select>
+      <input id="api-url" type="url" value="https://localhost:8443" title="URL de la API soberana" />
+      <span id="session-badge" class="badge badge-info hidden"></span>
+      <button id="logout-btn" class="btn btn-secondary hidden">Cerrar sesión</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Login RBAC + TOTP -->
+    <section id="login-view" class="login-card">
+      <h2>Acceso administrativo (RBAC + TOTP)</h2>
+      <p class="muted">
+        Protegido con cookies <code>HttpOnly; Secure; SameSite=Strict</code>, token CSRF y segundo factor TOTP propio.
+      </p>
+      <div id="login-error" class="alert alert-danger hidden"></div>
+      <form id="login-form">
+        <div class="field">
+          <label for="l-user">Usuario administrativo</label>
+          <input id="l-user" required value="admin_seguridad" />
+        </div>
+        <div class="field">
+          <label for="l-pass">Contraseña</label>
+          <input id="l-pass" type="password" required value="Soberano2026!" />
+        </div>
+        <div class="field">
+          <label for="l-totp">Código TOTP (6 u 8 dígitos)</label>
+          <input id="l-totp" inputmode="numeric" pattern="[0-9]{6,8}" required value="482913" placeholder="6 u 8 dígitos" />
+        </div>
+        <div id="mock-role-wrap" class="field">
+          <label for="l-role">Perfil RBAC (demo en modo Mocks)</label>
+          <select id="l-role">
+            <option value="Administrador">Administrador (control total: apps, llaves, revocación)</option>
+            <option value="Operador">Operador (enrolamientos, revocación y lectura)</option>
+            <option value="Auditor">Auditor (solo lectura: bitácora, verificador y alertas)</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Autenticar con TOTP</button>
+      </form>
+    </section>
+
+    <!-- Panel Principal -->
+    <section id="dashboard-view" class="hidden">
+      <nav class="nav-tabs" aria-label="Secciones de administración">
+        <button class="nav-btn active" data-section="overview">Métricas &amp; IA Local</button>
+        <button class="nav-btn" data-section="apps">Aplicaciones y Políticas</button>
+        <button class="nav-btn" data-section="enrollments">Enrolamientos</button>
+        <button class="nav-btn" data-section="keys">Llaves Ed25519 (JWKS)</button>
+        <button class="nav-btn" data-section="audit">Bitácora Encadenada</button>
+      </nav>
+
+      <div id="global-feedback" class="alert hidden"></div>
+
+      <!-- 1. Resumen, Métricas y Alertas IA -->
+      <section id="sec-overview" class="panel-section">
+        <div class="grid-4" id="kpi-grid"></div>
+
+        <div class="card">
+          <div class="flex-between">
+            <h3>Alertas del Detector Local de Anomalías (IA)</h3>
+            <button id="refresh-overview-btn" class="btn btn-secondary">↻ Actualizar</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Usuario (anonimizado)</th>
+                  <th>IP Hash</th>
+                  <th>Riesgo</th>
+                  <th>Acción</th>
+                  <th>Motivos detectados</th>
+                </tr>
+              </thead>
+              <tbody id="alerts-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Exposición local <code>GET /metrics</code> (Prometheus, 0 telemetría externa)</h3>
+          <pre id="metrics-raw" class="code-box">Cargando...</pre>
+        </div>
+      </section>
+
+      <!-- 2. Aplicaciones y Políticas -->
+      <section id="sec-apps" class="panel-section hidden">
+        <div class="card">
+          <h3>Aplicaciones integradoras registradas (Portal de Trámites, Reto 1, etc.)</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>client_id</th>
+                  <th>Política TOTP</th>
+                  <th>Seguridad / IA</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="apps-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card" id="new-app-card">
+          <h3>Registrar nueva aplicación integradora</h3>
+          <p id="apps-rbac-note" class="muted hidden">Tu rol actual es de solo consulta para aplicaciones.</p>
+          <div id="created-secret-box" class="alert alert-warn hidden"></div>
+          <form id="app-form">
+            <div class="grid-2">
+              <div class="field">
+                <label for="a-name">Nombre institucional</label>
+                <input id="a-name" required placeholder="Sistema Nacional de Registro" />
+              </div>
+              <div class="field">
+                <label for="a-client">client_id</label>
+                <input id="a-client" required placeholder="sistema-registro" />
+              </div>
+              <div class="field">
+                <label for="a-alg">Algoritmo TOTP</label>
+                <select id="a-alg">
+                  <option value="SHA256" selected>HMAC-SHA256</option>
+                  <option value="SHA512">HMAC-SHA512</option>
+                  <option value="SHA1">HMAC-SHA1 (compatibilidad)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="a-digits">Dígitos</label>
+                <select id="a-digits">
+                  <option value="6" selected>6 dígitos</option>
+                  <option value="8">8 dígitos</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="a-threshold">Umbral de bloqueo IA (40–100)</label>
+                <input id="a-threshold" type="number" min="40" max="100" value="75" />
+              </div>
+              <div class="field">
+                <label for="a-mode">Modo heurística IA</label>
+                <select id="a-mode">
+                  <option value="bloqueo" selected>Bloqueo adaptativo</option>
+                  <option value="monitorizacion">Solo monitorización</option>
+                </select>
+              </div>
+            </div>
+            <button type="submit" id="create-app-btn" class="btn btn-primary">Registrar aplicación</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- 3. Enrolamientos -->
+      <section id="sec-enrollments" class="panel-section hidden">
+        <div class="card">
+          <div class="flex-between">
+            <h3>Enrolamientos TOTP (metadatos anonimizados)</h3>
+            <button id="refresh-enroll-btn" class="btn btn-secondary">↻ Actualizar</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Aplicación</th>
+                  <th>user_ref_hash</th>
+                  <th>Algoritmo</th>
+                  <th>Deriva</th>
+                  <th>Estado</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="enrollments-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. Llaves Ed25519 y Rotación -->
+      <section id="sec-keys" class="panel-section hidden">
+        <div class="card">
+          <div class="flex-between">
+            <div>
+              <h3>Llaves asimétricas Ed25519 (<code>/.well-known/jwks.json</code>)</h3>
+              <p class="muted">La rotación emite un nuevo <code>kid</code> para firmar mientras mantiene las llaves previas en ventana de gracia.</p>
+            </div>
+            <button id="rotate-keys-btn" class="btn btn-primary">🔄 Rotar llave Ed25519 (1 clic)</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>kid</th>
+                  <th>Algoritmo / Curva</th>
+                  <th>Clave pública (x base64url)</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="keys-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. Bitácora Encadenada -->
+      <section id="sec-audit" class="panel-section hidden">
+        <div class="card">
+          <div class="flex-between">
+            <div>
+              <h3>Bitácora inmutable encadenada por hashes (<code>audit_log</code>)</h3>
+              <p class="muted">Cada registro enlaza <code>hash = SHA-256(prev_hash || payload)</code>. Cualquier modificación rompe la cadena.</p>
+            </div>
+            <div class="gap-8">
+              <button id="verify-chain-btn" class="btn btn-primary">✔ Verificar integridad de la cadena</button>
+              <button id="tamper-demo-btn" class="btn btn-warn" title="Disponible en modo Mock para demo ante jurado">⚠ Simular alteración (demo)</button>
+            </div>
+          </div>
+          <div id="chain-result" class="alert hidden" style="margin-top: 12px;"></div>
+          <div class="table-wrap" style="margin-top: 10px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Fecha (UTC)</th>
+                  <th>Actor</th>
+                  <th>Acción</th>
+                  <th>Objetivo</th>
+                  <th>prev_hash → hash</th>
+                </tr>
+              </thead>
+              <tbody id="audit-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

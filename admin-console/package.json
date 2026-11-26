@@ -1,0 +1,12 @@
+{
+  "name": "totp-admin-console",
+  "version": "1.0.0",
+  "description": "Consola Administrativa RBAC + verificador audit_log (0 dependencias npm)",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "test": "node --test admin-api.test.js"
+  }
+}
