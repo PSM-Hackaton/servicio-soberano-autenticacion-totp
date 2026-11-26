@@ -214,7 +214,8 @@ paths:
         (`T > last_step`). Usuario sin enrolamiento activo y código incorrecto producen la misma
         respuesta 401 `VERIFICATION_FAILED`. Un código ya usado produce 401 `REPLAY_DETECTED`.
         En éxito emite un JWT Ed25519 (EdDSA) con `sub = user_ref_hash`, `aud = client_id` de la app,
-        `amr = ["otp"]`, `jti` único y vida `JWT_TTL_SECONDS` (300 s por defecto).
+        `amr = ["otp"]`, `jti` único y vida `JWT_TTL_SECONDS` (300 s por defecto). `sub` es un seudónimo
+        (HMAC del user_ref), nunca el user_ref en claro.
 
         Idempotencia: con `Idempotency-Key` la respuesta se guarda 5 min por (app, clave) y se repite
         sin volver a evaluar; reutilizar la clave con otro cuerpo produce 400.
@@ -339,6 +340,13 @@ paths:
       tags: [MFA v1]
       summary: Consume un código de recuperación de un solo uso y revoca el enrolamiento (obliga a re-enrolar)
       operationId: recuperar
+      description: |
+        En una sola transacción marca el código como usado y **revoca el enrolamiento activo** del
+        usuario en la app (`estado = revocado`). La respuesta trae `must_reenroll: true`: el integrador
+        debe iniciar un enrolamiento nuevo (`POST /api/v1/enrollments`) antes de volver a verificar.
+        `remaining_codes` informa cuántos códigos quedaban sin usar en el enrolamiento revocado (ya no
+        sirven). Código incorrecto o usuario inexistente → 401 genérico; los fallos cuentan para el
+        bloqueo progresivo.
       security:
         - appClientId: []
           appClientSecret: []
@@ -780,7 +788,11 @@ components:
       name: Idempotency-Key
       in: header
       required: false
-      schema: { type: string, pattern: '^[A-Za-z0-9_.:-]{8,128}$' }
+      description: |
+        Clave de idempotencia elegida por el integrador (8 a 128 caracteres `A-Z a-z 0-9 _ . : -`).
+        Formato inválido → 400. La respuesta se guarda 5 minutos por (app, clave) y se devuelve igual
+        sin volver a evaluar; reutilizar la misma clave con un cuerpo distinto → 400 `INVALID_REQUEST`.
+      schema: { type: string, pattern: '^[A-Za-z0-9_.:-]{8,128}$', example: verif-demo-0001 }
     Limite100:
       name: limite
       in: query
@@ -1032,7 +1044,7 @@ components:
         algoritmo: { type: string, enum: [SHA256, SHA512, SHA1] }
         digitos: { type: integer, enum: [6, 8] }
         periodo: { type: integer, minimum: 15, maximum: 60 }
-        otpauth_uri: { type: string, description: 'otpauth://totp/<TOTP_ISSUER>:<cuenta>?secret=…&issuer=…&algorithm=…&digits=…&period=…' }
+        otpauth_uri: { type: string, description: 'otpauth://totp/<TOTP_ISSUER>:<cuenta>?secret=…&issuer=…&algorithm=…&digits=…&period=… (ejemplo con TOTP_ISSUER=ServicioSoberanoTOTP)' }
         qr_svg: { type: string, description: QR del URI generado por el codificador propio (core/qr). }
         expires_at: { type: string, format: date-time }
 
@@ -1069,7 +1081,14 @@ components:
       required: [verified, token, jti, kid, expires_at, drift_steps, risk]
       properties:
         verified: { type: boolean, enum: [true] }
-        token: { type: string, description: "JWT EdDSA (Ed25519). Claims: iss, sub (user_ref_hash), aud (client_id), amr ['otp'], iat, nbf, exp, jti." }
+        token:
+          type: string
+          description: |
+            JWT EdDSA (Ed25519), cabecera con `kid`. Claims: `iss` = JWT_ISSUER; `aud` = client_id de la
+            app que llamó a verify (solo esa app puede validarlo en /api/v1/tokens/validate);
+            `sub` = HMAC-SHA256(user_ref, USER_REF_PEPPER) en hexadecimal, un seudónimo estable que no
+            revela el user_ref; `amr` = ["otp"]; `iat`, `nbf`, `exp` (vida JWT_TTL_SECONDS, 300 s por
+            defecto) y `jti` (UUID de un solo uso).
         jti: { type: string, format: uuid }
         kid: { type: string }
         expires_at: { type: string, format: date-time }
