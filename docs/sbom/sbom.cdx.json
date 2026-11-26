@@ -1,0 +1,262 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-11-26T17:23:55.833Z",
+    "tools": [
+      {
+        "vendor": "PSM-Hackaton",
+        "name": "generar-sbom.js (propio, 0 dependencias)",
+        "version": "1.0.0"
+      }
+    ],
+    "component": {
+      "type": "application",
+      "bom-ref": "pkg:generic/psm-hackaton/servicio-soberano-autenticacion-totp@1.0.0",
+      "name": "servicio-soberano-autenticacion-totp",
+      "version": "1.0.0",
+      "description": "Servicio Soberano de Autenticación Multifactorial TOTP (RFC 6238, 0 dependencias npm)",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "sovereignty:third_party_runtime_dependencies",
+          "value": "0"
+        },
+        {
+          "name": "sovereignty:third_party_dev_dependencies",
+          "value": "0"
+        },
+        {
+          "name": "sovereignty:adr",
+          "value": "ADR-002 (Node.js 22 nativo + SQLite WAL + Web Crypto)"
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "type": "data",
+      "bom-ref": "pkg:generic/psm-hackaton/contracts@1.0.0",
+      "name": "contracts",
+      "version": "1.0.0",
+      "description": "Contratos OpenAPI 3.1, esquema SQLite único y mocks",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "5b70827347dc4e70b12cbc47216a4a7369424de60873031364705c1039b5e9d5"
+        }
+      ],
+      "properties": [
+        {
+          "name": "sovereignty:third_party_npm_deps",
+          "value": "0"
+        },
+        {
+          "name": "sovereignty:file_count",
+          "value": "17"
+        },
+        {
+          "name": "sovereignty:runtime",
+          "value": "Node.js 22 / Web Platform APIs"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:generic/psm-hackaton/authenticator-app@1.0.0",
+      "name": "authenticator-app",
+      "version": "1.0.0",
+      "description": "PWA autenticadora TOTP offline (Web Crypto + IndexedDB AES-GCM)",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "6396d8a6815fe4ddac2e220807d8b39dff6725b811af3829dcff81199925eafa"
+        }
+      ],
+      "properties": [
+        {
+          "name": "sovereignty:third_party_npm_deps",
+          "value": "0"
+        },
+        {
+          "name": "sovereignty:file_count",
+          "value": "10"
+        },
+        {
+          "name": "sovereignty:runtime",
+          "value": "Node.js 22 / Web Platform APIs"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:generic/psm-hackaton/admin-console@1.0.0",
+      "name": "admin-console",
+      "version": "1.0.0",
+      "description": "Consola administrativa RBAC + verificador audit_log + métricas",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "4d4a258c770ba354b02f5283a27b380654aaee59cda348ed47adcda60655e5b0"
+        }
+      ],
+      "properties": [
+        {
+          "name": "sovereignty:third_party_npm_deps",
+          "value": "0"
+        },
+        {
+          "name": "sovereignty:file_count",
+          "value": "6"
+        },
+        {
+          "name": "sovereignty:runtime",
+          "value": "Node.js 22 / Web Platform APIs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:generic/psm-hackaton/sdk@1.0.0",
+      "name": "sdk",
+      "version": "1.0.0",
+      "description": "SDK JavaScript ESM cero dependencias + verificador JWKS Ed25519 offline",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "924683ade059aac0e2795a69c78e84a9352b77ef5ef085d59b8b442526df399d"
+        }
+      ],
+      "properties": [
+        {
+          "name": "sovereignty:third_party_npm_deps",
+          "value": "0"
+        },
+        {
+          "name": "sovereignty:file_count",
+          "value": "5"
+        },
+        {
+          "name": "sovereignty:runtime",
+          "value": "Node.js 22 / Web Platform APIs"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:generic/psm-hackaton/demo-portal-tramites@1.0.0",
+      "name": "demo-portal-tramites",
+      "version": "1.0.0",
+      "description": "Portal Institucional de Trámites demo integrado al SDK",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "0afabf872c6ffdc05c71cfe057bdb22f3435523169127afb0af601953f1a3df9"
+        }
+      ],
+      "properties": [
+        {
+          "name": "sovereignty:third_party_npm_deps",
+          "value": "0"
+        },
+        {
+          "name": "sovereignty:file_count",
+          "value": "6"
+        },
+        {
+          "name": "sovereignty:runtime",
+          "value": "Node.js 22 / Web Platform APIs"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:generic/psm-hackaton/attack-lab@1.0.0",
+      "name": "attack-lab",
+      "version": "1.0.0",
+      "description": "Laboratorio de ataques simulados y pruebas de caos",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b56b41e31c839fa44889f0c1ade8d6277ddff84ff9a484c3cb21c00510f8d923"
+        }
+      ],
+      "properties": [
+        {
+          "name": "sovereignty:third_party_npm_deps",
+          "value": "0"
+        },
+        {
+          "name": "sovereignty:file_count",
+          "value": "6"
+        },
+        {
+          "name": "sovereignty:runtime",
+          "value": "Node.js 22 / Web Platform APIs"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "pkg:generic/psm-hackaton/servicio-soberano-autenticacion-totp@1.0.0",
+      "dependsOn": [
+        "pkg:generic/psm-hackaton/contracts@1.0.0",
+        "pkg:generic/psm-hackaton/authenticator-app@1.0.0",
+        "pkg:generic/psm-hackaton/admin-console@1.0.0",
+        "pkg:generic/psm-hackaton/sdk@1.0.0",
+        "pkg:generic/psm-hackaton/demo-portal-tramites@1.0.0",
+        "pkg:generic/psm-hackaton/attack-lab@1.0.0"
+      ]
+    }
+  ]
+}
