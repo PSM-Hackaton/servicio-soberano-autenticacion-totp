@@ -200,6 +200,7 @@ El laboratorio acepta `ATTACK_URL`, `ATTACK_CLIENT_ID`, `ATTACK_CLIENT_SECRET`, 
 Pasos ejecutados y comprobados el 26-11-2026 en una copia limpia del repositorio (Linux, Node.js 22.22.1).
 No necesitan Internet después de clonar. Node.js 22 imprime `ExperimentalWarning: SQLite is an
 experimental feature`: es un aviso informativo de `node:sqlite`, no un error.
+Flujo de ramas, commits y Merge Request del equipo en el GitLab del evento: [`docs/entrega/flujo-gitlab.md`](docs/entrega/flujo-gitlab.md).
 
 ### Despliegue como servicio (un solo comando)
 
