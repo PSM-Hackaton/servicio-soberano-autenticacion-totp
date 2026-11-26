@@ -3,7 +3,8 @@
 
 import { scrypt, randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFileSync, writeFileSync, renameSync, existsSync, mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
+import { normalizarCedula, formatearCedula, seudonimo } from './cedula.js';
 
 const PARAMS = { N: 2 ** 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 const LONGITUD = 32;
@@ -36,26 +37,43 @@ async function relleno() {
   return hashRelleno;
 }
 
-/** Ciudadanos ficticios. Las contraseñas son públicas a propósito: es una demo. */
+/**
+ * Ciudadanos ficticios, identificados por cédulas de PRUEBA (series 10.000.00x y 80.000.00x, que no
+ * corresponden a nadie). Las contraseñas son públicas a propósito: es una demo.
+ */
 export const USUARIOS_DEMO = [
-  { usuario: 'ana.rivera', nombre: 'Ana Rivera Soto', documento: 'DEMO-0001', contrasena: 'Tramites-Demo-2026' },
-  { usuario: 'bruno.mendez', nombre: 'Bruno Méndez Lara', documento: 'DEMO-0002', contrasena: 'Tramites-Demo-2026' },
-  { usuario: 'carla.ortiz', nombre: 'Carla Ortiz Peña', documento: 'DEMO-0003', contrasena: 'Tramites-Demo-2026' },
+  { cedula: 'V-10.000.001', nombre: 'Ana Rivera Soto', contrasena: 'Tramites-Demo-2026' },
+  { cedula: 'V-10.000.002', nombre: 'Bruno Méndez Lara', contrasena: 'Tramites-Demo-2026' },
+  { cedula: 'E-80.000.003', nombre: 'Carla Ortiz Peña', contrasena: 'Tramites-Demo-2026' },
 ];
+
+const VERSION = 2;
+
+/**
+ * Secreto con el que se derivan los seudónimos (`user_ref`). Prioridad: el valor configurado
+ * (PORTAL_SECRETO_SEUDONIMOS, al menos 32 caracteres); si no, `seudonimos.clave` junto al archivo de
+ * usuarios, que se crea al azar la primera vez (0600). Cambiarlo desvincula a todos del servicio TOTP.
+ */
+export function secretoSeudonimos(archivo, configurado = '') {
+  if (configurado) {
+    if (configurado.length < 32) throw new Error('PORTAL_SECRETO_SEUDONIMOS debe tener al menos 32 caracteres');
+    return configurado;
+  }
+  const ruta = join(dirname(archivo), 'seudonimos.clave');
+  if (existsSync(ruta)) return readFileSync(ruta, 'utf8').trim();
+  mkdirSync(dirname(ruta), { recursive: true });
+  const nuevo = randomBytes(32).toString('hex');
+  writeFileSync(ruta, `${nuevo}\n`, { mode: 0o600, flag: 'wx' });
+  return nuevo;
+}
 
 /** Genera el archivo de usuarios (sobrescribe). @returns {Promise<object[]>} */
 export async function generarUsuarios(archivo, lista = USUARIOS_DEMO) {
   const usuarios = [];
   for (const u of lista) {
-    usuarios.push({
-      usuario: u.usuario,
-      nombre: u.nombre,
-      documento: u.documento,
-      // Identificador opaco que se envía al servicio TOTP: ni nombre ni documento salen del portal.
-      userRef: `ptd-${randomBytes(12).toString('hex')}`,
-      hash: await hashearContrasena(u.contrasena),
-      factor: null,
-    });
+    const cedula = normalizarCedula('V', u.cedula);
+    if (!cedula) throw new Error(`Cédula de demostración no válida: ${u.cedula}`);
+    usuarios.push({ cedula, nombre: u.nombre, hash: await hashearContrasena(u.contrasena), factor: null });
   }
   guardar(archivo, usuarios);
   return usuarios;
@@ -64,31 +82,43 @@ export async function generarUsuarios(archivo, lista = USUARIOS_DEMO) {
 function guardar(archivo, usuarios) {
   mkdirSync(dirname(archivo), { recursive: true });
   const tmp = `${archivo}.${process.pid}.tmp`;
-  writeFileSync(tmp, JSON.stringify({ version: 1, usuarios }, null, 2) + '\n', { mode: 0o600 });
+  // El seudónimo no se guarda: se deriva al abrir (cédula + secreto).
+  const datos = usuarios.map(({ cedula, nombre, hash, factor }) => ({ cedula, nombre, hash, factor }));
+  writeFileSync(tmp, JSON.stringify({ version: VERSION, usuarios: datos }, null, 2) + '\n', { mode: 0o600 });
   renameSync(tmp, archivo);
 }
 
-/** Repositorio de usuarios sobre un JSON local. */
-export async function abrirUsuarios(archivo) {
-  if (!existsSync(archivo)) await generarUsuarios(archivo);
+/**
+ * Repositorio de usuarios sobre un JSON local, indexado por cédula normalizada (V12345678).
+ * @param {string} archivo @param {{ secreto?: string }} [o]
+ */
+export async function abrirUsuarios(archivo, { secreto = '' } = {}) {
+  const clave = secretoSeudonimos(archivo, secreto);
+  // Un archivo de una versión anterior (usuarios por nombre) se regenera: son datos de demostración.
+  if (!existsSync(archivo) || JSON.parse(readFileSync(archivo, 'utf8')).version !== VERSION) await generarUsuarios(archivo);
   const { usuarios } = JSON.parse(readFileSync(archivo, 'utf8'));
-  const porNombre = new Map(usuarios.map((u) => [u.usuario, u]));
+  for (const u of usuarios) {
+    // Identificador opaco que se envía al servicio TOTP: ni la cédula ni el nombre salen del portal.
+    u.userRef = seudonimo(u.cedula, clave);
+    u.cedulaFormateada = formatearCedula(u.cedula);
+  }
+  const porCedula = new Map(usuarios.map((u) => [u.cedula, u]));
 
   return {
-    /** Valida usuario + contraseña; null si no coincide (mismo coste exista o no el usuario). */
-    async autenticar(usuario, clave) {
-      const u = porNombre.get(String(usuario).trim().toLowerCase());
-      const ok = await verificarContrasena(clave, u?.hash ?? await relleno());
+    /** Valida cédula normalizada + contraseña; null si no coincide (mismo coste exista o no). */
+    async autenticar(cedula, contrasena) {
+      const u = porCedula.get(String(cedula));
+      const ok = await verificarContrasena(contrasena, u?.hash ?? await relleno());
       return u && ok ? u : null;
     },
-    buscar: (usuario) => porNombre.get(usuario) ?? null,
+    buscar: (cedula) => porCedula.get(cedula) ?? null,
     /** Registra/borra el factor TOTP del usuario (solo el enrollment_id). */
-    fijarFactor(usuario, factor) {
-      const u = porNombre.get(usuario);
+    fijarFactor(cedula, factor) {
+      const u = porCedula.get(cedula);
       if (!u) return;
       u.factor = factor;
       guardar(archivo, usuarios);
     },
-    listar: () => usuarios.map(({ usuario, nombre, factor }) => ({ usuario, nombre, conFactor: Boolean(factor) })),
+    listar: () => usuarios.map(({ cedula, cedulaFormateada, nombre, factor }) => ({ cedula, cedulaFormateada, nombre, conFactor: Boolean(factor) })),
   };
 }

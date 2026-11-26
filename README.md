@@ -296,7 +296,7 @@ General → Información → Ajustes de confianza de certificados. Abra `https:/
 ```bash
 cd demo-portal-tramites
 cp .env.example .env   # TOTP_CLIENT_ID y TOTP_CLIENT_SECRET de "Portal de Trámites" (Paso 3)
-npm run usuarios       # ana.rivera, bruno.mendez, carla.ortiz (clave Tramites-Demo-2026), sin segundo factor
+npm run usuarios       # cédulas de prueba V-10.000.001 (Ana), V-10.000.002 (Bruno), E-80.000.003 (Carla); clave Tramites-Demo-2026; sin segundo factor
 npm start              # «Portal de Trámites del Estado en https://localhost:8444 (HTTPS)»
 ```
 

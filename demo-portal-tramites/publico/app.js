@@ -75,6 +75,65 @@
 
   document.querySelectorAll('[data-imprimir]').forEach((b) => b.addEventListener('click', () => window.print()));
 
+  // Menú principal: en pantallas estrechas se colapsa tras un botón (sin JS queda siempre visible).
+  const menu = document.querySelector('[data-menu]');
+  const botonMenu = menu && menu.querySelector('[data-menu-boton]');
+  if (menu && botonMenu) {
+    menu.classList.add('menu-js');
+    botonMenu.hidden = false;
+    const fijar = (abierto) => {
+      menu.classList.toggle('abierto', abierto);
+      botonMenu.setAttribute('aria-expanded', String(abierto));
+    };
+    botonMenu.addEventListener('click', () => fijar(botonMenu.getAttribute('aria-expanded') !== 'true'));
+    menu.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' && botonMenu.getAttribute('aria-expanded') === 'true') { fijar(false); botonMenu.focus(); }
+    });
+    // Un enlace a un ancla de la misma página cierra el menú.
+    menu.querySelectorAll('.menu-enlace').forEach((a) => a.addEventListener('click', () => fijar(false)));
+  }
+
+  // Cédula de identidad: ayuda visual mientras se escribe (el servidor valida siempre).
+  const cedula = document.querySelector('[data-cedula]');
+  const nacionalidad = document.querySelector('[data-cedula-nacionalidad]');
+  const ayudaCedula = document.querySelector('[data-cedula-ayuda]');
+  if (cedula && nacionalidad && ayudaCedula) {
+    const textoBase = ayudaCedula.textContent;
+    const puntos = (d) => d.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const analizar = () => {
+      const t = cedula.value.trim().toUpperCase();
+      const m = /^([VE])\s?-?\s?(.*)$/.exec(t);
+      const nac = m ? m[1] : nacionalidad.value;
+      const digitos = (m ? m[2] : t).replace(/\./g, '');
+      return { nac, digitos, valida: /^[1-9][0-9]{5,8}$/.test(digitos), soloPermitidos: /^[0-9.]*$/.test(m ? m[2] : t) };
+    };
+    const pintar = (final) => {
+      const a = analizar();
+      ayudaCedula.classList.remove('ayuda-ok', 'ayuda-error');
+      if (!cedula.value.trim()) { ayudaCedula.textContent = textoBase; cedula.removeAttribute('aria-invalid'); return; }
+      if (a.valida) {
+        ayudaCedula.textContent = `Se usará: ${a.nac}-${puntos(a.digitos)}`;
+        ayudaCedula.classList.add('ayuda-ok');
+        cedula.removeAttribute('aria-invalid');
+      } else if (!a.soloPermitidos || a.digitos.length > 9 || final) {
+        ayudaCedula.textContent = 'Escriba de 6 a 9 dígitos, con o sin puntos (por ejemplo 12.345.678).';
+        ayudaCedula.classList.add('ayuda-error');
+        if (final) cedula.setAttribute('aria-invalid', 'true');
+      } else {
+        ayudaCedula.textContent = textoBase;
+        cedula.removeAttribute('aria-invalid');
+      }
+    };
+    cedula.addEventListener('input', () => pintar(false));
+    nacionalidad.addEventListener('change', () => pintar(false));
+    cedula.addEventListener('blur', () => {
+      const a = analizar();
+      // Normaliza la presentación: el prefijo escrito pasa al selector y el número queda con puntos.
+      if (a.valida) { nacionalidad.value = a.nac; cedula.value = puntos(a.digitos); }
+      pintar(true);
+    });
+  }
+
   // Foco: primer aviso de error o, si no, el campo de código.
   const error = document.querySelector('.aviso[role="alert"]');
   const codigo = document.querySelector('[data-codigo]:not([disabled])');

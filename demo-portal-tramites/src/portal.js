@@ -10,6 +10,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { crearClienteTotp, ErrorTotp, decodificarSinVerificar, esClientIpValida } from '../../sdk/src/index.js';
 import { RAIZ } from './config.js';
 import { abrirUsuarios } from './usuarios.js';
+import { normalizarCedula } from './cedula.js';
 import { crearAlmacenSesiones, csrfValido, trazar } from './sesiones.js';
 import { buscarTramite, validarCampos } from './tramites.js';
 import * as V from './vistas.js';
@@ -22,6 +23,8 @@ const ESTATICOS = {
   '/publico/estilos.css': 'text/css; charset=utf-8',
   '/publico/app.js': 'text/javascript; charset=utf-8',
   '/publico/emblema.svg': 'image/svg+xml',
+  '/publico/bandera.svg': 'image/svg+xml',
+  '/publico/estrellas.svg': 'image/svg+xml',
 };
 
 /** Cabeceras de seguridad comunes. CSP estricta: nada en línea, nada externo. */
@@ -69,7 +72,7 @@ export function ipCiudadano(req, confiarXff = false) {
  * @param {{ config: ReturnType<typeof import('./config.js').configuracion>, cliente?: any, registrar?: (m: string) => void }} o
  */
 export async function crearPortal({ config, cliente: clienteInyectado, registrar = () => {} }) {
-  const usuarios = await abrirUsuarios(config.archivoUsuarios);
+  const usuarios = await abrirUsuarios(config.archivoUsuarios, { secreto: config.secretoSeudonimos });
   const tls = config.tls ? { cert: readFileSync(config.tls.cert), key: readFileSync(config.tls.key) } : null;
   const sesiones = crearAlmacenSesiones({
     nombreCookie: tls ? '__Host-ptd_sesion' : 'ptd_sesion',
@@ -137,7 +140,7 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
     trazar(sesion, {
       tipo: 'local',
       titulo: proposito === 'step-up' ? 'Operación sensible: se exige un código nuevo (step-up)' : 'Se solicita la verificación del segundo factor',
-      detalle: `El portal envía solo user_ref ${usuario.userRef.slice(0, 12)}… (opaco), el código y la IP de la conexión del ciudadano (client_ip, para que el detector y los límites lo traten como un origen propio y no como «todo el portal»). Ni nombre ni documento salen del portal.`,
+      detalle: `El portal envía solo user_ref ${usuario.userRef.slice(0, 12)}… (seudónimo HMAC de la cédula), el código y la IP de la conexión del ciudadano (client_ip, para que el detector y los límites lo traten como un origen propio y no como «todo el portal»). Ni la cédula ni el nombre salen del portal.`,
     });
 
     let v;
@@ -271,6 +274,10 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
     }
   }
 
+  // La etiqueta de la cuenta viaja al servicio (va dentro del otpauth://): solo los 3 últimos dígitos
+  // de la cédula, para distinguir cuentas en la app sin revelar el número.
+  const etiquetaParaServicio = (u) => `${config.etiquetaCuenta} (…${u.cedula.slice(-3)})`;
+
   const rutaSegura = (r) => (typeof r === 'string' && /^\/[A-Za-z0-9/_-]*$/.test(r) && !r.startsWith('//') ? r : '/');
 
   // ------------------------------------------------------------ rutas
@@ -344,17 +351,27 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
     // ---- paso 1: contraseña
     if (ruta === '/ingresar') {
       if (etapa === 'autenticado') return redirigir(res, sesion, '/panel');
-      if (metodo === 'GET') return ver({ titulo: 'Ingresar', contenido: V.paginaIngresar({ sesion, demo: usuarios.listar() }) });
+      if (metodo === 'GET') return ver({ titulo: 'Ingresar', ancho: 'portada', contenido: V.paginaIngresar({ sesion, demo: usuarios.listar() }) });
 
-      const nombre = String(cuerpo.get('usuario') ?? '').trim().toLowerCase().slice(0, 64);
+      const nacionalidad = String(cuerpo.get('nacionalidad') ?? 'V').slice(0, 1);
+      const escrita = String(cuerpo.get('cedula') ?? '').slice(0, 24);
       const clave = String(cuerpo.get('contrasena') ?? '').slice(0, 128);
+      const nombre = normalizarCedula(nacionalidad, escrita);
+      const previo = { nacionalidad, cedula: escrita };
+      if (!nombre) {
+        trazar(sesion, { tipo: 'local', titulo: 'Cédula con formato no válido: se rechaza sin consultar usuarios', detalle: 'Se espera V o E y de 6 a 9 dígitos, con o sin puntos.', estado: 'error' });
+        return ver({
+          status: 400, titulo: 'Ingresar', ancho: 'portada',
+          contenido: V.paginaIngresar({ sesion, previo, demo: usuarios.listar(), errorCedula: true, error: { titulo: 'Cédula de identidad no válida', texto: 'Escriba de 6 a 9 dígitos, con o sin puntos (por ejemplo 12.345.678), y elija V o E.' } }),
+        });
+      }
       const freno = intentosContrasena.get(nombre);
       if (freno && freno.hasta > Date.now()) {
         const s = Math.ceil((freno.hasta - Date.now()) / 1000);
         trazar(sesion, { tipo: 'decision', titulo: 'Demasiados intentos de contraseña: el portal frena el ingreso', detalle: `${s} s`, estado: 'error' });
         return ver({
-          status: 429, titulo: 'Ingresar',
-          contenido: V.paginaIngresar({ sesion, usuario: nombre, demo: usuarios.listar(), error: { tipo: 'bloqueo', titulo: 'Demasiados intentos', texto: `Espere ${s} segundos antes de volver a intentarlo.` } }),
+          status: 429, titulo: 'Ingresar', ancho: 'portada',
+          contenido: V.paginaIngresar({ sesion, previo, demo: usuarios.listar(), error: { tipo: 'bloqueo', titulo: 'Demasiados intentos', texto: `Espere ${s} segundos antes de volver a intentarlo.` } }),
         });
       }
       const t0 = performance.now();
@@ -365,15 +382,15 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
         f.fallos += 1;
         if (f.fallos >= 5) { f.hasta = Date.now() + 60 * 1000; f.fallos = 0; }
         intentosContrasena.set(nombre, f);
-        trazar(sesion, { tipo: 'local', titulo: 'Usuario o contraseña incorrectos', detalle: 'scrypt con el mismo coste exista o no el usuario (sin enumeración).', ms, estado: 'error' });
+        trazar(sesion, { tipo: 'local', titulo: 'Cédula o contraseña incorrectas', detalle: 'scrypt con el mismo coste exista o no la cédula (sin enumeración).', ms, estado: 'error' });
         return ver({
-          status: 401, titulo: 'Ingresar',
-          contenido: V.paginaIngresar({ sesion, usuario: nombre, demo: usuarios.listar(), error: { titulo: 'Usuario o contraseña incorrectos', texto: 'Revise los datos e inténtelo de nuevo.' } }),
+          status: 401, titulo: 'Ingresar', ancho: 'portada',
+          contenido: V.paginaIngresar({ sesion, previo, demo: usuarios.listar(), error: { titulo: 'Cédula o contraseña incorrectas', texto: 'Revise los datos e inténtelo de nuevo.' } }),
         });
       }
       intentosContrasena.delete(nombre);
       sesiones.rotar(sesion);
-      sesion.usuario = u.usuario;
+      sesion.usuario = u.cedula;
       sesion.etapa = 'contrasena';
       sesion.mfa = null;
       sesion.bloqueadoHasta = 0;
@@ -395,11 +412,11 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
     if (ruta === '/enrolar' && metodo === 'GET') {
       if (usuario.factor) return redirigir(res, sesion, '/verificar');
       const e = sesion.enrolamiento;
-      if (!e || e.usuario !== usuario.usuario || Date.parse(e.expiraEn) - 30000 < Date.now()) {
+      if (!e || e.usuario !== usuario.cedula || Date.parse(e.expiraEn) - 30000 < Date.now()) {
         try {
-          const n = await cliente.enrolar(usuario.userRef, { etiquetaCuenta: `${config.etiquetaCuenta} (${usuario.usuario})` });
+          const n = await cliente.enrolar(usuario.userRef, { etiquetaCuenta: etiquetaParaServicio(usuario) });
           if (typeof n.qrSvg !== 'string' || !n.qrSvg.trimStart().startsWith('<svg') || n.qrSvg.length > 200_000) throw new ErrorTotp('QR inválido', { codigo: 'RESPUESTA_INVALIDA' });
-          sesion.enrolamiento = { ...n, usuario: usuario.usuario };
+          sesion.enrolamiento = { ...n, usuario: usuario.cedula };
           trazar(sesion, {
             tipo: 'servicio',
             titulo: 'Enrolamiento PENDIENTE creado (vence en 10 min)',
@@ -415,7 +432,7 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
 
     if (ruta === '/enrolar/activar' && metodo === 'POST') {
       const e = sesion.enrolamiento;
-      if (!e || e.usuario !== usuario.usuario) return redirigir(res, sesion, '/enrolar');
+      if (!e || e.usuario !== usuario.cedula) return redirigir(res, sesion, '/enrolar');
       const codigo = String(cuerpo.get('codigo') ?? '').replace(/\s+/g, '');
       let resultado;
       if (sesion.bloqueadoHasta > Date.now()) {
@@ -425,7 +442,7 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
       } else {
         try {
           const a = await cliente.activar(e.enrollmentId, codigo, { clientIp });
-          usuarios.fijarFactor(usuario.usuario, { enrollmentId: a.enrollmentId, activadoEn: a.activadoEn ?? new Date().toISOString() });
+          usuarios.fijarFactor(usuario.cedula, { enrollmentId: a.enrollmentId, activadoEn: a.activadoEn ?? new Date().toISOString() });
           sesion.codigosRecuperacion = a.codigosRecuperacion;
           sesion.enrolamiento = null;
           trazar(sesion, {
@@ -485,7 +502,7 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
       } else {
         try {
           const r = await cliente.recuperar(usuario.userRef, codigo, { clientIp });
-          usuarios.fijarFactor(usuario.usuario, null);
+          usuarios.fijarFactor(usuario.cedula, null);
           trazar(sesion, {
             tipo: 'decision', titulo: 'Código de recuperación aceptado: se obliga a re-enrolar',
             detalle: `Quedan ${r.codigosRestantes} códigos. No se concede acceso hasta vincular y verificar un autenticador nuevo.`,
@@ -505,7 +522,7 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
     }
 
     if (ruta === '/panel' && metodo === 'GET') {
-      return ver({ titulo: 'Área personal', ancho: 'amplio', contenido: V.paginaPanel({ sesion, usuario }) });
+      return ver({ titulo: 'Oficina virtual', ancho: 'portada', contenido: V.paginaPanel({ sesion, usuario }) });
     }
 
     const mTramite = /^\/tramites\/([a-z-]{1,40})$/.exec(ruta);
@@ -533,7 +550,7 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
           clasificar(sesion, err);
           return ver({ status: 503, titulo: tramite.titulo, contenido: V.paginaTramite({ sesion, tramite, resultado: { ok: false, tipo: 'servicio' } }) });
         }
-        usuarios.fijarFactor(usuario.usuario, null);
+        usuarios.fijarFactor(usuario.cedula, null);
         trazar(sesion, { tipo: 'decision', titulo: 'Factor revocado y sesión cerrada', detalle: 'El próximo ingreso exigirá un enrolamiento nuevo.' });
         const trazas = sesion.trazas;
         const visibles = sesion.trazasVisibles;
