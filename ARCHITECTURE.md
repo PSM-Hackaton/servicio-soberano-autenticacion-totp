@@ -13,14 +13,15 @@
   2. El mismo código corre con **PostgreSQL 16 + Caddy + Docker Compose** (`DB_DRIVER=postgres`) y con **SQLite WAL + Node TLS** (`DB_DRIVER=sqlite`) en estaciones del hackatón que no tienen Docker instalado.
   3. El módulo `heuristics/` soporta `MockAnomalyAdapter` para desarrollo paralelo del Frontend y `LocalAnomalyAdapter` (Isolation Forest / scoring conductual local) en producción/demo.
 
-### ADR-002: Stack Oficial
-- **Backend:** Node.js 22 + TypeScript + Fastify + `node:crypto` nativo (cero librerías OTP externas) + `jose` (EdDSA/JWKS) + `pg` (PostgreSQL 16) + `better-sqlite3` (fallback sin Docker).
-- **Frontends:** React + Vite + TypeScript (sin CDNs externos):
-  - `authenticator-app/` — PWA offline instalable con bloqueo por PIN (semillas cifradas localmente con clave derivada del PIN), QR / alta manual, soporte SHA-256 y SHA-512 (6 u 8 dígitos).
-  - `admin-console/` — Consola administrativa protegida con RBAC (`Administrador`, `Operador`, `Auditor`), cookies `HttpOnly; Secure; SameSite=Strict` + CSRF + nuestro propio TOTP.
-  - `demo-portal-tramites/` — Sistema institucional demo integrado con `sdk/`.
-- **Integración con Reto 1:** El equipo del Reto 1 (*Agente Evaluador de Propuestas*) se registra como una `app` más en la tabla `apps` (`client_id` + `client_secret`) y consume `sdk/` sin acoplar bases de datos.
-- **Borde y despliegue:** `deploy/docker-compose.yml` + `deploy/Caddyfile` (`tls internal`, TLS 1.3, HSTS, rate limit y tamaño máximo de cuerpo).
+### ADR-002: Stack Oficial — 100 % propio y autoejecutable (decisión del 26-11-2026)
+- **Regla:** todo lo que se ejecuta lo escribimos nosotros. **Cero dependencias npm** en tiempo de ejecución y en pruebas. Solo módulos nativos de Node.js 22.
+- **Lenguaje:** JavaScript moderno (ESM, `"type": "module"`), con comentarios JSDoc para tipos. Sin TypeScript (el Node de las estaciones no lo ejecuta sin paquetes externos).
+- **Backend:** `node:https` (servidor y enrutador propios), `node:crypto` (TOTP, AES-256-GCM, Ed25519, scrypt, HMAC), JWT EdDSA propio (sin `jose`), `node:sqlite` (SQLite WAL nativo, sin `better-sqlite3` ni `pg`), `node:test` (pruebas).
+- **Base de datos:** solo SQLite (`contracts/schema.sqlite.sql`). PostgreSQL y Docker quedan fuera: no están disponibles en las estaciones.
+- **TLS:** Node HTTPS directo con certificado generado por `openssl` del sistema (`TLS_MODE=node`). Sin Caddy.
+- **Frontends (`authenticator-app/`, `admin-console/`, `demo-portal-tramites/`):** HTML + CSS + JavaScript propios, servidos por nuestro servidor. Sin React, Vite ni CDNs. La PWA usa `manifest.json` + Service Worker propios y Web Crypto del navegador.
+- **Código QR:** generador propio (`backend/src/core/qr/`); plan B: alta con clave manual Base32.
+- **Integración con Reto 1:** se registra como una `app` más (`client_id` + `client_secret`) y usa `sdk/`.
 
 ### ADR-003: Controles Criptográficos y de Integridad
 - **AES-256-GCM con AAD:** `AAD = enrollment_id + ":" + key_version` (previene trasplante de filas cifradas).
@@ -46,7 +47,16 @@
 
 ---
 
-## 3. Propiedad de Carpetas y Tracks Paralelos
+## 3. Áreas de trabajo (Diego y Laya)
+
+| Área | Responsable | Rama | Carpetas |
+| :--- | :--- | :--- | :--- |
+| **A — Núcleo y API** | Diego | `diego` | `backend/src/core/{totp,vault,tokens,qr}`, `backend/src/infrastructure/`, `backend/src/application/`, `backend/src/api/`, `backend/src/security/`, `backend/src/audit/`, `backend/src/heuristics/`, `backend/migrations/` |
+| **B — Clientes, contratos e integración** | Laya | `laya` | `contracts/`, `sdk/`, `authenticator-app/`, `admin-console/`, `demo-portal-tramites/`, `attack-lab/`, `deploy/`, documentos raíz |
+
+**Punto de unión:** `contracts/openapi.yaml` y `contracts/mocks/`. Laya construye los clientes contra los mocks mientras Diego construye la API; al integrar en `staging`, los clientes pasan de los mocks a la API real sin cambios de contrato.
+
+## 3.1 Propiedad de Carpetas y Tracks Paralelos (detalle original)
 
 | Track / Rol | Carpetas Propias | Rama Sugerida |
 | :--- | :--- | :--- |
@@ -61,12 +71,9 @@
 ## 4. Comandos de Arranque (Dual: Docker y Sin Docker)
 
 ```bash
-# Modo A: Con Docker Compose (PostgreSQL 16 + Caddy TLS 1.3)
-docker compose -f deploy/docker-compose.yml up --build
-
-# Modo B: Sin Docker (Estación Ubuntu del hackatón — SQLite WAL + Node TLS)
-cp .env.example backend/.env   # Configurar DB_DRIVER=sqlite
-cd backend && npm install && npm test && npm run dev
+# Sin instalar nada (Node 22): SQLite nativo + HTTPS de Node
+cp .env.example backend/.env
+cd backend && npm test && npm start
 
 # Smoke tests
 curl -k https://localhost:8443/health
