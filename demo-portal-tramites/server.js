@@ -23,6 +23,10 @@ if (!config.servicio.clientSecret) {
 }
 
 const portal = await crearPortal({ config, registrar: (m) => process.stderr.write(`[portal] ${m}\n`) });
+if (portal.usuarios.origenSecreto !== 'configurado') {
+  process.stderr.write('Aviso: TOTP_CEDULA_SECRETO vacío; los seudónimos usan el secreto local datos/seudonimos.clave y la consola\n'
+    + '  no podrá buscar a estos ciudadanos por cédula. Registre la app con user_ref_desde_cedula = hmac y copie su cedula_secreto.\n');
+}
 const url = await portal.iniciar();
 process.stdout.write(
   `Portal de Trámites del Estado en ${url} (${portal.tls ? 'HTTPS' : 'HTTP solo local, sin certificados'})\n`

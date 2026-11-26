@@ -193,6 +193,11 @@ if [ ! -f "$ENV_PORTAL" ]; then
   ID_PORTAL=$(credencial_app "Portal de Trámites" client_id)
   SECRETO_PORTAL=$(credencial_app "Portal de Trámites" client_secret)
   case "$SECRETO_PORTAL" in ''|'(ya') fallo "No hay client_secret de «Portal de Trámites» en $CREDENCIALES: registre una app en la consola y cree $ENV_PORTAL a mano." ;; esac
+  # Derivación del user_ref desde la cédula (modo hmac): permite buscar ciudadanos por cédula en la consola.
+  SECRETO_CEDULA_PORTAL=$(credencial_app "Portal de Trámites" cedula_secreto)
+  PREFIJO_CEDULA_PORTAL=$(credencial_app "Portal de Trámites" cedula_prefijo)
+  case "$SECRETO_CEDULA_PORTAL" in '(ya') SECRETO_CEDULA_PORTAL= ;; esac
+  [ -n "$SECRETO_CEDULA_PORTAL" ] || aviso "Sin cedula_secreto de «Portal de Trámites»: el portal usará un secreto local y la consola no buscará por cédula."
   cat > "$ENV_PORTAL" <<EOF
 # Portal de Trámites (demo) — generado por deploy/instalar.sh. Archivo 0600: contiene el client_secret.
 PORTAL_HOST=0.0.0.0
@@ -212,6 +217,8 @@ PORTAL_TRAZAS=1
 PORTAL_SESION_MINUTOS=15
 PORTAL_USUARIOS=$DATOS/portal/usuarios.json
 PORTAL_CONFIAR_X_FORWARDED_FOR=0
+TOTP_CEDULA_SECRETO=$SECRETO_CEDULA_PORTAL
+TOTP_CEDULA_PREFIJO=${PREFIJO_CEDULA_PORTAL:-ptd-}
 EOF
   chmod 0600 "$ENV_PORTAL"
   ok "Creado $ENV_PORTAL (0600) con las credenciales de la app «Portal de Trámites»"

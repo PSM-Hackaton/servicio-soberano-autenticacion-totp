@@ -68,8 +68,11 @@ export function configuracion(env = cargarEnv()) {
     autenticadorUrl: env.AUTENTICADOR_URL ?? 'https://localhost:8443/app/',
     etiquetaCuenta: env.PORTAL_ETIQUETA_CUENTA ?? 'Portal de Trámites',
     archivoUsuarios: rutaRel(env.PORTAL_USUARIOS ?? 'datos/usuarios.json'),
-    // Secreto del HMAC que convierte la cédula en el seudónimo `user_ref` (vacío = datos/seudonimos.clave).
-    secretoSeudonimos: (env.PORTAL_SECRETO_SEUDONIMOS ?? '').trim(),
+    // Derivación del user_ref desde la cédula (modo 'hmac' de la app en el servicio): el secreto es el
+    // `cedula_secreto` que devolvió el servicio al registrar la app y el prefijo su `cedula_prefijo`.
+    // Vacío = secreto local en datos/seudonimos.clave (sin búsqueda por cédula en la consola).
+    secretoSeudonimos: (env.TOTP_CEDULA_SECRETO ?? '').trim(),
+    prefijoSeudonimos: (env.TOTP_CEDULA_PREFIJO ?? 'ptd-').trim(),
     trazasPorDefecto: (env.PORTAL_TRAZAS ?? '1') !== '0',
     sesionMinutos: Number(env.PORTAL_SESION_MINUTOS ?? 15),
     // Solo si hay un proxy inverso PROPIO delante del portal: entonces la IP del ciudadano llega en

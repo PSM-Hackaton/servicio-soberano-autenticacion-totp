@@ -9,8 +9,9 @@ import { join } from 'node:path';
 import { crearServicioFalso } from '../../sdk/testing/servicio-falso.js';
 import { configuracion, parsearEnv } from '../src/config.js';
 import { crearPortal, ipCiudadano } from '../src/portal.js';
-import { generarUsuarios, USUARIOS_DEMO } from '../src/usuarios.js';
+import { generarUsuarios, USUARIOS_DEMO, abrirUsuarios, secretoSeudonimos } from '../src/usuarios.js';
 import { normalizarCedula, formatearCedula, seudonimo } from '../src/cedula.js';
+import { derivarUserRefDesdeCedula } from '../../sdk/src/index.js';
 
 const CLAVE = 'Tramites-Demo-2026';
 
@@ -154,7 +155,7 @@ describe('Portal de Trámites con servicio TOTP falso', () => {
     const r = await nav.post('/ingresar', { nacionalidad: 'E', cedula: 'v-10000002', contrasena: CLAVE });
     assert.equal(r.url, '/enrolar');
     const ref = portal.usuarios.buscar('V10000002').userRef;
-    assert.match(ref, /^ptd-[0-9a-f]{32}$/);
+    assert.match(ref, /^ptd-[A-Za-z0-9_-]{43}$/, 'formato hmac del servicio: prefijo + base64url(HMAC-SHA256)');
     const enrol = [...falso.enrolamientos.values()].reverse().find((e) => e.userRef === ref);
     assert.ok(enrol, 'el servicio recibió el seudónimo');
     assert.doesNotMatch(r.html.match(/#add=([^"]+)"/)[1], /10000002|10\.000\.002/, 'la cédula no viaja en el otpauth');
@@ -366,12 +367,38 @@ test('cédula: normalización, formato y seudónimo', () => {
   assert.equal(normalizarCedula('J', '12345678'), null);
   assert.equal(formatearCedula('V12345678'), 'V-12.345.678');
   assert.equal(formatearCedula('E123456'), 'E-123.456');
-  const s = 'x'.repeat(32);
+  const s = Buffer.alloc(32, 7).toString('base64url');
   assert.equal(seudonimo('V12345678', s), seudonimo('V12345678', s));
-  assert.notEqual(seudonimo('V12345678', s), seudonimo('V12345678', 'y'.repeat(32)));
+  assert.notEqual(seudonimo('V12345678', s), seudonimo('V12345678', Buffer.alloc(32, 8).toString('base64url')));
   assert.doesNotMatch(seudonimo('V12345678', s), /12345678/);
   assert.throws(() => seudonimo('V12345678', 'corto'));
+  assert.throws(() => seudonimo('V12345678', s, 'prefijo con espacios'));
+  // Mismo valor que calcula el servicio en la búsqueda por cédula (modo hmac, sdk/src/cedula.js).
+  assert.equal(seudonimo('V12345678', s), derivarUserRefDesdeCedula('V-12.345.678', s, 'ptd-'));
+  assert.equal(seudonimo('E123456', s, 'x_'), derivarUserRefDesdeCedula('e 123.456', s, 'x_'));
   assert.ok(USUARIOS_DEMO.every((u) => normalizarCedula('V', u.cedula)));
+});
+
+test('secreto de seudónimos: TOTP_CEDULA_SECRETO validado; sin él, secreto local base64url y aviso de origen', async () => {
+  const d = mkdtempSync(join(tmpdir(), 'portal-secreto-'));
+  try {
+    const archivo = join(d, 'usuarios.json');
+    const bueno = Buffer.alloc(32, 9).toString('base64url');
+    assert.deepEqual(secretoSeudonimos(archivo, bueno), { secreto: bueno, origen: 'configurado' });
+    assert.throws(() => secretoSeudonimos(archivo, 'x'.repeat(32)), /TOTP_CEDULA_SECRETO/);
+    assert.throws(() => secretoSeudonimos(archivo, Buffer.alloc(16).toString('base64url')), /TOTP_CEDULA_SECRETO/);
+    const local = secretoSeudonimos(archivo);
+    assert.equal(local.origen, 'local');
+    assert.equal(Buffer.from(local.secreto, 'base64url').length, 32);
+    assert.equal(secretoSeudonimos(archivo).secreto, local.secreto, 'se reutiliza el secreto local');
+    const repo = await abrirUsuarios(archivo, { secreto: bueno, prefijo: 'ptd-' });
+    assert.equal(repo.origenSecreto, 'configurado');
+    assert.equal(repo.buscar('V10000001').userRef, derivarUserRefDesdeCedula('V-10.000.001', bueno, 'ptd-'));
+    assert.equal(configuracion({ TOTP_CLIENT_ID: 'app_x', TOTP_CEDULA_SECRETO: ` ${bueno} ` }).secretoSeudonimos, bueno);
+    assert.equal(configuracion({ TOTP_CLIENT_ID: 'app_x' }).prefijoSeudonimos, 'ptd-');
+  } finally {
+    rmSync(d, { recursive: true, force: true });
+  }
 });
 
 test('parser .env propio', () => {
