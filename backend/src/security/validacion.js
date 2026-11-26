@@ -6,7 +6,7 @@
  *   type: 'string' | 'integer' | 'boolean' | 'object',
  *   properties?: Record<string, Esquema>,
  *   required?: string[],
- *   minLength?: number, maxLength?: number, pattern?: string | RegExp,
+ *   minLength?: number, maxLength?: number, pattern?: RegExp,
  *   enum?: Array<string | number | boolean>,
  *   minimum?: number, maximum?: number,
  * }} Esquema
@@ -25,17 +25,14 @@ function esObjetoPlano(v) {
   return proto === Object.prototype || proto === null;
 }
 
-/** Cache de expresiones regulares compiladas por esquema. */
-const regexCache = new WeakMap();
-/** @param {Esquema} esquema */
+/**
+ * Patrón del esquema. Solo se aceptan expresiones literales (RegExp) escritas en el código: nunca se
+ * compila una expresión a partir de texto, para que ningún dato pueda convertirse en un patrón.
+ * @param {Esquema} esquema
+ */
 function regexDe(esquema) {
-  if (esquema.pattern instanceof RegExp) return esquema.pattern;
-  let re = regexCache.get(esquema);
-  if (!re) {
-    re = new RegExp(esquema.pattern, 'u');
-    regexCache.set(esquema, re);
-  }
-  return re;
+  if (!(esquema.pattern instanceof RegExp)) throw new TypeError('pattern debe ser una expresión regular literal');
+  return esquema.pattern;
 }
 
 /**
@@ -52,7 +49,10 @@ function validarValor(valor, esquema, ruta, errores, profundidad) {
       if (typeof valor !== 'string') return error('debe ser texto');
       const largo = [...valor].length;
       if (esquema.minLength !== undefined && largo < esquema.minLength) error(`longitud mínima ${esquema.minLength}`);
-      if (esquema.maxLength !== undefined && largo > esquema.maxLength) error(`longitud máxima ${esquema.maxLength}`);
+      if (esquema.maxLength !== undefined && largo > esquema.maxLength) return error(`longitud máxima ${esquema.maxLength}`);
+      // El patrón solo se evalúa sobre texto ya acotado por maxLength (todos los esquemas lo fijan
+      // o usan cuantificadores acotados), y son literales anclados sin repeticiones anidadas.
+      // nosemgrep: nodejs_scan.javascript-dos-rule-regex_dos -- validador interno (no un manejador req/res); patrón literal anclado y lineal sobre texto acotado
       if (esquema.pattern !== undefined && !regexDe(esquema).test(valor)) error('formato inválido');
       break;
     }

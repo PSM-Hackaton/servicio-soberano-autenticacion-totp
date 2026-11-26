@@ -545,7 +545,9 @@ export function crearCasosAdmin(d) {
     if (negado) return negado;
     const q = consulta(entrada, ESQUEMA_ADMIN_AUDITORIA);
     if (!q) return errorEntrada();
-    const desde = q.desde === undefined ? 0 : /^[0-9]+$/.test(q.desde) ? Number(q.desde) : q.desde;
+    // desde: id numérico (solo cifras) o fecha ISO; el esquema ya lo acotó a 40 caracteres.
+    const soloCifras = (t) => t.length > 0 && [...t].every((c) => c >= '0' && c <= '9');
+    const desde = q.desde === undefined ? 0 : soloCifras(q.desde) ? Number(q.desde) : q.desde;
     const limite = entero(q.limite, 100, 500);
     const filas = repos.auditLog.listar(desde, limite);
     const siguiente = filas.length === limite ? filas[filas.length - 1].id : null;

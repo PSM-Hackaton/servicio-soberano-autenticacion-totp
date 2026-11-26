@@ -2,7 +2,7 @@
 // Falla cerrado: los métodos devuelven un resultado aprobado SOLO ante una respuesta 2xx
 // que cumple el contrato; cualquier otra cosa lanza ErrorTotp.
 
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { isIPv4, isIPv6 } from 'node:net';
 import { ErrorTotp, CODIGOS_LOCALES } from './errores.js';
 import { validarBaseUrl, crearAgente, peticion } from './http.js';
@@ -114,7 +114,7 @@ export function crearClienteTotp(opciones) {
           ? true
           : error.status === 503;
         if (!reintentable || intento > reintentos) throw error;
-        await pausa(100 + Math.floor(Math.random() * 150));
+        await pausa(100 + randomInt(150)); // espera con fluctuación (CSPRNG del sistema)
       }
     }
     throw ultimo;
@@ -322,6 +322,7 @@ function errorDeRespuesta(res, datos, operacion) {
       : res.status === 503 ? 'SERVICE_UNAVAILABLE' : `HTTP_${res.status}`;
   let reintentarEn = Number.isFinite(d.retry_after_seconds) ? d.retry_after_seconds
     : Number.isFinite(d.retryAfterSeconds) ? d.retryAfterSeconds : null;
+  // nosemgrep: nodejs_scan.javascript-dos-rule-regex_dos -- lee una cabecera de la respuesta del servicio, no una petición; literal anclado y lineal
   if (reintentarEn === null && res.cabeceras['retry-after'] && /^\d+$/.test(res.cabeceras['retry-after'])) {
     reintentarEn = Number(res.cabeceras['retry-after']);
   }
@@ -338,13 +339,15 @@ function exigir(r, campos, operacion) {
 }
 
 function exigirCodigo(codigo, operacion) {
-  if (typeof codigo !== 'string' || !CODIGO.test(codigo)) {
+  // nosemgrep: nodejs_scan.javascript-dos-rule-regex_dos -- validación local de un argumento; CODIGO es un literal anclado y acotado (6 a 8 cifras)
+  if (typeof codigo !== 'string' || codigo.length > 8 || !CODIGO.test(codigo)) {
     throw new ErrorTotp('El código debe tener entre 6 y 8 dígitos', { codigo: CODIGOS_LOCALES.ENTRADA_INVALIDA, operacion });
   }
 }
 
 function exigirUserRef(userRef, operacion) {
   const largo = typeof userRef === 'string' ? [...userRef].length : 0;
+  // nosemgrep: nodejs_scan.javascript-dos-rule-regex_dos -- validación local de un argumento ya acotado a 128 caracteres; literal anclado sin repeticiones anidadas
   if (largo < 1 || largo > 128 || !USER_REF.test(userRef)) {
     throw new ErrorTotp('userRef debe tener 1 a 128 caracteres imprimibles, sin espacios en los extremos ni caracteres de control',
       { codigo: CODIGOS_LOCALES.ENTRADA_INVALIDA, operacion });

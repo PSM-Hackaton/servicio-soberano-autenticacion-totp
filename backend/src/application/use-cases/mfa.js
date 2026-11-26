@@ -78,7 +78,8 @@ export function crearCasosMfa(d) {
 
   /** Busca el enrolamiento solo si pertenece a la app que llama. */
   function enrolamientoDeApp(id, app) {
-    if (typeof id !== 'string' || !PATRON_UUID.test(id)) return null;
+    // nosemgrep: nodejs_scan.javascript-dos-rule-regex_dos -- no es un manejador req/res; PATRON_UUID es un literal anclado de longitud fija (36)
+    if (typeof id !== 'string' || id.length !== 36 || !PATRON_UUID.test(id)) return null;
     const e = repos.enrollments.buscarPorId(id.toLowerCase());
     return e && e.app_id === app.id ? e : null;
   }

@@ -1290,8 +1290,8 @@ components:
             properties:
               kty: { type: string, enum: [OKP] }
               crv: { type: string, enum: [Ed25519] }
-              x: { type: string, description: Clave pública en base64url. }
-              kid: { type: string, description: Huella base64url (22 caracteres) de la clave pública. }
+              x: { type: string, description: 'Clave pública en base64url.' }
+              kid: { type: string, description: 'Huella base64url (22 caracteres) de la clave pública.' }
               use: { type: string, enum: [sig] }
               alg: { type: string, enum: [EdDSA] }
 

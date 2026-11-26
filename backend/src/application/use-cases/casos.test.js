@@ -789,8 +789,8 @@ describe('validación estricta de user_ref', () => {
   test('rechaza NUL, controles C0/C1, bidi, invisibles, espacios en extremos y más de 128 caracteres', async () => {
     const m = montar();
     const malos = [
-      '', 'lab\u0000x', 'a\u001b[31m', 'x\u007fy', 'x\u0085y', 'x\u009by', ' inicio', 'fin ', '\t', 'x\ny', 'a‮b', 'a⁦b',
-      'a​b', 'a‍b', '﻿a', 'a⁠b', 'a b', 'a b', 'aㅤb', 'aᅟb', 'ab', 'x'.repeat(129),
+      '', 'lab\u0000x', 'a\u001b[31m', 'x\u007fy', 'x\u0085y', 'x\u009by', ' inicio', 'fin ', '\t', 'x\ny', 'a\u202Eb', 'a\u2066b',
+      'a\u200Bb', 'a\u200Db', '\uFEFFa', 'a\u2060b', 'a\u00A0b', 'a\u2028b', 'a\u3164b', 'a\u115Fb', 'a\uE000b', 'x'.repeat(129),
     ];
     for (const user_ref of malos) {
       for (const [nombre, llamada] of [

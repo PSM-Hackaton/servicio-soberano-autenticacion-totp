@@ -13,6 +13,16 @@ import { fileURLToPath } from 'node:url';
 import { iniciar } from '../backend/src/main.js';
 import { cargarConfig } from '../backend/src/infrastructure/config/config.js';
 
+/** Sustituye (o añade) la línea `clave=valor` de un texto .env sin construir expresiones regulares. */
+function fijarVariable(texto, clave, valor) {
+  const lineas = texto.split('\n');
+  const i = lineas.findIndex((l) => l.startsWith(`${clave}=`));
+  if (i === -1) return `${texto}\n${clave}=${valor}`;
+  lineas[i] = `${clave}=${valor}`;
+  return lineas.join('\n');
+}
+
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const RAIZ = resolve(__dirname, '..');
 
@@ -63,8 +73,7 @@ async function main() {
     HEURISTICS_MODE: 'mock',
   };
   for (const [k, v] of Object.entries(ajustes)) {
-    const re = new RegExp(`^${k}=.*$`, 'm');
-    envTxt = re.test(envTxt) ? envTxt.replace(re, `${k}=${v}`) : `${envTxt}\n${k}=${v}`;
+    envTxt = fijarVariable(envTxt, k, v);
   }
   writeFileSync(envPath, `${envTxt.trim()}\n`, 'utf8');
 

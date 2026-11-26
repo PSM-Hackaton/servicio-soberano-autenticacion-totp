@@ -2,22 +2,22 @@
 // Copian campos, tipos y límites de contracts/openapi.yaml; donde el contrato no define el
 // cuerpo (rutas admin) se usan los nombres de columna del esquema SQL.
 
-const CODIGO = { type: 'string', pattern: '^[0-9]{6,8}$' };
+const CODIGO = { type: 'string', pattern: /^[0-9]{6,8}$/u };
 /**
  * user_ref: 1 a 128 caracteres imprimibles (letras, marcas, números, puntuación, símbolos y el
  * espacio U+0020 solo en el interior). Se rechazan NUL, controles C0/C1, caracteres de formato
  * (bidi, U+200B…U+200F, U+2060…, BOM), separadores distintos del espacio, privados, sin asignar y
  * rellenos invisibles (U+034F, U+115F, U+1160, U+2800, U+3164, U+FFA0).
  */
-export const PATRON_USER_REF = '^(?! )(?!.* $)(?:(?![\\u034F\\u115F\\u1160\\u2800\\u3164\\uFFA0])[\\p{L}\\p{M}\\p{N}\\p{P}\\p{S} ])+$';
+export const PATRON_USER_REF = /^(?! )(?!.* $)(?:(?![\u034F\u115F\u1160\u2800\u3164\uFFA0])[\p{L}\p{M}\p{N}\p{P}\p{S} ])+$/u;
 const USER_REF = { type: 'string', minLength: 1, maxLength: 128, pattern: PATRON_USER_REF };
 /**
  * client_ip (opcional): IP del usuario final que la app integradora atiende. Aquí solo se filtra el
  * alfabeto; la validación estricta (IPv4 sin ceros a la izquierda o IPv6 sin zona) la hace
  * security/ip.js en el caso de uso, que responde 400 si no es una IP válida.
  */
-const CLIENT_IP = { type: 'string', minLength: 2, maxLength: 45, pattern: '^[0-9A-Fa-f:.]{2,45}$' };
-const ENTERO_TEXTO = { type: 'string', pattern: '^[0-9]{1,9}$' };
+const CLIENT_IP = { type: 'string', minLength: 2, maxLength: 45, pattern: /^[0-9A-Fa-f:.]{2,45}$/u };
+const ENTERO_TEXTO = { type: 'string', pattern: /^[0-9]{1,9}$/u };
 
 /** POST /api/v1/enrollments */
 export const ESQUEMA_ENROLAR = {
@@ -95,8 +95,8 @@ export const ESQUEMA_ADMIN_APP = {
     // Derivación del user_ref desde la cédula (migración 002). Con 'hmac' y sin cedula_secreto el
     // servicio genera el secreto y lo devuelve una sola vez.
     user_ref_desde_cedula: { type: 'string', enum: ['ninguno', 'hmac'] },
-    cedula_prefijo: { type: 'string', maxLength: 32, pattern: '^[A-Za-z0-9_.:-]{0,32}$' },
-    cedula_secreto: { type: 'string', minLength: 43, maxLength: 86, pattern: '^[A-Za-z0-9_-]{43,86}$' },
+    cedula_prefijo: { type: 'string', maxLength: 32, pattern: /^[A-Za-z0-9_.:-]{0,32}$/u },
+    cedula_secreto: { type: 'string', minLength: 43, maxLength: 86, pattern: /^[A-Za-z0-9_-]{43,86}$/u },
   },
 };
 
@@ -120,7 +120,7 @@ export const ESQUEMA_ADMIN_CREAR_ADMIN = {
   type: 'object',
   required: ['usuario', 'rol'],
   properties: {
-    usuario: { type: 'string', minLength: 3, maxLength: 32, pattern: '^[a-z0-9][a-z0-9._-]{2,31}$' },
+    usuario: { type: 'string', minLength: 3, maxLength: 32, pattern: /^[a-z0-9][a-z0-9._-]{2,31}$/u },
     rol: { type: 'string', enum: ['Administrador', 'Operador', 'Auditor'] },
   },
 };
@@ -129,7 +129,7 @@ export const ESQUEMA_ADMIN_CREAR_ADMIN = {
 export const ESQUEMA_ADMIN_AUDITORIA = {
   type: 'object',
   properties: {
-    desde: { type: 'string', minLength: 1, maxLength: 40, pattern: '^([0-9]{1,12}|[0-9]{4}-[0-9]{2}-[0-9]{2}[0-9T:.Z+-]*)$' },
+    desde: { type: 'string', minLength: 1, maxLength: 40, pattern: /^([0-9]{1,12}|[0-9]{4}-[0-9]{2}-[0-9]{2}[0-9T:.Z+-]*)$/u },
     limite: ENTERO_TEXTO,
   },
 };
@@ -137,5 +137,5 @@ export const ESQUEMA_ADMIN_AUDITORIA = {
 /** GET /admin/api/anomalies?riesgo_minimo&limite */
 export const ESQUEMA_ADMIN_ANOMALIAS = {
   type: 'object',
-  properties: { riesgo_minimo: { type: 'string', pattern: '^[0-9]{1,3}$' }, limite: ENTERO_TEXTO },
+  properties: { riesgo_minimo: { type: 'string', pattern: /^[0-9]{1,3}$/u }, limite: ENTERO_TEXTO },
 };

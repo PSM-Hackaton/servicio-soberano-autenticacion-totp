@@ -18,6 +18,16 @@ import dast from '../attack-lab/escenarios/dast.js';
 import { correrEscenario, crearContexto } from '../attack-lab/lib/escenario.js';
 import { escribirInforme, resumir } from '../attack-lab/lib/informe.js';
 
+/** Sustituye (o añade) la línea `clave=valor` de un texto .env sin construir expresiones regulares. */
+function fijarVariable(texto, clave, valor) {
+  const lineas = texto.split('\n');
+  const i = lineas.findIndex((l) => l.startsWith(`${clave}=`));
+  if (i === -1) return `${texto}\n${clave}=${valor}`;
+  lineas[i] = `${clave}=${valor}`;
+  return lineas.join('\n');
+}
+
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..');
 const SERVICE_FILE = join(__dirname, 'servicio-totp.service');
@@ -124,8 +134,7 @@ export async function verificarDespliegue({ guardarInformeDast = null, puerto = 
       CORS_ALLOWED_ORIGINS: '',
     };
     for (const [k, v] of Object.entries(reemplazos)) {
-      const re = new RegExp(`^${k}=.*$`, 'm');
-      envText = re.test(envText) ? envText.replace(re, `${k}=${v}`) : `${envText}\n${k}=${v}`;
+      envText = fijarVariable(envText, k, v);
     }
     writeFileSync(envPath, `${envText.trim()}\n`, { mode: 0o640 });
     registrar('Configuración .env + certificado TLS EC P-256 (permisos 0640)', existsSync(envPath) && existsSync(certPath), `env 0640 + key 0640 en ${workDir}`);
