@@ -33,13 +33,15 @@ try {
 
 | Método | Endpoint | Devuelve |
 | --- | --- | --- |
-| `enrolar(userRef, { etiquetaCuenta?, algoritmo?, digitos?, periodo? })` | `POST /api/v1/enrollments` | `{ enrollmentId, otpauthUri, qrSvg, claveManual, expiraEn, … }` |
+| `enrolar(userRef, { etiquetaCuenta?, algoritmo?, digitos?, periodo?, dispositivo? })` | `POST /api/v1/enrollments` | `{ enrollmentId, otpauthUri, qrSvg, claveManual, expiraEn, … }`; con `dispositivo: { nombre, plataforma? }` añade `dispositivoId` y `aprovisionamiento { otpauthUri, expiraEn, dispositivoId, huellaCaSha256 }` |
 | `activar(enrollmentId, codigo, { clientIp? })` | `POST /api/v1/enrollments/{id}/activate` | `{ estado: 'activo', codigosRecuperacion[10] }` |
 | `verificar(userRef, codigo, { idempotencyKey?, clientIp? })` | `POST /api/v1/verify` | `{ aprobado: true, token, jti, kid, expiraEn, derivaPasos, riesgo: { nivel } }` |
 | `validarToken(token, { consumirJti = true })` | `POST /api/v1/tokens/validate` | `{ valido, sub, aud, jti, kid, amr, exp, motivo }` |
 | `resincronizar(enrollmentId, codigo1, codigo2, { clientIp? })` | `POST /api/v1/enrollments/{id}/resync` | `{ resincronizado, derivaPasos }` |
 | `recuperar(userRef, codigoRecuperacion, { clientIp? })` | `POST /api/v1/recovery` | `{ recuperado, debeReenrolar, codigosRestantes }` |
 | `revocar(enrollmentId)` | `DELETE /api/v1/enrollments/{id}` | `{ estado: 'revocado', revocadoEn }` |
+| `dispositivo(enrollmentId)` | `GET /api/v1/enrollments/{id}/device` | `{ dispositivoId, nombre, plataforma, creadoEn, ultimoUso, desvinculadoEn, estadoEnrolamiento }` |
+| `desvincularDispositivo(enrollmentId)` | `DELETE /api/v1/enrollments/{id}/device` | `{ estado: 'revocado', dispositivoId, revocadoEn, desvinculadoEn }` (revoca el enrolamiento) |
 | `jwks()` / `salud()` | `/.well-known/jwks.json` / `/health` | respuesta del servicio |
 | `verificarTokenLocal(token)` | — (sin red) | `{ valido, header, claims }` o `{ valido: false, motivo }` |
 

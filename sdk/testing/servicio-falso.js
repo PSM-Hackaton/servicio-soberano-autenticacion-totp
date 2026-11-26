@@ -161,12 +161,22 @@ export function crearServicioFalso({
       const cuenta = typeof b.account_label === 'string' ? b.account_label : b.user_ref;
       const params = new URLSearchParams({ secret: base32(semilla), issuer: 'ServicioSoberanoTOTP', algorithm: 'SHA256', digits: '6', period: '30' });
       const uri = `otpauth://totp/${encodeURIComponent('ServicioSoberanoTOTP')}:${encodeURIComponent(cuenta)}?${params}`;
-      enrolamientos.set(id, { id, userRef: b.user_ref, semilla, estado: 'pendiente', ultimoPaso: -1, expira: reloj() + 600000, codigos: new Set() });
+      let dispositivo = null;
+      if (b.device !== undefined) {
+        const d = b.device;
+        if (!d || typeof d.name !== 'string' || !d.name.trim() || d.name.length > 64 || (d.platform !== undefined && !['android', 'pwa', 'otro'].includes(d.platform))) {
+          return err(400, 'INVALID_REQUEST', 'Solicitud inválida.');
+        }
+        dispositivo = { id: `dev_${randomBytes(16).toString('base64url')}`, nombre: d.name.trim(), plataforma: d.platform ?? 'otro', alta: new Date(reloj()).toISOString(), uso: null, baja: null };
+      }
+      const expira = new Date(reloj() + 600000).toISOString();
+      enrolamientos.set(id, { id, userRef: b.user_ref, semilla, estado: 'pendiente', ultimoPaso: -1, expira: reloj() + 600000, codigos: new Set(), dispositivo });
       return {
         status: 201,
         cuerpo: {
           enrollment_id: id, estado: 'pendiente', algoritmo: 'SHA256', digitos: 6, periodo: 30,
-          otpauth_uri: uri, qr_svg: svgQr(uri), expires_at: new Date(reloj() + 600000).toISOString(),
+          otpauth_uri: uri, qr_svg: svgQr(uri), expires_at: expira,
+          ...(dispositivo ? { device_id: dispositivo.id, provisioning: { otpauth_uri: uri, expires_at: expira, device_id: dispositivo.id } } : {}),
         },
       };
     },
@@ -198,6 +208,7 @@ export function crearServicioFalso({
       const ok = comprobar(e, b.code);
       if (!ok) { registrarFallo(b.user_ref); return bloqueo(b.user_ref) ?? GEN(); }
       e.ultimoPaso = ok.paso;
+      if (e.dispositivo) e.dispositivo.uso = new Date(reloj()).toISOString();
       fallos.delete(b.user_ref);
       const sub = 'hmac_' + createHmac('sha256', 'pimienta-falsa').update(b.user_ref).digest('hex').slice(0, 16);
       const firmado = firmarToken({ sub });
@@ -264,6 +275,26 @@ export function crearServicioFalso({
       if (porUsuario.get(e.userRef) === id) porUsuario.delete(e.userRef);
       return { status: 200, cuerpo: { enrollment_id: id, estado: 'revocado', revoked_at: new Date(reloj()).toISOString() } };
     },
+  };
+
+  /** Vista del dispositivo según contracts/openapi.yaml (DeviceResponse). */
+  const vistaDispositivo = (e) => ({
+    enrollment_id: e.id, enrollment_estado: e.estado, device_id: e.dispositivo.id, name: e.dispositivo.nombre, platform: e.dispositivo.plataforma,
+    created_at: e.dispositivo.alta, last_used_at: e.dispositivo.uso, unlinked_at: e.dispositivo.baja,
+  });
+  rutas['GET /api/v1/enrollments/:id/device'] = (_b, { id }) => {
+    const e = enrolamientos.get(id);
+    if (!e?.dispositivo) return err(404, 'NOT_FOUND', 'No encontrado.');
+    return { status: 200, cuerpo: vistaDispositivo(e) };
+  };
+  rutas['DELETE /api/v1/enrollments/:id/device'] = (_b, { id }) => {
+    const e = enrolamientos.get(id);
+    if (!e?.dispositivo) return err(404, 'NOT_FOUND', 'No encontrado.');
+    const ahora = new Date(reloj()).toISOString();
+    if (e.estado !== 'revocado') { e.estado = 'revocado'; e.revocado = ahora; }
+    e.dispositivo.baja ??= ahora;
+    if (porUsuario.get(e.userRef) === id) porUsuario.delete(e.userRef);
+    return { status: 200, cuerpo: { enrollment_id: id, device_id: e.dispositivo.id, estado: 'revocado', revoked_at: e.revocado ?? ahora, unlinked_at: e.dispositivo.baja } };
   };
 
   function resolver(metodo, ruta) {

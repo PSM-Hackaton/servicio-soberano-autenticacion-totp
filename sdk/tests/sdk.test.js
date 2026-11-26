@@ -260,6 +260,38 @@ describe('SDK TOTP soberano', () => {
     assert.equal(rev.estado, 'revocado');
   });
 
+  test('dispositivos (issue #47): enrolar con dispositivo, consultar y desvincular', async () => {
+    const e = await cliente.enrolar('ref-disp', { dispositivo: { nombre: 'Teléfono de trabajo', plataforma: 'android' } });
+    assert.match(e.dispositivoId, /^dev_[A-Za-z0-9_-]{22}$/);
+    assert.deepEqual(e.aprovisionamiento, { otpauthUri: e.otpauthUri, expiraEn: e.expiraEn, dispositivoId: e.dispositivoId, huellaCaSha256: null });
+    const enviado = falso.enrolamientos.get(e.enrollmentId).dispositivo;
+    assert.deepEqual([enviado.nombre, enviado.plataforma], ['Teléfono de trabajo', 'android'], 'el SDK envía device { name, platform }');
+
+    await cliente.activar(e.enrollmentId, falso.codigoDeEnrolamiento(e.enrollmentId));
+    assert.equal((await cliente.verificar('ref-disp', falso.codigoPara('ref-disp', 1))).aprobado, true);
+    const d = await cliente.dispositivo(e.enrollmentId);
+    assert.equal(d.dispositivoId, e.dispositivoId);
+    assert.equal(d.nombre, 'Teléfono de trabajo');
+    assert.equal(d.plataforma, 'android');
+    assert.equal(d.estadoEnrolamiento, 'activo');
+    assert.ok(d.ultimoUso);
+    assert.equal(d.desvinculadoEn, null);
+
+    const x = await cliente.desvincularDispositivo(e.enrollmentId);
+    assert.equal(x.estado, 'revocado');
+    assert.equal(x.dispositivoId, e.dispositivoId);
+    assert.ok(x.desvinculadoEn);
+    await assert.rejects(cliente.verificar('ref-disp', falso.codigoPara('ref-disp', 2)), (err) => err instanceof ErrorTotp && err.status === 401);
+
+    // Sin dispositivo, la respuesta no cambia; entradas inválidas se rechazan sin llamar al servicio.
+    const sin = await cliente.enrolar('ref-sin-disp');
+    assert.equal(sin.dispositivoId, undefined);
+    await assert.rejects(cliente.dispositivo(sin.enrollmentId), (err) => err.status === 404);
+    for (const dispositivo of [{ nombre: '' }, { nombre: 'x'.repeat(65) }, { nombre: 'ok', plataforma: 'ios' }, null]) {
+      await assert.rejects(cliente.enrolar('ref-x', { dispositivo }), (err) => err instanceof ErrorTotp && err.status === null);
+    }
+  });
+
   test('claveDeOtpauth extrae la clave Base32', () => {
     assert.equal(claveDeOtpauth('otpauth://totp/X:y?secret=jbswy3dpehpk3pxp&issuer=X'), 'JBSWY3DPEHPK3PXP');
     assert.equal(claveDeOtpauth('https://no'), null);
