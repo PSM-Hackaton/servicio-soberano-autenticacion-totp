@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Instalar certificado del servicio — Autenticación Soberana TOTP</title>
+  <link rel="stylesheet" href="./css/sitio.css" />
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido principal</a>
+  <div class="cintillo">
+    <div class="cintillo-inner">
+      <div class="cintillo-marca">
+        <img src="./img/bandera.svg" alt="Bandera nacional de Venezuela" width="28" height="19" />
+        <span>República Bolivariana de Venezuela</span>
+      </div>
+      <span>Guía de confianza TLS 1.3 · Sin autoridades externas</span>
+    </div>
+  </div>
+  <div class="tricolor" aria-hidden="true"></div>
+
+  <header class="cabecera">
+    <div class="cabecera-inner">
+      <h1 class="titulo-sitio">Instalar el certificado del servicio</h1>
+      <nav class="nav" aria-label="Navegación principal">
+        <a href="./index.html">Inicio</a>
+        <a href="/app/">Mi autenticador</a>
+        <a href="./instalar-certificado.html" aria-current="page">Instalar certificado</a>
+        <a href="./estado.html">Estado del servicio</a>
+        <a href="/consola/">Administración</a>
+        <button type="button" id="btn-tema" class="btn-tema">Modo oscuro</button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" class="contenedor">
+    <section class="hero" aria-labelledby="cert-titulo">
+      <h2 id="cert-titulo">Confía en la Autoridad Certificadora (CA) institucional</h2>
+      <p>
+        Al operar sin depender de autoridades comerciales extranjeras, el servicio utiliza su propia Autoridad Certificadora local sobre <strong>TLS 1.3</strong>. Instala este certificado público para abrir la app autenticadora y los portales sin advertencias de seguridad.
+      </p>
+      <img class="ilustracion" src="./img/pasos-certificado.svg" alt="Tres pasos: descargar ca.crt, comparar huella SHA-256 e instalar CA local" />
+      <div id="estado-ca" class="estado-caja estado-aviso" role="status" aria-live="polite">Consultando /ca.crt…</div>
+      <p><strong>Huella SHA-256 del certificado público:</strong></p>
+      <div id="huella-sha256" class="mono">Calculando…</div>
+      <div class="acciones">
+        <a class="btn btn-primario" href="/ca.crt" download="servicio-soberano-ca.crt">Descargar certificado público (/ca.crt)</a>
+        <a class="btn btn-secundario" href="/app/">Abrir Mi Autenticador</a>
+      </div>
+    </section>
+
+    <section class="grid grid-2" aria-label="Instrucciones por sistema operativo">
+      <article class="tarjeta">
+        <h3>Android</h3>
+        <ol>
+          <li>Descarga <code>servicio-soberano-ca.crt</code> desde el botón superior.</li>
+          <li>Abre <strong>Ajustes → Seguridad → Cifrado y credenciales → Instalar un certificado → Certificado de CA</strong>.</li>
+          <li>Confirma el aviso, selecciona el archivo descargado y valida que la huella SHA-256 coincida.</li>
+        </ol>
+      </article>
+
+      <article class="tarjeta">
+        <h3>iPhone / iPad (iOS)</h3>
+        <ol>
+          <li>Descarga <code>/ca.crt</code> en Safari y permite guardar el perfil de configuración.</li>
+          <li>Ve a <strong>Ajustes → General → VPN y gestión de dispositivos</strong> e instala el perfil.</li>
+          <li>Activa la confianza en <strong>Ajustes → General → Información → Ajustes de confianza de certificados</strong>.</li>
+        </ol>
+      </article>
+
+      <article class="tarjeta">
+        <h3>Windows</h3>
+        <ol>
+          <li>Haz doble clic sobre <code>servicio-soberano-ca.crt</code> y pulsa <strong>Instalar certificado…</strong>.</li>
+          <li>Elige <strong>Usuario actual</strong> (o Equipo local) y selecciona <em>Colocar todos los certificados en el siguiente almacén</em>.</li>
+          <li>Escoge <strong>Entidades de certificación raíz de confianza</strong> y finaliza.</li>
+        </ol>
+      </article>
+
+      <article class="tarjeta">
+        <h3>Linux y Firefox</h3>
+        <ol>
+          <li>En Ubuntu/Debian: copia el archivo a <code>/usr/local/share/ca-certificates/servicio-totp.crt</code> y ejecuta <code>sudo update-ca-certificates</code>.</li>
+          <li>En Firefox: <strong>Ajustes → Privacidad y seguridad → Certificados → Ver certificados → Autoridades → Importar</strong> y marca <em>Confiar en esta CA para identificar sitios web</em>.</li>
+        </ol>
+      </article>
+    </section>
+  </main>
+
+  <footer class="pie">
+    Servicio Soberano de Autenticación Multifactorial (TOTP) · Certificado público sin llave privada
+  </footer>
+
+  <script type="module" src="./js/certificado.js"></script>
+</body>
+</html>
