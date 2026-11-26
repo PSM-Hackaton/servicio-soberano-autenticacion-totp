@@ -12,7 +12,7 @@ import { realpath, stat } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
-import { cabecerasSeguridad, crearLimitador, errorGenerico, normalizarIp, validarCuerpo } from '../security/index.js';
+import { cabecerasSeguridad, crearLimitador, errorGenerico, normalizarIp, politicaPermisosPara, validarCuerpo } from '../security/index.js';
 import { ESQUEMA_ADMIN_LOGIN } from '../application/use-cases/esquemas.js';
 import { crearRouter } from './router.js';
 
@@ -512,6 +512,7 @@ export function crearServidor({
       const real = await realpath(ruta); // enlaces simbólicos no pueden escapar de la raíz
       if (!info.isFile() || (real !== raiz && !real.startsWith(raiz + sep))) throw new Error();
       res.setHeader('Content-Security-Policy', CSP_ESTATICOS);
+      res.setHeader('Permissions-Policy', politicaPermisosPara(pathname)); // cámara solo en /app/ (lector QR)
       res.setHeader('Cache-Control', 'no-cache');
       res.removeHeader('Pragma');
       res.setHeader('Content-Type', TIPOS_MIME[extname(real).toLowerCase()] ?? 'application/octet-stream');

@@ -4,7 +4,7 @@ import {
   hashSecreto, verificarSecreto, hashSecretoAsync, verificarSecretoAsync, generarSecretoCliente, generarClientId,
   generarCodigosRecuperacion, normalizarCodigoRecuperacion, ALFABETO_RECUPERACION,
   calcularBloqueo, bloqueadoHasta, estaBloqueado,
-  crearLimitador, validarCuerpo, cabecerasSeguridad, errorGenerico, normalizarIp, esIpValida,
+  crearLimitador, validarCuerpo, cabecerasSeguridad, errorGenerico, normalizarIp, esIpValida, politicaPermisos, politicaPermisosPara,
 } from './index.js';
 
 // ── Secretos ────────────────────────────────────────────────────────────────
@@ -212,6 +212,11 @@ test('cabecerasSeguridad incluye las cabeceras obligatorias', () => {
   assert.equal(c['Cache-Control'], 'no-store');
   assert.equal(c['Cross-Origin-Opener-Policy'], 'same-origin');
   assert.ok(c['Permissions-Policy'].includes('camera=()'));
+  assert.equal(politicaPermisosPara('/app/'), politicaPermisos({ camara: true }));
+  assert.match(politicaPermisosPara('/app/index.html'), /^camera=\(self\), microphone=\(\)/);
+  for (const ruta of ['/consola/', '/api/v1/verify', '/aplicacion/', '/app-falsa/x']) {
+    assert.equal(politicaPermisosPara(ruta), c['Permissions-Policy'], ruta);
+  }
   c['Cache-Control'] = 'x';
   assert.equal(cabecerasSeguridad()['Cache-Control'], 'no-store', 'cada llamada devuelve un objeto nuevo');
 });

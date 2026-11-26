@@ -8,6 +8,6 @@ export { generarCodigosRecuperacion, normalizarCodigoRecuperacion, ALFABETO_RECU
 export { calcularBloqueo, bloqueadoHasta, estaBloqueado, ESCALONES_BLOQUEO } from './bloqueo.js';
 export { crearLimitador } from './limitador.js';
 export { validarCuerpo } from './validacion.js';
-export { cabecerasSeguridad } from './cabeceras.js';
+export { cabecerasSeguridad, politicaPermisos, politicaPermisosPara } from './cabeceras.js';
 export { errorGenerico } from './errores.js';
 export { normalizarIp, esIpValida } from './ip.js';

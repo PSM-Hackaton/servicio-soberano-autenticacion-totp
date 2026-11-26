@@ -399,6 +399,23 @@ describe('servidor HTTP', () => {
     assert.equal((await pedir(s.puerto, { metodo: 'POST', ruta: '/app/index.html', cuerpo: {} })).status, 405);
   });
 
+  test('Permissions-Policy: cámara solo para la PWA en /app/; API y consola con camera=()', async () => {
+    const restricciones = ['microphone=()', 'geolocation=()', 'payment=()', 'usb=()', 'interest-cohort=()'];
+    for (const ruta of ['/app/', '/app/sw.js']) {
+      const r = await pedir(s.puerto, { ruta });
+      assert.equal(r.status, 200, ruta);
+      const pp = r.cabeceras['permissions-policy'];
+      assert.match(pp, /(^|, )camera=\(self\)/, ruta);
+      for (const x of restricciones) assert.ok(pp.includes(x), `${ruta}: ${x}`);
+    }
+    for (const ruta of ['/health', '/admin/api/session', '/api/v1/verify', '/consola/', '/no-existe']) {
+      const pp = (await pedir(s.puerto, { ruta })).cabeceras['permissions-policy'];
+      assert.match(pp, /(^|, )camera=\(\)/, ruta);
+      assert.doesNotMatch(pp, /camera=\(self\)/, ruta);
+      for (const x of restricciones) assert.ok(pp.includes(x), `${ruta}: ${x}`);
+    }
+  });
+
   test('estáticos: recorrido de rutas bloqueado', async () => {
     for (const ruta of [
       '/app/../secreto.txt', '/app/%2e%2e/secreto.txt', '/app/..%2fsecreto.txt', '/app/..%5csecreto.txt',

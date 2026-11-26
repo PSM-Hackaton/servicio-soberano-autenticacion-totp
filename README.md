@@ -116,7 +116,7 @@ docs/                   Reto, análisis, API, SBOM, cumplimiento, manual, presen
 
 - **Contenedores Docker y PostgreSQL** quedan fuera (ADR-002): ejecución nativa con `systemd` + SQLite WAL en un nodo. `contracts/schema.sql` (PostgreSQL) es referencia para crecer; ver [`docs/escalabilidad/`](docs/escalabilidad/).
 - **Consola**: no registra apps nuevas ni crea cuentas `Operador`/`Auditor` desde la interfaz (las apps se registran con `npm run seed` o `POST /admin/api/apps`; la semilla crea solo el Administrador). La **revocación** de un enrolamiento la ejecuta la app integradora (`DELETE /api/v1/enrollments/{id}`); la consola la muestra y la audita.
-- **Cámara en la app**: usa `BarcodeDetector` del navegador y hoy queda bloqueada por la cabecera `Permissions-Policy: camera=()` que el servidor también envía en `/app/`; el alta funciona por enlace del portal, URI pegada o clave manual.
+- **Cámara en la app**: usa `BarcodeDetector` del navegador (no todos lo implementan). El servidor envía `Permissions-Policy: camera=(self)` solo en `/app/`; la API y la consola siguen con `camera=()`. Sin `BarcodeDetector`, el alta funciona por enlace del portal, URI pegada o clave manual.
 - **Certificados**: `npm run certs` emite certificados de desarrollo solo para `localhost`, `127.0.0.1` y `::1`. Para un teléfono en la red local, ver el Paso 6; en producción, CA institucional ([`deploy/README.md`](deploy/README.md)).
 - **HSM/TPM**: la llave maestra vive en el `.env` (permisos 600); `core/vault` la aísla y versiona para conectarla a un HSM o TPM institucional en el futuro.
 - **Canales SMS o correo de terceros**: excluidos por soberanía.
