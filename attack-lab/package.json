@@ -1,0 +1,13 @@
+{
+  "name": "totp-attack-lab",
+  "version": "1.0.0",
+  "description": "Laboratorio de ataques simulados y pruebas de caos (0 dependencias npm, Node.js 22)",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "run:demo": "node run-all.js",
+    "test": "node --test attack-lab.test.js"
+  }
+}
