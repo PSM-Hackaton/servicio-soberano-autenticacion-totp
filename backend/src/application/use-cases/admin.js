@@ -225,6 +225,23 @@ export function crearCasosAdmin(d) {
 
   // ------------------------------------------------------------------ llaves
   /**
+   * GET /admin/api/keys — permiso llaves.leer (Administrador, Operador, Auditor). Sin parámetros.
+   * 200 { active_kid, keys: [{ kid, estado, created_at, rotated_at, alg: 'EdDSA', crv: 'Ed25519' }] }.
+   * Nunca incluye material privado (ni cifrado) ni la versión de la llave maestra.
+   * @param {unknown} entrada @param {{ admin: any }} ctx @returns {Promise<Respuesta>}
+   */
+  async function adminListarLlaves(entrada, ctx) {
+    const negado = exigir(ctx, 'llaves.leer');
+    if (negado) return negado;
+    if (!consulta(entrada, ESQUEMA_VACIO)) return errorEntrada();
+    const keys = repos.signingKeys.listarTodas().map((k) => ({
+      kid: k.kid, estado: k.estado, created_at: k.created_at, rotated_at: k.rotated_at ?? null, alg: 'EdDSA', crv: 'Ed25519',
+    }));
+    const activa = firmas.kidActivo ?? keys.find((k) => k.estado === 'activa')?.kid ?? null;
+    return { status: 200, cuerpo: { active_kid: activa, keys }, cabeceras: {} };
+  }
+
+  /**
    * POST /admin/api/keys/rotate — permiso llaves.rotar (solo Administrador). Sin cuerpo.
    * Genera un par Ed25519 nuevo (privada cifrada con AAD 'signing:'+kid) y deja la anterior en
    * 'solo_verificacion' (sigue en el JWKS y valida tokens ya emitidos).
@@ -324,6 +341,6 @@ export function crearCasosAdmin(d) {
 
   return {
     autenticarApp, adminLogin, adminListarApps, adminActualizarApp, adminListarEnrolamientos,
-    adminRotarLlaves, adminAuditoria, adminVerificarCadena, adminAnomalias, adminMetricas,
+    adminListarLlaves, adminRotarLlaves, adminAuditoria, adminVerificarCadena, adminAnomalias, adminMetricas,
   };
 }

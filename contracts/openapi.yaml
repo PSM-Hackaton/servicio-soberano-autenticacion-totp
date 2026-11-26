@@ -833,6 +833,50 @@ paths:
         '429': { $ref: '#/components/responses/TooManyRequests' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
 
+  # --- Gestión desde la consola (bloque contiguo; esquemas en línea y cerrados)
+  /admin/api/keys:
+    get:
+      tags: [Admin]
+      summary: Inventario de llaves de firma sin material privado (permiso llaves.leer)
+      operationId: adminListarLlaves
+      description: |
+        Todas las llaves (activa, solo_verificacion y retirada), de la más reciente a la más antigua.
+        Nunca incluye la clave privada (ni cifrada) ni la versión de la llave maestra. Roles:
+        Administrador, Operador y Auditor. Sin parámetros: cualquier parámetro de consulta es 400.
+        Ejemplo: contracts/mocks/admin-keys.json.
+      security:
+        - adminSession: []
+      responses:
+        '200':
+          description: Inventario de llaves
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [active_kid, keys]
+                properties:
+                  active_kid: { type: [string, 'null'] }
+                  keys:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [kid, estado, created_at, rotated_at, alg, crv]
+                      properties:
+                        kid: { type: string }
+                        estado: { type: string, enum: [activa, solo_verificacion, retirada] }
+                        created_at: { type: string, format: date-time }
+                        rotated_at: { type: [string, 'null'], format: date-time }
+                        alg: { type: string, enum: [EdDSA] }
+                        crv: { type: string, enum: [Ed25519] }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  # --- fin del bloque de gestión desde la consola
+
 components:
   parameters:
     IdempotencyKey:

@@ -304,19 +304,11 @@ export const api = {
     };
   },
 
-  /** Llaves de firma: ruta de administración o, si no existe, el JWKS público. */
+  /** Inventario de llaves de firma (GET /admin/api/keys, permiso llaves.leer; sin material privado). */
   async llaves() {
-    try {
-      const d = await get('/admin/api/keys');
-      const activa = primero(d, 'active_kid', 'activeKid', 'activeKeyId');
-      return { activa, llaves: lista(d, 'keys', 'llaves').map((k) => normalizarLlave(k, activa)), fuente: 'admin' };
-    } catch (e) {
-      if (!(e instanceof ErrorApi) || (e.status !== 404 && e.status !== 405)) throw e;
-    }
-    const jwks = await get('/.well-known/jwks.json');
-    const llaves = lista(jwks, 'keys');
-    const activa = llaves[0]?.kid ?? null;
-    return { activa, llaves: llaves.map((k) => normalizarLlave(k, activa)), fuente: 'jwks' };
+    const d = await get('/admin/api/keys');
+    const activa = primero(d, 'active_kid', 'activeKid', 'activeKeyId') ?? null;
+    return { activa, llaves: lista(d, 'keys', 'llaves').map((k) => normalizarLlave(k, activa)), fuente: 'admin' };
   },
   async rotarLlave() {
     return post('/admin/api/keys/rotate', {});

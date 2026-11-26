@@ -42,6 +42,8 @@
     +--> 4. POST /api/v1/tokens/validate          --> valida JWT y consume jti (o offline vía caché /.well-known/jwks.json)
 ```
 
+Consola: `POST /admin/api/login` (contraseña + TOTP) emite la cookie `sst_admin` (`HttpOnly; Secure; SameSite=Strict; Path=/admin`, 30 min deslizantes, tope 8 h) y un `csrf_token` que se envía en `X-CSRF-Token` en cada petición que modifica. RBAC: `Administrador` (todo), `Operador` (apps, enrolamientos, inventario de llaves, anomalías, métricas), `Auditor` (auditoría, verificación de cadena, inventario de llaves, anomalías, métricas). El inventario de llaves (`GET /admin/api/keys`, acción `llaves.leer`) solo muestra `kid`, estado y fechas; rotar (`llaves.rotar`) es exclusivo del Administrador.
+
 ---
 
 ## 3. Áreas de trabajo (Unificadas en rama `laya` listas para PR → `staging`)

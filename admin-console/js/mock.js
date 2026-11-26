@@ -221,7 +221,7 @@ export async function mockFetch(url, opciones = {}) {
   }
 
   // ---- llaves
-  if (ruta === '/admin/api/keys' && metodo === 'GET') return json(200, estado.llaves);
+  if (ruta === '/admin/api/keys' && metodo === 'GET') return exigir('llaves.ver') ?? json(200, estado.llaves);
   if (ruta === '/admin/api/keys/rotate' && metodo === 'POST') {
     const prohibido = exigir('llaves.rotar');
     if (prohibido) return prohibido;

@@ -49,8 +49,7 @@ export function montar(raiz, ctx) {
           h('td', { dataset: { etiqueta: 'Estado' } }, insigniaEstado(k.estado)),
           h('td', { dataset: { etiqueta: 'Algoritmo' }, text: `${k.alg} · ${k.crv}` }),
           h('td', { dataset: { etiqueta: 'Creada' } }, tiempo(k.created_at)),
-          h('td', { dataset: { etiqueta: 'Rotada' } }, tiempo(k.rotated_at)))))),
-      datos.fuente === 'jwks' ? h('p.ayuda.ayuda--margen', { text: 'Datos obtenidos del JWKS público: se muestran solo las llaves verificables.' }) : null)
+          h('td', { dataset: { etiqueta: 'Rotada' } }, tiempo(k.rotated_at)))))))
       : vacio('Sin llaves', 'No hay llaves registradas.'));
   }
 

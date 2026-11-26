@@ -328,6 +328,9 @@ export function crearRepositorios(db) {
       VALUES (?, ?, ?, ?, ?, ?, ?)`),
     activa: db.prepare(`SELECT * FROM signing_keys WHERE estado = 'activa' ORDER BY created_at DESC LIMIT 1`),
     verificables: db.prepare(`SELECT * FROM signing_keys WHERE estado IN ('activa', 'solo_verificacion') ORDER BY created_at DESC`),
+    // Inventario para la consola: nunca se seleccionan las columnas private_*.
+    todas: db.prepare(`SELECT kid, estado, key_version, created_at, rotated_at FROM signing_keys
+      ORDER BY created_at DESC, kid DESC`),
     porKid: db.prepare('SELECT * FROM signing_keys WHERE kid = ?'),
     estado: db.prepare('UPDATE signing_keys SET estado = ?, rotated_at = ? WHERE kid = ?'),
     fueraDeVersion: db.prepare('SELECT * FROM signing_keys WHERE key_version <> ? ORDER BY kid'),
@@ -347,6 +350,8 @@ export function crearRepositorios(db) {
     activa: () => mapearClave(sClave.activa.get()),
     /** Claves publicables en el JWKS (activa + solo_verificacion). */
     listarVerificables: () => sClave.verificables.all().map(mapearClave),
+    /** Todas las claves (activa, solo_verificacion y retirada) sin material privado ni JWK. @returns {Fila[]} */
+    listarTodas: () => sClave.todas.all().map(plano),
     /**
      * @param {string} kid @param {'activa' | 'solo_verificacion' | 'retirada'} estado @param {string} [ahora]
      * @returns {boolean}

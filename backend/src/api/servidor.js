@@ -451,6 +451,8 @@ export function crearServidor({
   admin('GET', '/admin/api/audit/verify-chain', 'adminVerificarCadena', 'auditoria.verificar', (p) => p.query);
   admin('GET', '/admin/api/anomalies', 'adminAnomalias', 'anomalias.leer', (p) => p.query);
   admin('GET', '/admin/api/metrics', 'adminMetricas', 'metricas.leer', (p) => p.query);
+  // --- consola admin: gestión (llaves, enrolamientos, apps y administradores)
+  admin('GET', '/admin/api/keys', 'adminListarLlaves', 'llaves.leer', (p) => p.query);
 
   // ---------------------------------------------------------------- estáticos
 

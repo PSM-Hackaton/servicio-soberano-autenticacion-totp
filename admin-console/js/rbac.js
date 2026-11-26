@@ -13,7 +13,7 @@ export const PERMISOS = Object.freeze({
   'enrolamientos.suspender': ['Administrador', 'Operador'],
   'enrolamientos.revocar': ['Administrador'],
   'anomalias.ver': ['Administrador', 'Operador', 'Auditor'], // anomalias.leer
-  'llaves.ver': ['Administrador', 'Operador', 'Auditor'], // JWKS público
+  'llaves.ver': ['Administrador', 'Operador', 'Auditor'], // llaves.leer (GET /admin/api/keys)
   'llaves.rotar': ['Administrador'], // llaves.rotar
   'auditoria.ver': ['Administrador', 'Auditor'], // auditoria.leer
   'auditoria.verificar': ['Administrador', 'Auditor'], // auditoria.verificar
