@@ -1,6 +1,6 @@
 # Inventario de software (SBOM)
 
-Generado por `node docs/sbom/generar-sbom.js` el 2026-11-26T19:20:08.785Z con Node.js v22.22.1 sobre la copia de trabajo del commit `e26f6c03a550`.
+Generado por `node docs/sbom/generar-sbom.js` el 2026-11-26T19:36:54.800Z con Node.js v22.22.1 sobre la copia de trabajo del commit `8b0f18daf992`.
 No edite estos archivos a mano: vuelva a ejecutar el script tras cualquier cambio.
 
 | Archivo | Contenido |
@@ -29,14 +29,14 @@ No edite estos archivos a mano: vuelva a ejecutar el script tras cualquier cambi
 
 | Componente | Versión | Archivos | SHA-256 (resumen) | Módulos nativos |
 | --- | --- | ---: | --- | --- |
-| `backend/` | 0.1.0 | 66 | `49dba7ddf4294839…` | `node:assert/strict`, `node:child_process`, `node:crypto`, `node:fs`, `node:fs/promises`, `node:http`, `node:https`, `node:net`, `node:os`, `node:path`, `node:perf_hooks`, `node:sqlite`, `node:test`, `node:url`, `node:util` |
-| `authenticator-app/` | 0.0.0+git.e26f6c03a550 | 19 | `bd5bee4af4de5f31…` | `node:assert/strict`, `node:test` |
-| `admin-console/` | 0.0.0+git.e26f6c03a550 | 38 | `433247089fc4c6d7…` | — (código de navegador) |
+| `backend/` | 0.1.0 | 66 | `a5e7fd2067505e09…` | `node:assert/strict`, `node:child_process`, `node:crypto`, `node:fs`, `node:fs/promises`, `node:http`, `node:https`, `node:net`, `node:os`, `node:path`, `node:perf_hooks`, `node:sqlite`, `node:test`, `node:url`, `node:util` |
+| `authenticator-app/` | 0.0.0+git.8b0f18daf992 | 19 | `bd5bee4af4de5f31…` | `node:assert/strict`, `node:test` |
+| `admin-console/` | 0.0.0+git.8b0f18daf992 | 38 | `433247089fc4c6d7…` | — (código de navegador) |
 | `sdk/` | 1.0.0 | 14 | `6b783e70d3fb79cf…` | `node:assert/strict`, `node:crypto`, `node:http`, `node:https`, `node:net`, `node:test`, `node:url`, `node:util` |
-| `demo-portal-tramites/` | 1.0.0 | 20 | `a497d68c500619b8…` | `node:assert/strict`, `node:async_hooks`, `node:crypto`, `node:fs`, `node:http`, `node:https`, `node:os`, `node:path`, `node:test`, `node:url` |
+| `demo-portal-tramites/` | 1.0.0 | 20 | `faadfe800209ca7d…` | `node:assert/strict`, `node:async_hooks`, `node:crypto`, `node:fs`, `node:http`, `node:https`, `node:os`, `node:path`, `node:test`, `node:url` |
 | `attack-lab/` | 1.0.0 | 29 | `5c9cc5eb673c8df9…` | `node:assert/strict`, `node:child_process`, `node:crypto`, `node:fs`, `node:http`, `node:https`, `node:net`, `node:os`, `node:path`, `node:test`, `node:tls`, `node:url` |
-| `contracts/` | 0.0.0+git.e26f6c03a550 | 34 | `508a74f061b526cf…` | — (sin JavaScript) |
-| `deploy/` | 0.0.0+git.e26f6c03a550 | 14 | `275dbc5f2f96f116…` | `node:child_process`, `node:crypto`, `node:fs`, `node:https`, `node:os`, `node:path`, `node:sqlite`, `node:url` |
+| `contracts/` | 0.0.0+git.8b0f18daf992 | 34 | `508a74f061b526cf…` | — (sin JavaScript) |
+| `deploy/` | 0.0.0+git.8b0f18daf992 | 14 | `275dbc5f2f96f116…` | `node:child_process`, `node:crypto`, `node:fs`, `node:https`, `node:os`, `node:path`, `node:sqlite`, `node:url` |
 
 El hash de cada componente es el SHA-256 de su lista `"<sha256>  <ruta>\n"` (la de `hashes-sha256.txt`) en orden alfabético.
 
