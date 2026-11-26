@@ -155,7 +155,9 @@ function envio(remoto) {
   for (const linea of entrada.split('\n').filter(Boolean)) {
     const [, local, , remotoSha] = linea.split(' ');
     if (CERO.test(local)) continue; // borrado de una rama remota
-    const rango = CERO.test(remotoSha) ? [local, '--not', `--remotes=${remoto}`] : [`${remotoSha}..${local}`];
+    const rango = CERO.test(remotoSha)
+      ? [local, '--not', `--remotes=${remoto}`]
+      : [local, '--not', remotoSha, `--remotes=${remoto}`];
     let salida;
     try {
       salida = git(['log', '--format=%h%x1f%an <%ae>%x1f%cn <%ce>%x1f%B%x1e', ...rango]);
