@@ -17,7 +17,7 @@ import * as V from './vistas.js';
 
 const MAX_CUERPO = 8 * 1024;
 const CODIGO = /^[0-9]{6,8}$/;
-const RUTAS_CONOCIDAS = /^\/(?:|ingresar|enrolar(?:\/codigos)?|verificar|recuperar|panel|tramites\/[a-z-]+|comprobantes\/[A-Z0-9-]+)$/;
+const RUTAS_CONOCIDAS = /^\/(?:|ingresar|ayuda|enrolar(?:\/codigos)?|verificar|recuperar|panel|tramites\/[a-z-]+|comprobantes\/[A-Z0-9-]+)$/;
 
 const ESTATICOS = {
   '/publico/estilos.css': 'text/css; charset=utf-8',
@@ -346,6 +346,14 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
       if (etapa === 'autenticado') return redirigir(res, sesion, '/panel');
       if (enSegundoPaso) return redirigir(res, sesion, usuario.factor ? '/verificar' : '/enrolar');
       return redirigir(res, sesion, '/ingresar');
+    }
+
+    if (ruta === '/ayuda' && metodo === 'GET') {
+      return ver({
+        titulo: 'Centro de ayuda',
+        ancho: 'amplio',
+        contenido: V.paginaAyuda({ autenticado: etapa === 'autenticado' }),
+      });
     }
 
     // ---- paso 1: contraseña

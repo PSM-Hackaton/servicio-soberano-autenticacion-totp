@@ -105,7 +105,7 @@ function menu({ autenticado, ruta }) {
     { t: 'Inicio', h: '/', ic: 'casa', activo: (ruta === '/ingresar' || ruta === '/panel') },
     { t: 'Trámites en línea', h: autenticado ? '/panel#tramites' : '/ingresar#tramites', ic: 'tramites', activo: enTramites },
     { t: 'Seguridad de su cuenta', h: autenticado ? '/panel#seguridad' : '/ingresar#como-protege', ic: 'escudo', activo: false },
-    { t: 'Ayuda', h: '#ayuda', ic: 'ayuda', activo: false },
+    { t: 'Ayuda', h: '/ayuda', ic: 'ayuda', activo: ruta === '/ayuda' },
   ];
   return html`<ul class="menu-lista">${items.map((i) => html`
     <li><a class="menu-enlace" href="${i.h}" ${i.activo ? crudo('aria-current="page"') : ''}>${icono(i.ic, 'icono icono-chico')}<span>${i.t}</span></a></li>`)}
@@ -561,6 +561,50 @@ export function paginaConsulta({ sesion }) {
       <tbody>${[...sesion.comprobantes].reverse().map((c) => html`<tr><td><code>${c.folio}</code></td><td>${c.titulo}</td><td>${fechaHora(c.en)}</td><td><span class="etiqueta etiqueta-ok">Completado</span></td></tr>`)}</tbody></table>`}
     <div class="acciones"><a class="boton boton-secundario" href="/panel">Volver</a></div>
   </section>`;
+}
+
+/** Centro de ayuda ciudadano con preguntas frecuentes sobre el segundo factor (Issue #53 · F6). */
+export function paginaAyuda({ autenticado = false } = {}) {
+  const destinoVolver = autenticado ? '/panel' : '/ingresar';
+  const preguntas = [
+    {
+      q: '¿Qué es el segundo factor de autenticación (TOTP)?',
+      a: 'Es un código temporal de 6 u 8 dígitos que cambia cada 30 segundos en su app autenticadora soberana. Incluso si alguien conociera su contraseña, no podría ingresar ni completar trámites sensibles sin este código generado en su propio dispositivo.',
+    },
+    {
+      q: 'Perdí mi teléfono: ¿cómo uso los códigos de recuperación?',
+      a: 'Al activar su segundo factor recibió 10 códigos de recuperación de un solo uso. En la pantalla de verificación pulse «Usar código de recuperación», ingrese uno de los códigos guardados y el portal le pedirá vincular de inmediato un nuevo dispositivo por seguridad.',
+    },
+    {
+      q: 'Cambié de teléfono: ¿cómo traslado mi autenticador?',
+      a: 'Si aún tiene acceso a su sesión o a un código de recuperación, desactive el factor anterior desde su oficina virtual o recupere el acceso, y luego escanee el nuevo código QR (o use el enlace directo o clave manual) desde el Autenticador Soberano en su teléfono nuevo.',
+    },
+    {
+      q: 'El código no funciona: ¿qué debo revisar?',
+      a: 'Los códigos TOTP dependen de la hora exacta. Verifique que la fecha, hora y zona horaria automática (America/Caracas) estén activadas en su teléfono. Además, cada código solo sirve una vez: si acaba de usarlo, espere al siguiente ciclo de 30 segundos.',
+    },
+    {
+      q: '¿Cómo desactivar o renovar el segundo factor?',
+      a: 'Ingrese a su oficina virtual y seleccione «Desactivar segundo factor» en la sección de seguridad. Por protección, el sistema le pedirá confirmar con un código TOTP vigente (step-up) antes de revocar el enrolamiento actual.',
+    },
+  ];
+  return html`
+    ${migas([['Centro de ayuda']])}
+    <section class="tarjeta" id="ayuda" aria-labelledby="ayuda-titulo">
+      <h1 id="ayuda-titulo">${icono('ayuda', 'icono')} Centro de ayuda sobre el segundo factor</h1>
+      <p class="entradilla">Respuestas claras para enrolar, usar y recuperar su Autenticador Soberano TOTP.</p>
+      ${preguntas.map((p, i) => html`
+        <details ${i === 0 ? crudo('open') : ''}>
+          <summary><strong>${p.q}</strong></summary>
+          <p>${p.a}</p>
+        </details>
+      `)}
+      <div class="acciones">
+        <a class="boton boton-primario" href="${destinoVolver}">${autenticado ? 'Volver a la oficina virtual' : 'Ir a ingresar'}</a>
+        <a class="boton boton-secundario" href="/recuperar">Tengo un código de recuperación</a>
+      </div>
+    </section>
+  `;
 }
 
 export function paginaMensaje({ titulo, texto, tipo = 'info', enlace = '/', textoEnlace = 'Volver al inicio' }) {

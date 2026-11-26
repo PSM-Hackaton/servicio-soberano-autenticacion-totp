@@ -342,6 +342,18 @@ describe('Portal de Trámites con servicio TOTP falso', () => {
     assert.equal(portal.usuarios.buscar(ced('prueba.recupera')).factor, null);
     assert.notEqual((await nav.get('/panel')).url, '/panel');
   });
+
+  test('centro de ayuda (/ayuda): preguntas frecuentes sobre TOTP, pérdida, cambio de teléfono, hora y desactivación', async () => {
+    const nav = new Navegador(base);
+    const r = await nav.get('/ayuda');
+    assert.equal(r.status, 200);
+    assert.match(r.html, /Centro de ayuda sobre el segundo factor/);
+    assert.match(r.html, /Perdí mi teléfono/);
+    assert.match(r.html, /Cambié de teléfono/);
+    assert.match(r.html, /El código no funciona/);
+    assert.match(r.html, /desactivar o renovar el segundo factor/i);
+    assert.match(r.cabeceras.get('content-security-policy') ?? '', /default-src 'none'/);
+  });
 });
 
 test('cédula: normalización, formato y seudónimo', () => {
