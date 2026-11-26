@@ -8,6 +8,11 @@
     "node": ">=22.5"
   },
   "scripts": {
+    "start": "node src/main.js",
+    "dev": "node --watch src/main.js",
+    "env": "node scripts/generar-env.js",
+    "certs": "node scripts/certificados.js",
+    "seed": "node scripts/semilla.js",
     "test": "node --test --test-reporter=spec \"src/**/*.test.js\""
   }
 }
