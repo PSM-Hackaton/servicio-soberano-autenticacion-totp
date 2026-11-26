@@ -1,18 +1,21 @@
 import { test } from 'node:test';
-import assert from 'node:assert/strict';
+import * as assert from 'node:assert/strict';
 import { base32Encode, base32Decode } from './base32.js';
 import {
   generateHotp, generateTotp, verifyTotpWithDrift, resyncTwoConsecutiveCodes, buildOtpauthUri, pasoDeTiempo,
+  type Algoritmo, type OpcionesVerificacion, type Politica,
 } from './totp.js';
 
-const SEMILLAS = {
+const ALGORITMOS = ['SHA1', 'SHA256', 'SHA512'] as const;
+
+const SEMILLAS: Record<Algoritmo, Buffer> = {
   SHA1: Buffer.from('12345678901234567890'),
   SHA256: Buffer.from('12345678901234567890123456789012'),
   SHA512: Buffer.from('1234567890123456789012345678901234567890123456789012345678901234'),
 };
 
 // RFC 6238, Apéndice B (8 dígitos, periodo 30 s)
-const VECTORES_RFC6238 = [
+const VECTORES_RFC6238: [number, string, string, string][] = [
   [59, '94287082', '46119246', '90693936'],
   [1111111109, '07081804', '68084774', '25091201'],
   [1111111111, '14050471', '67062674', '99943326'],
@@ -23,8 +26,8 @@ const VECTORES_RFC6238 = [
 
 test('RFC 6238 Apéndice B: SHA-1, SHA-256 y SHA-512', () => {
   for (const [segundos, sha1, sha256, sha512] of VECTORES_RFC6238) {
-    const esperado = { SHA1: sha1, SHA256: sha256, SHA512: sha512 };
-    for (const algoritmo of ['SHA1', 'SHA256', 'SHA512']) {
+    const esperado: Record<Algoritmo, string> = { SHA1: sha1, SHA256: sha256, SHA512: sha512 };
+    for (const algoritmo of ALGORITMOS) {
       const codigo = generateTotp(SEMILLAS[algoritmo], segundos * 1000, { algoritmo, digitos: 8, periodo: 30 });
       assert.equal(codigo, esperado[algoritmo], `${algoritmo} en t=${segundos}`);
     }
@@ -45,7 +48,7 @@ test('Base32 RFC 4648 (ida y vuelta)', () => {
   assert.throws(() => base32Decode('ABC1'));
 });
 
-const POLITICA = { algoritmo: 'SHA256', digitos: 6, periodo: 30, ventana: 1 };
+const POLITICA: OpcionesVerificacion = { algoritmo: 'SHA256', digitos: 6, periodo: 30, ventana: 1 };
 const AHORA = 1_764_000_000_000;
 
 test('verifica el código actual y los de la ventana ±1', () => {
@@ -65,13 +68,13 @@ test('anti replay: un código aceptado no vuelve a valer', () => {
   const codigo = generateTotp(semilla, AHORA, POLITICA);
   const primero = verifyTotpWithDrift(semilla, codigo, AHORA, POLITICA);
   assert.equal(primero.valid, true);
-  const segundo = verifyTotpWithDrift(semilla, codigo, AHORA + 5_000, { ...POLITICA, lastStep: primero.matchedStep });
+  const segundo = verifyTotpWithDrift(semilla, codigo, AHORA + 5_000, { ...POLITICA, lastStep: primero.matchedStep ?? undefined });
   assert.deepEqual([segundo.valid, segundo.reason], [false, 'replay']);
 });
 
 test('la deriva guardada recentra la ventana', () => {
   const semilla = SEMILLAS.SHA512;
-  const politica = { algoritmo: 'SHA512', digitos: 8, periodo: 30, ventana: 1 };
+  const politica: OpcionesVerificacion = { algoritmo: 'SHA512', digitos: 8, periodo: 30, ventana: 1 };
   const codigo = generateTotp(semilla, AHORA + 4 * 30_000, politica);
   assert.equal(verifyTotpWithDrift(semilla, codigo, AHORA, politica).valid, false);
   const r = verifyTotpWithDrift(semilla, codigo, AHORA, { ...politica, driftSteps: 4 });
@@ -96,9 +99,12 @@ test('resincroniza con dos códigos consecutivos dentro de ±10 pasos', () => {
 });
 
 test('rechaza políticas inválidas', () => {
-  assert.throws(() => generateTotp(SEMILLAS.SHA1, AHORA, { algoritmo: 'MD5', digitos: 6, periodo: 30 }));
-  assert.throws(() => generateTotp(SEMILLAS.SHA1, AHORA, { algoritmo: 'SHA1', digitos: 7, periodo: 30 }));
-  assert.throws(() => generateTotp(SEMILLAS.SHA1, AHORA, { algoritmo: 'SHA1', digitos: 6, periodo: 5 }));
+  const invalidas = [
+    { algoritmo: 'MD5', digitos: 6, periodo: 30 },
+    { algoritmo: 'SHA1', digitos: 7, periodo: 30 },
+    { algoritmo: 'SHA1', digitos: 6, periodo: 5 },
+  ] as unknown as Politica[];
+  for (const politica of invalidas) assert.throws(() => generateTotp(SEMILLAS.SHA1, AHORA, politica));
 });
 
 test('URI otpauth incluye algoritmo, dígitos y periodo', () => {
