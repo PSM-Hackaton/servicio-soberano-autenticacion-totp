@@ -135,48 +135,6 @@ paths:
         '429': { $ref: '#/components/responses/TooManyRequests' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
 
-  /health/ready:
-    get:
-      tags: [System]
-      summary: Estado de disponibilidad (readiness) verificando SQLite y llave activa Ed25519
-      responses:
-        '200':
-          description: Servicio listo para recibir tráfico
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HealthReadyResponse'
-        '503':
-          description: Servicio no listo (base de datos no disponible o clave de firma ausente)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GenericError'
-
-  /metrics:
-    get:
-      tags: [System]
-      summary: Métricas operativas locales en formato de exposición Prometheus (sin telemetría externa)
-      description: >
-        Expone disponibilidad, latencia p50/p95 por ruta, tasa 5xx, resultados de verificación,
-        errores/reconexiones SQLite, latencia de inferencia IA y desfase de reloj.
-      responses:
-        '200':
-          description: Métricas en texto plano compatibles con Prometheus
-          content:
-            text/plain:
-              schema:
-                type: string
-              example: |
-                # HELP totp_availability_percent Disponibilidad estimada en porcentaje
-                # TYPE totp_availability_percent gauge
-                totp_availability_percent 99.95
-        '503':
-          description: Servicio no disponible temporalmente
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/GenericError' }
-
   /.well-known/jwks.json:
     get:
       tags: [System]
@@ -878,17 +836,6 @@ paths:
   # --- fin del bloque de gestión desde la consola
 
 components:
-  parameters:
-    IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: false
-      description: Clave opaca única por intento de verificación (UUID v4 recomendado) para reintentos seguros ante cortes de red.
-      schema:
-        type: string
-        minLength: 8
-        maxLength: 128
-
   securitySchemes:
     appClientId:
       type: apiKey
