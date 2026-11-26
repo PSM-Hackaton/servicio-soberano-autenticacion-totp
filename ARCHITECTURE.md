@@ -1,12 +1,12 @@
 # ARCHITECTURE.md — Servicio Soberano de Autenticación TOTP
 
-> **Alineación oficial:** Integra `docs/analisis/analisis-tecnico.html` (v1.2) con **Puertos Hexagonales** y **ADR-002 (stack 100 % propio y autoejecutable en Node.js 22.5+ sin dependencias npm)**.
+> **Alineación oficial:** Integra `docs/analisis/analisis-tecnico.html` (v1.2) con **arquitectura modular en capas** y **ADR-002 (stack 100 % propio y autoejecutable en Node.js 22.5+ sin dependencias npm)**.
 
 ---
 
 ## 1. Decisiones Arquitectónicas (ADR)
 
-### ADR-001: Modularización + Puertos Hexagonales
+### ADR-001: Arquitectura Modular por Capas
 - **Decisión:** Mantener separación estricta entre núcleo criptográfico puro (`backend/src/core/{totp,vault,tokens,qr}`), casos de uso (`backend/src/application/use-cases/`), seguridad (`backend/src/security/`), IA local (`backend/src/heuristics/`), auditoría (`backend/src/audit/`), persistencia (`backend/src/infrastructure/persistence/`) y capa HTTP/TLS (`backend/src/api/`).
 - **Beneficio:** Cada módulo es 100 % testeable en aislamiento con `node:test`, sin red ni base externa.
 
@@ -23,9 +23,20 @@
 - **AES-256-GCM con AAD:** `AAD = enrollment_id + ":" + key_version` + script `rotar-llave-maestra.js`.
 - **Anti-Replay SQL atómico:** `UPDATE enrollments SET last_step = ?, drift_steps = ? WHERE id = ? AND last_step < ?` + tabla `consumed_jti` de clave primaria única.
 - **Resiliencia *Fail-Closed*:** `/health`, `/health/ready`, `/metrics` (Prometheus) y `/admin/api/metrics` (JSON); `503` si cae SQLite; `Idempotency-Key` en `/api/v1/verify`; SDK con timeout 3 s + 1 reintento idempotente + validación offline de JWT vía caché JWKS.
-- **Anonimización:** `user_ref_hash = HMAC-SHA256(user_ref, USER_PEPPER)` e `ip_hash = HMAC-SHA256(ip, DAILY_IP_PEPPER)`.
+- **Anonimización:** `user_ref_hash = HMAC-SHA256(user_ref, USER_REF_PEPPER)` e `ip_hash = HMAC-SHA256(ip, DAILY_IP_PEPPER_SEED + fecha)`.
 - **Auditoría inmutable (`audit_log`):** cadena SHA-256 verificable desde `GET /admin/api/audit/verify-chain`.
 - **Trazabilidad:** SBOM CycloneDX 1.5 en `docs/sbom/sbom.cdx.json` con **0 dependencias npm de terceros**.
+
+### ADR-004: Plataforma de la App Móvil del Autenticador Soberano (Issue #39 · M0)
+- **Contexto:** Además de la PWA offline (`authenticator-app/`), los dispositivos móviles ciudadanos requieren protección en hardware para las semillas TOTP, bloqueo biométrico y distribución sin depender de Google Play ni App Store.
+- **Alternativas evaluadas:**
+  1. **Android nativo en Kotlin (sin librerías de terceros):** utiliza **Android Keystore / StrongBox** (llaves AES-256-GCM no exportables respaldadas por hardware), `javax.crypto` (HMAC-SHA256/512/1 estándar), `Camera2` nativo, `BiometricPrompt`, `FLAG_SECURE` y `android:allowBackup="false"`. Distribución directa mediante APK firmado desde el servidor institucional (`https://<servidor>:8443/descargas/`) y F-Droid.
+  2. **PWA empaquetada (Trusted Web Activity / WebView):** reutiliza `authenticator-app/` con menor esfuerzo inicial, pero el almacenamiento en IndexedDB depende del motor del navegador sin aislamiento en StrongBox/TEE ni garantías nativas de `FLAG_SECURE`.
+- **Decisión:** **Opción 1 — Android nativo en Kotlin sin dependencias propietarias** (carpeta `mobile-android/`, licencia GNU AGPL-3.0-or-later), manteniendo la PWA (`authenticator-app/`) como alternativa universal multiplataforma (iOS, escritorio y equipos sin APK).
+- **Riesgos y mitigación:**
+  - *Dispositivos sin StrongBox:* degradación automática a TEE de Android Keystore con `setUserAuthenticationRequired(true)`.
+  - *Fragmentación de cámaras:* escaneo con `Camera2` + plan B de pegado de URI `otpauth://` y clave manual Base32.
+  - *Soberanía:* 0 SDKs de Google/Firebase, 0 analítica, compilación reproducible con OpenJDK + Gradle + Android SDK libre y publicación del SHA-256 del APK en el SBOM.
 
 ---
 
