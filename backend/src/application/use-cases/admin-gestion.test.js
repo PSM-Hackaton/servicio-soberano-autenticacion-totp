@@ -78,3 +78,91 @@ describe('GET /admin/api/keys (adminListarLlaves)', () => {
   });
 });
 
+/** Enrola y activa un usuario en la app de prueba; devuelve el id y la semilla. */
+async function enrolarActivo(m, userRef, ctx = m.ctx) {
+  const e = await m.casos.enrolar({ user_ref: userRef }, ctx);
+  assert.equal(e.status, 201);
+  const semilla = semillaDeUri(e.cuerpo.otpauth_uri);
+  const a = await m.casos.activar({ id: e.cuerpo.enrollment_id, cuerpo: { code: codigo(semilla, m.estado.t) } }, ctx);
+  assert.equal(a.status, 200);
+  return { id: e.cuerpo.enrollment_id, semilla };
+}
+
+describe('ciclo de vida de enrolamientos desde la consola', () => {
+  test('activo → suspendido → activo → revocado (final); verify de un suspendido = código incorrecto', async () => {
+    const m = montar();
+    const { id, semilla } = await enrolarActivo(m, 'ciudadana-1');
+
+    m.avanzar(PERIODO);
+    const s = await m.casos.adminSuspenderEnrolamiento({ id, cuerpo: {} }, OPERADOR);
+    assert.equal(s.status, 200);
+    assert.equal(s.cuerpo.enrollment.estado, 'suspendido');
+    assert.doesNotMatch(JSON.stringify(s.cuerpo), /seed_/);
+
+    // Suspendido: un código correcto responde exactamente igual que uno incorrecto.
+    const conSuspendido = await m.casos.verificar({ user_ref: 'ciudadana-1', code: codigo(semilla, m.estado.t) }, m.ctx);
+    const incorrecto = await m.casos.verificar({ user_ref: 'ciudadana-1', code: '000000' }, m.ctx);
+    assert.equal(conSuspendido.status, 401);
+    assert.deepEqual(conSuspendido.cuerpo, incorrecto.cuerpo);
+    assert.deepEqual(conSuspendido.cuerpo, { error: 'VERIFICATION_FAILED', message: 'No se pudo completar la verificación.' });
+
+    assert.equal((await m.casos.adminSuspenderEnrolamiento({ id, cuerpo: {} }, ADMIN)).status, 409, 'ya suspendido');
+    const r = await m.casos.adminReactivarEnrolamiento({ id, cuerpo: {} }, ADMIN);
+    assert.equal(r.status, 200);
+    assert.equal(r.cuerpo.enrollment.estado, 'activo');
+    assert.equal((await m.casos.adminReactivarEnrolamiento({ id, cuerpo: {} }, ADMIN)).status, 409, 'ya activo');
+
+    m.avanzar(PERIODO);
+    assert.equal((await m.casos.verificar({ user_ref: 'ciudadana-1', code: codigo(semilla, m.estado.t) }, m.ctx)).status, 200);
+
+    const v = await m.casos.adminRevocarEnrolamiento({ id, cuerpo: {} }, OPERADOR);
+    assert.equal(v.status, 200);
+    assert.equal(v.cuerpo.enrollment.estado, 'revocado');
+    assert.ok(v.cuerpo.enrollment.revoked_at);
+    for (const f of ['adminRevocarEnrolamiento', 'adminSuspenderEnrolamiento', 'adminReactivarEnrolamiento']) {
+      assert.equal((await m.casos[f]({ id, cuerpo: {} }, ADMIN)).status, 409, `${f} sobre revocado`);
+    }
+    const eventos = acciones(m);
+    for (const a of ['enrolamiento.suspendido', 'enrolamiento.reactivado', 'enrolamiento.revocado']) assert.ok(eventos.includes(a), a);
+    assert.equal(verificarCadena(m.db.prepare('SELECT * FROM audit_log ORDER BY id').all()).intact, true);
+  });
+
+  test('suspendido → revocado; pendiente no admite transiciones; 404 genérico; RBAC y cuerpo cerrado', async () => {
+    const m = montar();
+    const { id } = await enrolarActivo(m, 'ciudadano-2');
+    assert.equal((await m.casos.adminSuspenderEnrolamiento({ id }, ADMIN)).status, 200);
+    assert.equal((await m.casos.adminRevocarEnrolamiento({ id }, ADMIN)).status, 200);
+
+    const pend = await m.casos.enrolar({ user_ref: 'ciudadano-3' }, m.ctx);
+    for (const f of ['adminRevocarEnrolamiento', 'adminSuspenderEnrolamiento', 'adminReactivarEnrolamiento']) {
+      assert.equal((await m.casos[f]({ id: pend.cuerpo.enrollment_id }, ADMIN)).status, 409, f);
+    }
+    const inexistente = await m.casos.adminRevocarEnrolamiento({ id: '00000000-0000-4000-8000-000000000000' }, ADMIN);
+    assert.equal(inexistente.status, 404);
+    assert.deepEqual(inexistente.cuerpo, { error: 'NOT_FOUND', message: 'Recurso no encontrado.' });
+    assert.equal((await m.casos.adminRevocarEnrolamiento({ id: 'no-es-uuid' }, ADMIN)).status, 404);
+    assert.equal((await m.casos.adminSuspenderEnrolamiento({ id: pend.cuerpo.enrollment_id, cuerpo: { motivo: 'x' } }, ADMIN)).status, 400);
+    assert.equal((await m.casos.adminSuspenderEnrolamiento({ id }, AUDITOR)).status, 403);
+    assert.equal((await m.casos.adminSuspenderEnrolamiento({ id }, {})).status, 401);
+    for (const rol of ['Administrador', 'Operador']) assert.equal(puede(rol, 'enrolamientos.gestionar'), true);
+    assert.equal(puede('Auditor', 'enrolamientos.gestionar'), false);
+  });
+
+  test('reactivar no deja dos activos del mismo usuario; el factor de un administrador no se gestiona por aquí', async () => {
+    const m = montar();
+    const viejo = await enrolarActivo(m, 'ciudadana-4');
+    assert.equal((await m.casos.adminSuspenderEnrolamiento({ id: viejo.id }, ADMIN)).status, 200);
+    m.avanzar(PERIODO);
+    await enrolarActivo(m, 'ciudadana-4');
+    const r = await m.casos.adminReactivarEnrolamiento({ id: viejo.id }, ADMIN);
+    assert.equal(r.status, 409);
+    assert.equal(r.cuerpo.error, 'CONFLICT');
+
+    m.avanzar(PERIODO);
+    const delAdmin = await enrolarActivo(m, 'admin:jefa');
+    m.repos.admins.crear({ usuario: 'jefa', password_hash: hashSecreto('x'), rol: 'Administrador', totp_enrollment_id: delAdmin.id });
+    assert.equal((await m.casos.adminRevocarEnrolamiento({ id: delAdmin.id }, OPERADOR)).status, 409);
+    assert.equal(m.repos.enrollments.buscarPorId(delAdmin.id).estado, 'activo');
+  });
+});
+

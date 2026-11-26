@@ -8,7 +8,8 @@ import {
 } from '../../security/index.js';
 import { verificarCadena, respuestaVerificacion } from '../../audit/index.js';
 import {
-  HASH_FICTICIO, anonimizarIp, derivaAGuardar, errorEntrada, topeDeriva, iso, noEncontrado, prohibido, separarEntrada, validar,
+  HASH_FICTICIO, PATRON_UUID, anonimizarIp, conflicto, derivaAGuardar, errorEntrada, topeDeriva, iso, noEncontrado, prohibido,
+  separarEntrada, validar,
 } from './comun.js';
 import {
   ESQUEMA_ADMIN_ANOMALIAS, ESQUEMA_ADMIN_APP, ESQUEMA_ADMIN_AUDITORIA, ESQUEMA_ADMIN_ENROLAMIENTOS,
@@ -48,6 +49,19 @@ function eventoPublico(fila) {
     return { ...fila }; // texto no JSON (no lo genera la bitácora): se entrega tal cual
   }
 }
+
+/** Fila de enrolamiento para la API: sin material cifrado. */
+function enrolamientoPublico(e) {
+  const { seed_ct: _a, seed_nonce: _b, seed_auth_tag: _c, ...resto } = e;
+  return resto;
+}
+
+/** Transiciones del ciclo de vida desde la consola: acción → estados de origen, destino y evento de auditoría. */
+const TRANSICIONES = Object.freeze({
+  suspender: { desde: ['activo'], hacia: 'suspendido', evento: 'enrolamiento.suspendido' },
+  reactivar: { desde: ['suspendido'], hacia: 'activo', evento: 'enrolamiento.reactivado' },
+  revocar: { desde: ['activo', 'suspendido'], hacia: 'revocado', evento: 'enrolamiento.revocado' },
+});
 
 /** Entero de un parámetro de consulta ya validado, acotado a [1, maximo]. */
 const entero = (texto, porDefecto, maximo) => Math.min(maximo, Math.max(1, texto === undefined ? porDefecto : Number(texto)));
@@ -219,8 +233,48 @@ export function crearCasosAdmin(d) {
     const q = consulta(entrada, ESQUEMA_ADMIN_ENROLAMIENTOS);
     if (!q) return errorEntrada();
     const filas = consultas.listarEnrolamientos({ appId: q.app_id, estado: q.estado, limite: entero(q.limite, 100, 500) });
-    const enrollments = filas.map(({ seed_ct: _a, seed_nonce: _b, seed_auth_tag: _c, ...resto }) => resto);
+    const enrollments = filas.map(enrolamientoPublico);
     return { status: 200, cuerpo: { enrollments }, cabeceras: {} };
+  }
+
+  /**
+   * POST /admin/api/enrollments/:id/{suspend|reactivate|revoke} — permiso enrolamientos.gestionar
+   * (Administrador y Operador). Sin cuerpo (o {}). Transiciones: activo ↔ suspendido y
+   * activo | suspendido → revocado (final). 200 { enrollment } | 404 genérico (id inexistente o no
+   * UUID) | 409 transición no válida, otro enrolamiento activo del mismo usuario (reactivar) o factor
+   * de un administrador de la consola (se gestiona con /admin/api/admins).
+   * Un enrolamiento suspendido no aparece como activo: verify responde igual que un código incorrecto.
+   * @param {'suspender' | 'reactivar' | 'revocar'} accion
+   */
+  function cambiarEstadoEnrolamiento(accion) {
+    const t = TRANSICIONES[accion];
+    return async (entrada, ctx) => {
+      const negado = exigir(ctx, 'enrolamientos.gestionar');
+      if (negado) return negado;
+      const { id, cuerpo } = separarEntrada(entrada ?? {});
+      if (cuerpo !== undefined && cuerpo !== null && !validar(cuerpo, ESQUEMA_VACIO)) return errorEntrada();
+      if (typeof id !== 'string' || !PATRON_UUID.test(id)) return noEncontrado();
+      const ahora = iso(reloj());
+      const r = repos.transaccion(() => {
+        const e = repos.enrollments.buscarPorId(id.toLowerCase());
+        if (!e) return { status: 404 };
+        if (repos.admins.buscarPorEnrolamiento(e.id)) return { status: 409, mensaje: 'El factor de un administrador se gestiona desde Administradores.' };
+        if (!t.desde.includes(e.estado)) return { status: 409, mensaje: 'La transición de estado no es válida.' };
+        if (accion === 'reactivar') {
+          const otro = repos.enrollments.buscarActivoPorUsuario(e.app_id, e.user_ref_hash);
+          if (otro && otro.id !== e.id) return { status: 409, mensaje: 'El usuario ya tiene otro enrolamiento activo en la aplicación.' };
+        }
+        const ok = accion === 'suspender' ? repos.enrollments.suspender(e.id)
+          : accion === 'reactivar' ? repos.enrollments.reactivar(e.id)
+            : repos.enrollments.revocarVigente(e.id, ahora);
+        if (!ok) return { status: 409, mensaje: 'La transición de estado no es válida.' };
+        return { status: 200, previo: e.estado, enrol: repos.enrollments.buscarPorId(e.id) };
+      });
+      if (r.status === 404) return noEncontrado();
+      if (r.status === 409) return conflicto(r.mensaje);
+      auditar(actorAdmin(ctx.admin), t.evento, r.enrol.id, { app_id: r.enrol.app_id, estado_previo: r.previo, motivo: 'consola' });
+      return { status: 200, cuerpo: { enrollment: enrolamientoPublico(r.enrol) }, cabeceras: {} };
+    };
   }
 
   // ------------------------------------------------------------------ llaves
@@ -341,6 +395,9 @@ export function crearCasosAdmin(d) {
 
   return {
     autenticarApp, adminLogin, adminListarApps, adminActualizarApp, adminListarEnrolamientos,
+    adminSuspenderEnrolamiento: cambiarEstadoEnrolamiento('suspender'),
+    adminReactivarEnrolamiento: cambiarEstadoEnrolamiento('reactivar'),
+    adminRevocarEnrolamiento: cambiarEstadoEnrolamiento('revocar'),
     adminListarLlaves, adminRotarLlaves, adminAuditoria, adminVerificarCadena, adminAnomalias, adminMetricas,
   };
 }

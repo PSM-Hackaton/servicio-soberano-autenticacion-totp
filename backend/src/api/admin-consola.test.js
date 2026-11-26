@@ -114,4 +114,30 @@ describe('consola: rutas de gestión contra el servicio real', () => {
     assert.equal((await pedir(svc.puerto, { ruta: '/admin/api/keys' })).status, 401);
     assert.equal((await como('Auditor', { ruta: '/admin/api/keys?x=1' })).status, 400);
   });
+
+  test('POST /admin/api/enrollments/:id/{suspend,reactivate,revoke}: CSRF, RBAC, 404 y 409', async () => {
+    const alta = await como('Administrador', { metodo: 'POST', ruta: '/admin/api/apps', cuerpo: { nombre: 'Portal de prueba' } });
+    assert.equal(alta.status, 201);
+    const app = svc.repos.apps.buscarPorId(alta.json.app.id);
+    const ctxApp = { app, ip: '127.0.0.1' };
+    const enrol = await svc.casos.enrolar({ user_ref: 'ciudadana-http' }, ctxApp);
+    const semilla = base32Decode(new URL(enrol.cuerpo.otpauth_uri).searchParams.get('secret'));
+    const act = await svc.casos.activar({ id: enrol.cuerpo.enrollment_id, cuerpo: { code: generateTotp(semilla, Date.now(), { algoritmo: 'SHA256', digitos: 6, periodo: 30 }) } }, ctxApp);
+    assert.equal(act.status, 200);
+    const ruta = (accion) => `/admin/api/enrollments/${enrol.cuerpo.enrollment_id}/${accion}`;
+
+    const sinCsrf = await pedir(svc.puerto, { metodo: 'POST', ruta: ruta('suspend'), cabeceras: { cookie: sesiones.Operador.cookie }, cuerpo: {} });
+    assert.equal(sinCsrf.status, 403, 'sin X-CSRF-Token');
+    assert.equal((await como('Auditor', { metodo: 'POST', ruta: ruta('suspend'), cuerpo: {} })).status, 403, 'Auditor');
+    const s = await como('Operador', { metodo: 'POST', ruta: ruta('suspend') });
+    assert.equal(s.status, 200, s.texto);
+    assert.equal(s.json.enrollment.estado, 'suspendido');
+    assert.equal((await como('Operador', { metodo: 'POST', ruta: ruta('suspend'), cuerpo: {} })).status, 409);
+    assert.equal((await como('Administrador', { metodo: 'POST', ruta: ruta('reactivate'), cuerpo: {} })).json.enrollment.estado, 'activo');
+    assert.equal((await como('Administrador', { metodo: 'POST', ruta: ruta('revoke'), cuerpo: {} })).json.enrollment.estado, 'revocado');
+    assert.equal((await como('Administrador', { metodo: 'POST', ruta: ruta('reactivate'), cuerpo: {} })).status, 409, 'revocado es final');
+    const no = await como('Administrador', { metodo: 'POST', ruta: '/admin/api/enrollments/00000000-0000-4000-8000-000000000000/revoke', cuerpo: {} });
+    assert.equal(no.status, 404);
+    assert.equal((await como('Administrador', { metodo: 'POST', ruta: ruta('revoke'), cuerpo: { extra: 1 } })).status, 400);
+  });
 });

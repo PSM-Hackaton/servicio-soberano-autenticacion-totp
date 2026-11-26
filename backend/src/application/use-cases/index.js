@@ -22,6 +22,9 @@
 //   GET    /admin/api/apps                    → adminListarApps    200 | 401 | 403
 //   POST   /admin/api/apps                    → adminActualizarApp 201 | 200 | 400 | 401 | 403 | 404
 //   GET    /admin/api/enrollments             → adminListarEnrolamientos 200 | 400 | 401 | 403
+//   POST   /admin/api/enrollments/{id}/suspend    → adminSuspenderEnrolamiento 200 | 400 | 401 | 403 | 404 | 409
+//   POST   /admin/api/enrollments/{id}/reactivate → adminReactivarEnrolamiento 200 | 400 | 401 | 403 | 404 | 409
+//   POST   /admin/api/enrollments/{id}/revoke     → adminRevocarEnrolamiento   200 | 400 | 401 | 403 | 404 | 409
 //   GET    /admin/api/keys                    → adminListarLlaves  200 | 400 | 401 | 403
 //   POST   /admin/api/keys/rotate             → adminRotarLlaves   200 | 400 | 401 | 403
 //   GET    /admin/api/audit                   → adminAuditoria     200 | 400 | 401 | 403

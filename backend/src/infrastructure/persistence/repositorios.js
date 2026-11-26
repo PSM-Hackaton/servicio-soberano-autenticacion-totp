@@ -161,6 +161,11 @@ export function crearRepositorios(db) {
     activar: db.prepare(`UPDATE enrollments SET estado = 'activo', activated_at = ?, pending_expires_at = NULL
       WHERE id = ? AND estado = 'pendiente' AND (pending_expires_at IS NULL OR pending_expires_at > ?)`),
     revocar: db.prepare(`UPDATE enrollments SET estado = 'revocado', revoked_at = ? WHERE id = ? AND estado <> 'revocado'`),
+    // Ciclo de vida desde la consola: activo ↔ suspendido; activo | suspendido → revocado (final).
+    suspender: db.prepare(`UPDATE enrollments SET estado = 'suspendido' WHERE id = ? AND estado = 'activo'`),
+    reactivar: db.prepare(`UPDATE enrollments SET estado = 'activo' WHERE id = ? AND estado = 'suspendido'`),
+    revocarVigente: db.prepare(`UPDATE enrollments SET estado = 'revocado', revoked_at = ?
+      WHERE id = ? AND estado IN ('activo', 'suspendido')`),
     // ADR-003: anti replay atómico. Solo una petición puede avanzar last_step a T.
     pasoAceptado: db.prepare(`UPDATE enrollments SET last_step = ?, drift_steps = ?, failed_attempts = 0, locked_until = NULL
       WHERE id = ? AND last_step < ?`),
@@ -203,6 +208,12 @@ export function crearRepositorios(db) {
     },
     /** @param {string} id @param {string} [ahora] @returns {boolean} */
     revocar: (id, ahora = ahoraIso()) => sEnrol.revocar.run(ahora, id).changes === 1,
+    /** activo → suspendido. @param {string} id @returns {boolean} */
+    suspender: (id) => sEnrol.suspender.run(id).changes === 1,
+    /** suspendido → activo. @param {string} id @returns {boolean} */
+    reactivar: (id) => sEnrol.reactivar.run(id).changes === 1,
+    /** activo | suspendido → revocado (un pendiente no se revoca por esta vía). @param {string} id @param {string} [ahora] */
+    revocarVigente: (id, ahora = ahoraIso()) => sEnrol.revocarVigente.run(ahora, id).changes === 1,
     /**
      * Registra el paso T aceptado. Devuelve true solo si last_step < T (anti replay atómico):
      * dos peticiones con el mismo código no pueden ganar las dos.
@@ -380,6 +391,10 @@ export function crearRepositorios(db) {
   const sAdmin = {
     porUsuario: db.prepare('SELECT * FROM admins WHERE usuario = ?'),
     porId: db.prepare('SELECT * FROM admins WHERE id = ?'),
+    porEnrolamiento: db.prepare('SELECT * FROM admins WHERE totp_enrollment_id = ?'),
+    listar: db.prepare('SELECT * FROM admins ORDER BY created_at, usuario'),
+    activosPorRol: db.prepare('SELECT COUNT(*) AS n FROM admins WHERE rol = ? AND activo = 1'),
+    deshabilitar: db.prepare('UPDATE admins SET activo = 0 WHERE id = ? AND activo = 1'),
   };
   const admins = {
     /** @param {Fila} datos */
@@ -390,6 +405,16 @@ export function crearRepositorios(db) {
     },
     /** @param {string} usuario */
     buscarPorUsuario: (usuario) => mapearAdmin(sAdmin.porUsuario.get(usuario)),
+    /** @param {string} id */
+    buscarPorId: (id) => mapearAdmin(sAdmin.porId.get(id)),
+    /** Administrador cuyo factor TOTP es este enrolamiento (o null). @param {string} enrollmentId */
+    buscarPorEnrolamiento: (enrollmentId) => mapearAdmin(sAdmin.porEnrolamiento.get(enrollmentId)),
+    /** Todas las filas (con password_hash: quien las expone debe quitarlo). */
+    listar: () => sAdmin.listar.all().map(mapearAdmin),
+    /** @param {string} rol @returns {number} administradores activos con ese rol */
+    contarActivosPorRol: (rol) => sAdmin.activosPorRol.get(rol).n,
+    /** activo → inactivo. @param {string} id @returns {boolean} */
+    deshabilitar: (id) => sAdmin.deshabilitar.run(id).changes === 1,
   };
 
   // ---------------------------------------------------------------- audit_log

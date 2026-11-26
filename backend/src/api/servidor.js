@@ -453,6 +453,10 @@ export function crearServidor({
   admin('GET', '/admin/api/metrics', 'adminMetricas', 'metricas.leer', (p) => p.query);
   // --- consola admin: gestión (llaves, enrolamientos, apps y administradores)
   admin('GET', '/admin/api/keys', 'adminListarLlaves', 'llaves.leer', (p) => p.query);
+  const conId = (p) => ({ id: p.params.id, cuerpo: p.cuerpo });
+  admin('POST', '/admin/api/enrollments/:id/suspend', 'adminSuspenderEnrolamiento', 'enrolamientos.gestionar', conId, { cuerpo: true });
+  admin('POST', '/admin/api/enrollments/:id/reactivate', 'adminReactivarEnrolamiento', 'enrolamientos.gestionar', conId, { cuerpo: true });
+  admin('POST', '/admin/api/enrollments/:id/revoke', 'adminRevocarEnrolamiento', 'enrolamientos.gestionar', conId, { cuerpo: true });
 
   // ---------------------------------------------------------------- estáticos
 
