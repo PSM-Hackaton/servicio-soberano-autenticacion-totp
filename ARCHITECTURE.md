@@ -90,4 +90,4 @@ curl --cacert backend/certs/ca.crt https://localhost:8443/health/ready
 curl --cacert backend/certs/ca.crt https://localhost:8443/.well-known/jwks.json
 ```
 
-Cifras vigentes (26-11-2026): **307 pruebas** (backend 211, app 26, SDK 26, portal 16, laboratorio 28); el servidor monta **31 rutas API** (7 de integración v1, 5 de sistema y 19 de la consola), todas en `contracts/openapi.yaml`; laboratorio **11/11** escenarios y **116/116** verificaciones; DAST **12/12**.
+Cifras vigentes (26-11-2026): **309 pruebas** (backend 211, app 26, SDK 28, portal 16, laboratorio 28); el servidor monta **31 rutas API** (7 de integración v1, 5 de sistema y 19 de la consola), todas en `contracts/openapi.yaml`; laboratorio **11/11** escenarios y **116/116** verificaciones; DAST **12/12**.

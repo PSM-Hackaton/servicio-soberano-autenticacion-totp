@@ -3,7 +3,7 @@
 > **Regla de Oro:** Solo se marca `[x]` con evidencia real en verde. Prohibido tocar `main`.
 > **Remotos:** Pushes **EXCLUSIVAMENTE a GitHub (`origin`)**. **GitLab BLOQUEADO** hasta `/push gitlab final`.
 > **Stack vigente:** **ADR-002** (26-11-2026) — 100 % Node.js 22.5+ nativo, **0 dependencias npm**, SQLite WAL única, HTML+CSS+JS propios.
-> **Última verificación (26-11-2026, copia limpia del árbol de trabajo, Node.js 22.22.1):** `node scripts/verificar-todo.js` en verde: **307 pruebas** (backend 211, app 26, SDK 26, portal 16, attack-lab 28); contrato con las **31 rutas** del servidor; laboratorio **11/11** escenarios y **116/116** verificaciones; DAST en vivo **12/12** (34 sondas, `camera=(self)` en `/app/`); verificación institucional `systemd` 10/10 (`systemd-analyze security: 3.0 OK`, `VACUUM INTO`, `SIGTERM` 5 ms).
+> **Última verificación (26-11-2026, copia limpia del árbol de trabajo, Node.js 22.22.1):** `node scripts/verificar-todo.js` en verde: **309 pruebas** (backend 211, app 26, SDK 28, portal 16, attack-lab 28); contrato con las **31 rutas** del servidor; laboratorio **11/11** escenarios y **116/116** verificaciones; DAST en vivo **12/12** (34 sondas, `camera=(self)` en `/app/`); verificación institucional `systemd` 10/10 (`systemd-analyze security: 3.0 OK`, `VACUUM INTO`, `SIGTERM` 5 ms).
 
 ---
 
@@ -34,7 +34,7 @@
   - [x] Alta por **cámara**: `Permissions-Policy: camera=(self)` solo en `/app/` (`backend/src/security/cabeceras.js`); el DAST lo verifica en vivo.
 - [x] `[B3 · #12]` `admin-console/`: consola RBAC propia en `/consola/`, validada contra el backend real.
   - [x] Gestión completa: registrar apps y regenerar su secreto, suspender/reactivar/revocar enrolamientos, búsqueda por cédula, crear y deshabilitar cuentas de administración — `admin-gestion.test.js`, `admin-consola.test.js`.
-- [x] `[B4 · #13]` `sdk/` y `demo-portal-tramites/`: SDK sin dependencias, guía `sdk/INTEGRACION_RETO3.md` y Portal con *step-up* — `sdk.test.js` (26), `portal.test.js` (16, ingreso por cédula); flujo real del portal comprobado de punta a punta.
+- [x] `[B4 · #13]` `sdk/` y `demo-portal-tramites/`: SDK sin dependencias, guía `sdk/INTEGRACION_RETO3.md` y Portal con *step-up* — `sdk/tests/*.test.js` (28), `portal.test.js` (16, ingreso por cédula); flujo real del portal comprobado de punta a punta.
 - [x] `[B5 · #14]` `attack-lab/`: 11 escenarios de ataque y caos + DAST — `npm test` (28); `ejecutar-todo.js` con reinicio 11/11 y 116/116 (`docs/evidencias/attack-lab-informe-2026-11-26.*`).
 - [x] `[B6 · #15]` `README.md` final con los 6 apartados oficiales, participantes y roles, instalación probada paso a paso; SBOM CycloneDX 1.5 regenerado.
 
@@ -65,7 +65,7 @@
 - [x] `[D1 · #27]` `contracts/openapi.yaml` sin claves duplicadas ni `$ref` rotas; documentos raíz sin `USER_PEPPER`/`DAILY_IP_PEPPER`/`Hexagonal`; `sdk/INTEGRACION_RETO3.md` con `clientIp`.
 - [x] `[D3 · #29]` Prueba automatizada de formato Key URI en `authenticator-app/tests/otpauth.test.mjs` + matriz `docs/evidencias/compatibilidad-clientes-totp.md`.
 - [x] `[D4 · #30]` `README.md` conforme a los 6 apartados del instructivo sin cédulas y con cifras/cobertura verificadas.
-- [x] `[D5 · #31]` CI sin dependencias (`scripts/verificar-todo.js`, `.gitlab-ci.yml`, `.github/workflows/pruebas.yml`) + cobertura real en `docs/evidencias/cobertura-2026-11-26.txt` (307/307 pruebas; backend 93,7 % de líneas, que incluye el SDK cargado por una prueba).
+- [x] `[D5 · #31]` CI sin dependencias (`scripts/verificar-todo.js`, `.gitlab-ci.yml`, `.github/workflows/pruebas.yml`) + cobertura real en `docs/evidencias/cobertura-2026-11-26.txt` (309/309 pruebas; backend 93,7 % de líneas, que incluye el SDK cargado por una prueba).
 - [x] `[D7/F3 · #33/#50]` Auditoría WCAG 2.1 AA en `docs/evidencias/accesibilidad.md`.
 - [x] `[M0/M1/M2 · #39/#40/#41]` ADR-004 en `ARCHITECTURE.md` + `mobile-android/` (README con diagrama de secuencia, `AndroidManifest.xml`, `TotpEngine.kt` y `TotpEngineTest.kt`).
 - [x] `[F1/F2/F4/F5 · #48/#49/#51/#52]` `sitio-publico/` (`index.html`, `instalar-certificado.html`, `estado.html`, SVG propio, CSP estricta, tema claro/oscuro) + `scripts/capturas.js` (Chromium headless).
