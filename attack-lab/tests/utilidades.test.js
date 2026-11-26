@@ -204,9 +204,9 @@ test('informe: las rutas absolutas del sistema se sustituyen por relativas o mar
   const { relativizarRutas } = await import('../lib/informe.js');
   const informe = {
     destino: 'https://localhost:8443',
-    resultados: [{ metricas: { comando: 'node src/main.js (cwd /home/ana/proyectos/repo/backend)' }, notas: ['log en /home/ana/.tmp-lab/backend.log', 'ca /tmp/x/ca.crt', 'otra /home/ana/datos'] }],
+    resultados: [{ metricas: { comando: 'node src/main.js (cwd /srv/ana/proyectos/repo/backend)' }, notas: ['log en /srv/ana/.tmp-lab/backend.log', 'ca /tmp/x/ca.crt', 'otra /srv/ana/datos'] }],
   };
-  const r = relativizarRutas(informe, { repo: '/home/ana/proyectos/repo', casa: '/home/ana', temporales: ['/home/ana/.tmp-lab', '/tmp'] });
+  const r = relativizarRutas(informe, { repo: '/srv/ana/proyectos/repo', casa: '/srv/ana', temporales: ['/srv/ana/.tmp-lab', '/tmp'] });
   assert.equal(r.resultados[0].metricas.comando, 'node src/main.js (cwd backend)');
   assert.deepEqual(r.resultados[0].notas, ['log en <tmp>/backend.log', 'ca <tmp>/x/ca.crt', 'otra ~/datos']);
   assert.doesNotMatch(JSON.stringify(r), /\/home\/ana/);
