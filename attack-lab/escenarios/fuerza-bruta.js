@@ -40,8 +40,14 @@ export async function ejecutar(ctx, res) {
   res.metrica('secuencia de respuestas', traza.join(' → '));
   res.verificar(`Bloqueo tras ${maxIntentos} fallos`, `429 en el intento ${maxIntentos + 1}`,
     primer429 ? `429 en el intento ${primer429.intento}` : 'sin 429', primer429 !== null && primer429.intento <= maxIntentos + 1);
-  res.verificar('Primer escalón de bloqueo', '≈30 s (Retry-After)', primer429?.segundos ?? '—',
-    primer429?.segundos !== null && primer429?.segundos !== undefined && primer429.segundos >= 20 && primer429.segundos <= 31);
+  // El detector local puede adelantarse al bloqueo progresivo (300 s, mismo 429 genérico): depende
+  // del historial del origen y de la hora del día (rasgos horaSeno/horaCoseno/desviacionHora), así
+  // que según la hora a la que se ejecute el laboratorio se ve uno u otro. Ambos son correctos.
+  const s1 = primer429?.segundos;
+  const porDetector = typeof s1 === 'number' && s1 >= 290 && s1 <= 300;
+  res.verificar('Primer escalón de bloqueo', '≈30 s (bloqueo progresivo) o 300 s (detector, si se adelanta)',
+    s1 === undefined || s1 === null ? '—' : `${s1}${porDetector ? ' (detector de anomalías)' : ''}`,
+    typeof s1 === 'number' && ((s1 >= 20 && s1 <= 31) || porDetector) && codigoError(primer429.r) === 'TOO_MANY_REQUESTS');
   if (!primer429) res.hallazgo(`Sin bloqueo tras ${maxIntentos + 3} códigos incorrectos consecutivos contra una cuenta.`);
 
   // 2. Durante el bloqueo: el atacante insiste y además prueba el código CORRECTO.
