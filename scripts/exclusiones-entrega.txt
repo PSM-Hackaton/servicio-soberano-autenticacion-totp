@@ -23,8 +23,12 @@ SYSTEM_GRAPH.md
 scripts/preparar-entrega.sh
 scripts/exclusiones-entrega.txt
 scripts/entrega-herramientas.mjs
+scripts/entrega-comun.sh
 scripts/README-entrega.md
 scripts/permitidos-entrega.txt
+scripts/etapas-entrega.txt
+scripts/subir-por-etapas.sh
+scripts/sincronizar-gitlab.sh
 
 # --- Carpetas locales de editores y herramientas ------------------------------------
 .claude/

@@ -4,10 +4,17 @@
 // Subcomandos:
 //   excluir   <copia> <exclusiones.txt>                 borra lo excluido e imprime la lista de rutas borradas
 //   ajustar   <copia> <lista-excluidos.txt>             revisa enlaces y menciones; corrige README.md y ARCHITECTURE.md
-//   verificar <copia> [permitidos.txt]                  verificaciones de limpieza; código 1 si alguna falla
+//   verificar <copia> [permitidos.txt] [--sin-readme]   verificaciones de limpieza; código 1 si alguna falla
+//                                                       (--sin-readme: etapa intermedia, aún sin README.md)
 //   env       <archivo .env generado>                   comprueba el .env creado por generar-env.js
+//   etapas    <copia> <etapas.txt> <exclusiones.txt> <dir-plan> [--autor-laya "Nombre <correo>"]
+//                                                       reparte la copia limpia en etapas (subida progresiva)
+//   copiar    <origen> <lista> <destino>                copia los archivos de la lista con sus permisos
 
-import { readFileSync, writeFileSync, readdirSync, statSync, lstatSync, rmSync, rmdirSync, existsSync } from 'node:fs';
+import {
+  readFileSync, writeFileSync, readdirSync, statSync, lstatSync, rmSync, rmdirSync, existsSync,
+  mkdirSync, copyFileSync, chmodSync,
+} from 'node:fs';
 import { join, relative, dirname, resolve, sep, basename } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
@@ -276,7 +283,7 @@ function recortar(s) {
   return t.length > 140 ? `${t.slice(0, 137)}...` : t;
 }
 
-function cmdVerificar(copia, archivoPermitidos) {
+function cmdVerificar(copia, archivoPermitidos, { sinReadme = false } = {}) {
   const permitidos = cargarPermitidos(archivoPermitidos);
   const archivos = listarArchivos(copia);
   const hallazgos = { marcas: [], rutas: [], secretos: [], nombres: [], tamano: [], readme: [] };
@@ -326,8 +333,10 @@ function cmdVerificar(copia, archivoPermitidos) {
   }
 
   // README.md: seis apartados obligatorios, en orden, como títulos de nivel 2.
+  // Con --sin-readme (etapas intermedias de la subida progresiva) el README aún no se ha incorporado.
   const readme = join(copia, 'README.md');
-  if (!existsSync(readme)) hallazgos.readme.push('No existe README.md en la raíz.');
+  if (sinReadme) { /* se comprueba en la etapa que lo incorpora y en la copia completa */ }
+  else if (!existsSync(readme)) hallazgos.readme.push('No existe README.md en la raíz.');
   else {
     const titulos = readFileSync(readme, 'utf8').split('\n')
       .map((l, i) => ({ l, i: i + 1 }))
@@ -351,7 +360,7 @@ function cmdVerificar(copia, archivoPermitidos) {
     ['nombres', 'Archivos sensibles por nombre (.env, llaves, bases, node_modules)'],
     ['tamano', 'Archivos de más de 5 MB'],
     ['readme', 'README.md con los 6 apartados del instructivo, en orden'],
-  ];
+  ].filter(([cat]) => !(sinReadme && cat === 'readme'));
   let fallos = 0;
   for (const [cat, titulo] of informe) {
     const lista = hallazgos[cat];
@@ -387,17 +396,147 @@ function cmdEnv(archivo) {
   return 0;
 }
 
+// ------------------------------------------------------------------ etapas (subida progresiva)
+
+const RE_IDENTIDAD = /^(\S(?:.*\S)?)\s*<([^<>\s@]+@[^<>\s@]+\.[^<>\s@]+)>$/;
+const RAMAS_TRABAJO = new Set(['diego', 'laya']);
+const MARCADOR_LAYA = 'AUTOR_LAYA';
+
+/**
+ * Lee scripts/etapas-entrega.txt. Formato: líneas "clave valor"; cada "etapa <id>" abre una etapa nueva.
+ * Claves: etapa, mensaje, autor, rama, ruta (repetible; admite "!patrón").
+ */
+function leerEtapas(archivo) {
+  const etapas = [];
+  const errores = [];
+  readFileSync(archivo, 'utf8').split(/\r?\n/).forEach((original, i) => {
+    const linea = original.trim();
+    if (!linea || linea.startsWith('#')) return;
+    const m = /^(\S+)\s+(.+)$/.exec(linea);
+    if (!m) { errores.push(`${basename(archivo)}:${i + 1}: línea sin valor: "${linea}"`); return; }
+    const [, clave, valor] = m;
+    if (clave === 'etapa') { etapas.push({ id: valor, linea: i + 1, rutas: [] }); return; }
+    const actual = etapas.at(-1);
+    if (!actual) { errores.push(`${basename(archivo)}:${i + 1}: "${clave}" antes de la primera "etapa"`); return; }
+    if (clave === 'ruta') actual.rutas.push(valor);
+    else if (['mensaje', 'autor', 'rama'].includes(clave)) {
+      if (actual[clave] !== undefined) errores.push(`${basename(archivo)}:${i + 1}: "${clave}" repetido en la etapa ${actual.id}`);
+      actual[clave] = valor;
+    } else errores.push(`${basename(archivo)}:${i + 1}: clave desconocida "${clave}"`);
+  });
+  return { etapas, errores };
+}
+
+/**
+ * Asigna cada archivo de la copia limpia a la PRIMERA etapa cuyas rutas lo incluyan (dentro de una etapa,
+ * la última regla que coincide decide, como en las exclusiones). Escribe en <dirPlan>:
+ *   plan.tsv        n, id, rama, nombre, correo, nº de archivos, mensaje (separados por tabulador)
+ *   etapa-N.lista   archivos que incorpora la etapa N (uno por línea)
+ * Falla si un archivo queda sin etapa, si una etapa queda vacía, si una regla no coincide con nada,
+ * si falta un dato o si se incluye algo que las exclusiones prohíben.
+ */
+function cmdEtapas(copia, archivoEtapas, archivoExclusiones, dirPlan, opciones) {
+  const { etapas, errores } = leerEtapas(archivoEtapas);
+  const archivos = listarArchivos(copia);
+  const exclusiones = cargarExclusiones(archivoExclusiones);
+  const ids = new Set();
+  let autorLaya = null;
+  if (opciones.autorLaya !== undefined) {
+    if (!RE_IDENTIDAD.test(opciones.autorLaya)) errores.push(`--autor-laya no tiene el formato "Nombre Apellido <correo@dominio>": "${opciones.autorLaya}"`);
+    else autorLaya = opciones.autorLaya;
+  }
+  if (!etapas.length) errores.push(`${basename(archivoEtapas)} no define ninguna etapa`);
+
+  for (const e of etapas) {
+    const donde = `etapa ${e.id} (línea ${e.linea})`;
+    if (ids.has(e.id)) errores.push(`${donde}: identificador repetido`);
+    ids.add(e.id);
+    for (const clave of ['mensaje', 'autor', 'rama']) if (!e[clave]) errores.push(`${donde}: falta "${clave}"`);
+    if (e.rama && !RAMAS_TRABAJO.has(e.rama)) errores.push(`${donde}: rama "${e.rama}" no es una rama de trabajo (${[...RAMAS_TRABAJO].join(', ')})`);
+    if (e.autor === MARCADOR_LAYA) {
+      if (!autorLaya && opciones.autorLaya === undefined) errores.push(`${donde}: el autor es ${MARCADOR_LAYA}; indíquelo con --autor-laya "Nombre Apellido <correo>"`);
+      e.autor = autorLaya ?? e.autor;
+    }
+    const id = RE_IDENTIDAD.exec(e.autor ?? '');
+    if (e.autor && e.autor !== MARCADOR_LAYA && !id) errores.push(`${donde}: autor sin formato "Nombre <correo>": "${e.autor}"`);
+    if (id) { e.nombre = id[1]; e.correo = id[2]; }
+    if (!e.rutas.length) errores.push(`${donde}: no tiene rutas`);
+    e.reglas = e.rutas.map((linea) => {
+      const negado = linea.startsWith('!');
+      return { linea, negado, re: patronARegex(negado ? linea.slice(1) : linea) };
+    });
+    for (const r of e.reglas) {
+      if (!archivos.some((a) => r.re.test(a))) errores.push(`${donde}: la ruta "${r.linea}" no coincide con ningún archivo de la copia limpia`);
+    }
+    e.archivos = [];
+  }
+
+  const sinEtapa = [];
+  for (const archivo of archivos) {
+    if (excluido(archivo, exclusiones)) errores.push(`${archivo}: está en la copia pero las exclusiones lo prohíben`);
+    const etapa = etapas.find((e) => excluido(archivo, e.reglas));
+    if (etapa) etapa.archivos.push(archivo); else sinEtapa.push(archivo);
+  }
+  if (sinEtapa.length) errores.push(`${sinEtapa.length} archivo(s) de la copia limpia sin etapa:\n${sinEtapa.map((a) => `      - ${a}`).join('\n')}`);
+  for (const e of etapas) if (e.reglas.length && !e.archivos.length) errores.push(`etapa ${e.id}: no incorpora ningún archivo (todo lo toman etapas anteriores)`);
+
+  if (errores.length) {
+    for (const e of errores) console.log(`  ERROR  ${e}`);
+    return 1;
+  }
+
+  const limpiar = (s) => s.replace(/[\t\r\n]+/g, ' ');
+  const tsv = etapas.map((e, i) => [i + 1, e.id, e.rama, e.nombre, e.correo, e.archivos.length, e.mensaje].map((c) => limpiar(String(c))).join('\t'));
+  writeFileSync(join(dirPlan, 'plan.tsv'), `${tsv.join('\n')}\n`);
+  etapas.forEach((e, i) => writeFileSync(join(dirPlan, `etapa-${i + 1}.lista`), `${e.archivos.join('\n')}\n`));
+
+  const ancho = Math.max(...etapas.map((e) => e.id.length));
+  etapas.forEach((e, i) => {
+    console.log(`  ${String(i + 1).padStart(2)}. ${e.id.padEnd(ancho)}  ${e.rama.padEnd(5)}  ${String(e.archivos.length).padStart(4)} arch.  ${e.nombre} <${e.correo}>`);
+    console.log(`      ${e.mensaje}`);
+  });
+  console.log(`  Total: ${archivos.length} archivos en ${etapas.length} etapas; ninguno sin etapa, ninguno excluido.`);
+  return 0;
+}
+
+/** Copia los archivos de <lista> (rutas relativas, una por línea) de <origen> a <destino>, con sus permisos. */
+function cmdCopiar(origen, lista, destino) {
+  const rutas = readFileSync(lista, 'utf8').split('\n').filter(Boolean);
+  for (const ruta of rutas) {
+    const desde = join(origen, ruta);
+    const hacia = join(destino, ruta);
+    if (!existsSync(desde)) { console.error(`No existe ${desde}`); return 1; }
+    mkdirSync(dirname(hacia), { recursive: true });
+    copyFileSync(desde, hacia);
+    chmodSync(hacia, statSync(desde).mode & 0o777);
+  }
+  return 0;
+}
+
 // ------------------------------------------------------------------ principal
 
-const [cmd, ...args] = process.argv.slice(2);
+const [cmd, ...resto] = process.argv.slice(2);
+const banderas = new Set(resto.filter((a) => a === '--sin-readme'));
+const args = resto.filter((a) => !banderas.has(a));
+/** Extrae "--opcion valor" de args (para valores que pueden contener espacios). */
+function opcionConValor(nombre) {
+  const i = args.indexOf(nombre);
+  if (i === -1) return undefined;
+  const valor = args[i + 1] ?? '';
+  args.splice(i, 2);
+  return valor;
+}
+const autorLaya = opcionConValor('--autor-laya');
 const comandos = {
   excluir: () => cmdExcluir(resolve(args[0]), resolve(args[1])),
   ajustar: () => cmdAjustar(resolve(args[0]), resolve(args[1])),
-  verificar: () => cmdVerificar(resolve(args[0]), args[1] ? resolve(args[1]) : null),
+  verificar: () => cmdVerificar(resolve(args[0]), args[1] ? resolve(args[1]) : null, { sinReadme: banderas.has('--sin-readme') }),
   env: () => cmdEnv(resolve(args[0])),
+  etapas: () => cmdEtapas(resolve(args[0]), resolve(args[1]), resolve(args[2]), resolve(args[3]), { autorLaya }),
+  copiar: () => cmdCopiar(resolve(args[0]), resolve(args[1]), resolve(args[2])),
 };
 if (!comandos[cmd] || !args[0]) {
-  console.error('Uso: node entrega-herramientas.mjs excluir|ajustar|verificar|env <copia> [...]');
+  console.error('Uso: node entrega-herramientas.mjs excluir|ajustar|verificar|env|etapas|copiar <copia> [...]');
   process.exitCode = 2;
 } else {
   process.exitCode = comandos[cmd]();
