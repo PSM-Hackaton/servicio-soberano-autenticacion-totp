@@ -17,11 +17,11 @@ servicio deben seguir siendo abiertas.
 
 ## 2. Participantes
 
-- Juan Laya — C.I. 31.902.000 (Líder técnico: arquitectura, contratos e integración)
-- Diego Landaeta — C.I. 30.613.562 (Backend, criptografía y seguridad)
-- Javier Rodríguez — C.I. 30.722.161 (Frontend y experiencia de usuario)
-- Giovani Marcano — C.I. 31.920.153 (Seguridad, pruebas y laboratorio de ataques)
-- Enggel Rodríguez — C.I. 32.821.429 (Inteligencia artificial local, documentación y presentación)
+- Juan Laya — Líder técnico: arquitectura, contratos e integración
+- Diego Landaeta — Backend, criptografía y seguridad
+- Javier Rodríguez — Frontend y experiencia de usuario
+- Giovani Marcano — Seguridad, pruebas y laboratorio de ataques
+- Enggel Rodríguez — Inteligencia artificial local, documentación y presentación
 
 El equipo del **Reto 1** consume el servicio como aplicación cliente (`Reto 1`) mediante el SDK
 ([`sdk/INTEGRACION_RETO1.md`](sdk/INTEGRACION_RETO1.md)).
@@ -62,7 +62,7 @@ llamadas a servicios de terceros.
 - **App autenticadora PWA propia ([`authenticator-app/`](authenticator-app/)):** servida por la institución en `/app/`, funciona **sin conexión** (Service Worker + Web Crypto), cifra las semillas en el dispositivo con un **PIN (PBKDF2 + AES-GCM)**, SHA-1/256/512 con 6 u 8 dígitos; alta por enlace del portal, URI `otpauth://` pegada, clave manual Base32 o cámara; respaldo cifrado y comprobación de la hora.
 - **Consola administrativa con RBAC ([`admin-console/`](admin-console/)):** servida en `/consola/`, inicio de sesión con contraseña + **TOTP propio**, cookie `HttpOnly; Secure; SameSite=Strict` + CSRF, roles `Administrador`, `Operador` y `Auditor`. Políticas por app, enrolamientos por estado, alertas del detector, rotación de llaves Ed25519 con un botón y verificación de la cadena `audit_log`.
 - **SDK y Portal de demostración ([`sdk/`](sdk/), [`demo-portal-tramites/`](demo-portal-tramites/)):** SDK ESM sin dependencias con tiempo de espera de 3 s, un reintento idempotente (`Idempotency-Key`), política estricta de **falla cerrado** y **validación local del JWT con caché JWKS**; Portal de Trámites del Estado (ficticio) con enrolamiento, códigos de recuperación y *step-up* en trámites sensibles.
-- **Laboratorio de ataques y caos ([`attack-lab/`](attack-lab/)):** 9 escenarios (replay con carrera paralela, JWT alterados, entradas malformadas, fuerza bruta local y distribuida, spraying, inundación, proxy TCP de caos con latencia y cortes, reinicio del backend) con informes autocontenidos.
+- **Laboratorio de ataques, DAST y caos ([`attack-lab/`](attack-lab/)):** 12 escenarios (replay con carrera paralela, JWT alterados, entradas malformadas, **escáner DAST propio**, deriva de reloj, origen compartido, fuerza bruta local y distribuida, spraying, inundación, proxy TCP de caos con latencia y cortes, reinicio del backend) con informes autocontenidos.
 
 ### Estructura del repositorio
 
@@ -110,7 +110,8 @@ docs/                   Reto, análisis, API, SBOM, cumplimiento, manual, presen
 - **Anonimización**: `user_ref` solo como HMAC-SHA256 con *pepper*; IP solo como HMAC con *pepper* diario; la bitácora filtra campos sensibles.
 - **Auditoría y métricas** locales: bitácora encadenada verificable desde la consola; métricas JSON y formato de texto estilo Prometheus.
 - **Clientes propios** (HTML + CSS + JS, sin frameworks, empaquetadores ni CDN): app autenticadora, consola y Portal de Trámites; **SDK** y **laboratorio de ataques y caos**.
-- **Pruebas automatizadas**: **256 pruebas** con `node:test` (backend 171, app 25, SDK 23, portal 12, laboratorio 25), todas en verde el 26-11-2026; laboratorio contra el servicio real: 9/9 escenarios y 89/89 verificaciones.
+- **Pruebas automatizadas y cobertura (CI sin dependencias):** **287 pruebas** con `node:test` (backend 193 con **98,2 %** de cobertura de líneas, app 26 con **83,3 %**, SDK 26 con **96,2 %**, portal 14 con **93,1 %**, laboratorio + DAST 28 con **87,4 %**), todas en verde el 26-11-2026 ([`docs/evidencias/cobertura-2026-11-26.txt`](docs/evidencias/cobertura-2026-11-26.txt)); automatizadas en `.gitlab-ci.yml` y `.github/workflows/pruebas.yml` mediante `node scripts/verificar-todo.js` (0 `npm install`).
+- **Compatibilidad abierta y app móvil:** formato Key URI (`otpauth://`) verificado por pruebas automatizadas para clientes libres ([`docs/evidencias/compatibilidad-clientes-totp.md`](docs/evidencias/compatibilidad-clientes-totp.md)); decisión arquitectónica ADR-004 y base Kotlin nativa en [`mobile-android/`](mobile-android/); páginas ciudadanas de inicio, certificado y estado en [`sitio-publico/`](sitio-publico/).
 
 ### Límites de la entrega
 
