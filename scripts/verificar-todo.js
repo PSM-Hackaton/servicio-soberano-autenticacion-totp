@@ -130,6 +130,10 @@ function auditarHigieneRepo() {
     'ANALISIS_FASE0.md',
   ]);
 
+  // Una línea de coautoría de commit no tiene sentido dentro de un archivo del proyecto. El patrón se arma por
+  // partes para que este mismo archivo no la contenga.
+  const RE_LINEA_COAUTORIA = new RegExp(`^\\s*${'Co-'}${'Authored-By'}:`, 'im');
+
   for (const rel of archivos) {
     if (/(^|\/)\.env$|\.(pem|key|crt|db|db-wal|db-shm)$/.test(rel)) {
       errores.push(`Archivo sensible rastreado en Git: ${rel}`);
@@ -146,8 +150,8 @@ function auditarHigieneRepo() {
     if (!excluiblesRutas.has(rel) && /\/home\/[a-z0-9_.-]+\//i.test(contenido)) {
       errores.push(`Ruta local de usuario detectada en ${rel}`);
     }
-    if (!excluiblesRutas.has(rel) && /Co-Authored-By:\s*(Claude|Anthropic|OpenAI|ChatGPT|Copilot|Gemini)/i.test(contenido)) {
-      errores.push(`Rastro de coautoría de herramienta detectado en ${rel}`);
+    if (!excluiblesRutas.has(rel) && RE_LINEA_COAUTORIA.test(contenido)) {
+      errores.push(`Línea de coautoría dentro de un archivo: ${rel}`);
     }
   }
   return errores;
@@ -244,7 +248,7 @@ function main() {
   console.log('\n=== 4. Auditoría de secretos, rutas locales e higiene ===');
   const erroresHigiene = auditarHigieneRepo();
   if (erroresHigiene.length === 0) {
-    console.log('OK: 0 archivos sensibles, 0 rutas locales filtradas, 0 coautorías de herramientas.');
+    console.log('OK: 0 archivos sensibles, 0 rutas locales filtradas, 0 líneas de coautoría.');
   } else {
     for (const e of erroresHigiene) console.error(`ERROR Higiene: ${e}`);
     fallos.push('Higiene del repositorio');

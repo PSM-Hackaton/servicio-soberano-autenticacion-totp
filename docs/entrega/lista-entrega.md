@@ -26,7 +26,7 @@ Leyenda: **[x]** hecho, con su evidencia en el repositorio · **[ ]** pendiente 
 - [x] Trabajo diario en ramas por integrante (`diego`, `laya`) con commits frecuentes; historial completo en el
   repositorio de trabajo del equipo.
 - [x] Herramientas para llevar a GitLab una copia limpia y verificada: subida por etapas el día 1, sincronización
-  commit a commit después y comprobación final (`scripts/preparar-entrega.sh` y afines, de uso interno).
+  commit a commit después y comprobación final (herramientas internas del equipo, que no forman parte de la entrega).
 - [ ] Merge Request diario de la rama de trabajo hacia **`avance`** (fin de cada jornada). **Equipo, en GitLab.**
 - [ ] Merge Request final de `avance` hacia **`terminado`** tras el *code freeze* y la aprobación del líder
   técnico. **Equipo, en GitLab.**
@@ -104,9 +104,9 @@ Cada requisito, citado textualmente, con código y prueba: `docs/cumplimiento/ma
 
 ## 4. Comprobaciones de la copia limpia
 
-`sh scripts/preparar-entrega.sh --salida <carpeta>` (sin lista de permitidos) debe terminar sin errores:
+La comprobación final de la copia limpia (herramienta interna del equipo, sin excepciones aceptadas) terminó sin errores el 26-11-2026:
 
-- [x] Sin material interno de coordinación ni herramientas de entrega (`scripts/exclusiones-entrega.txt`).
+- [x] Sin material interno de coordinación ni herramientas de preparación de la entrega.
 - [x] Sin secretos (`.env`, llaves, certificados, bases de datos) ni rutas locales de las máquinas del equipo.
 - [x] Sin marcas de herramientas de terceros ni líneas de coautoría en commits o archivos.
 - [x] README con los seis apartados en orden.
