@@ -114,7 +114,7 @@ docs/                   Reto, análisis, API, SBOM, cumplimiento, manual, presen
 - **Anonimización**: `user_ref` solo como HMAC-SHA256 con *pepper*; IP solo como HMAC con *pepper* diario; la bitácora filtra campos sensibles.
 - **Auditoría y métricas** locales: bitácora encadenada verificable desde la consola; métricas JSON y formato de texto estilo Prometheus.
 - **Clientes propios** (HTML + CSS + JS, sin frameworks, empaquetadores ni CDN): app autenticadora, consola y Portal de Trámites; **SDK** y **laboratorio de ataques y caos**.
-- **Pruebas automatizadas y cobertura (CI sin dependencias):** **309 pruebas** con `node:test` (backend 211 con **93,7 %** de cobertura de líneas, app 26 con **83,3 %**, SDK 28 con **96,4 %**, portal 16 con **93,1 %**, laboratorio + DAST 28 con **87,5 %**), todas en verde el 26-11-2026 ([`docs/evidencias/cobertura-2026-11-26.txt`](docs/evidencias/cobertura-2026-11-26.txt)); automatizadas en `.gitlab-ci.yml` y `.github/workflows/pruebas.yml` mediante `node scripts/verificar-todo.js` (0 `npm install`).
+- **Pruebas automatizadas y cobertura (CI sin dependencias):** **325 pruebas** con `node:test` (backend 223 con **93,7 %** de cobertura de líneas, app 26 con **83,3 %**, SDK 28 con **96,4 %**, portal 20 con **93,1 %**, laboratorio + DAST 28 con **87,5 %**), todas en verde el 26-11-2026 ([`docs/evidencias/cobertura-2026-11-26.txt`](docs/evidencias/cobertura-2026-11-26.txt)); automatizadas en `.gitlab-ci.yml` y `.github/workflows/pruebas.yml` mediante `node scripts/verificar-todo.js` (0 `npm install`).
 - **Compatibilidad abierta y app móvil:** formato Key URI (`otpauth://`) verificado por pruebas automatizadas para clientes libres ([`docs/evidencias/compatibilidad-clientes-totp.md`](docs/evidencias/compatibilidad-clientes-totp.md)); decisión arquitectónica ADR-004 y base Kotlin nativa en [`mobile-android/`](mobile-android/); páginas ciudadanas de inicio, certificado y estado en [`sitio-publico/`](sitio-publico/).
 
 ### Límites de la entrega
@@ -314,15 +314,15 @@ Comprobado de punta a punta contra el backend real.
 ### Paso 8 — Pruebas automatizadas
 
 ```bash
-cd backend && npm test && cd ..                            # 211
+cd backend && npm test && cd ..                            # 223
 node --test authenticator-app/tests/*.test.mjs             # 26
 cd sdk && npm test && cd ..                                # 28
-cd demo-portal-tramites && npm test && cd ..               # 16
+cd demo-portal-tramites && npm test && cd ..               # 20
 cd attack-lab && npm test && cd ..                         # 28
 node scripts/verificar-todo.js                             # todo lo anterior + OpenAPI estricto, SBOM e higiene
 ```
 
-Resultado el 26-11-2026: **309 pruebas, 0 fallos** (cobertura en [`docs/evidencias/cobertura-2026-11-26.txt`](docs/evidencias/cobertura-2026-11-26.txt)).
+Resultado el 26-11-2026: **325 pruebas, 0 fallos** (cobertura en [`docs/evidencias/cobertura-2026-11-26.txt`](docs/evidencias/cobertura-2026-11-26.txt)).
 
 ### Paso 9 — Laboratorio de ataques y caos contra el servicio real
 
@@ -332,7 +332,7 @@ Desde la raíz, con el servicio en marcha:
 export ATTACK_CLIENT_ID=app_...   ATTACK_CLIENT_SECRET=...     # "Portal de Trámites"
 export ATTACK_CLIENT_ID_2=app_... ATTACK_CLIENT_SECRET_2=...   # "Agente Evaluador (Reto 3)" (prueba de otra audiencia)
 node attack-lab/ejecutar-todo.js --comando-arranque "node src/main.js" --pid-backend <PID del backend>
-#   → 11/11 escenarios OK · 116/116 verificaciones · 0 hallazgos (incluye el reinicio: los bloqueos
+#   → 12/12 escenarios OK · 127/127 verificaciones · 0 hallazgos (incluye el reinicio: los bloqueos
 #     sobreviven); informe HTML y JSON en attack-lab/resultados/
 node attack-lab/escenarios/dast.js --admin-user admin_seguridad --admin-pass … --admin-totp …
 #   → escaneo dinámico: 12/12 verificaciones, 34 sondas (31 rutas + /app/ + /consola/ + ruta inexistente)

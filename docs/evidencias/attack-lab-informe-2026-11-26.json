@@ -1,14 +1,14 @@
 {
-  "generado": "2026-11-26T21:03:43.107Z",
-  "destino": "https://localhost:18961",
+  "generado": "2026-11-26T21:32:12.944Z",
+  "destino": "https://localhost:9643",
   "entorno": {
     "node": "v22.22.1",
     "plataforma": "linux",
     "salud": {
       "status": "ok",
-      "timestamp": "2026-11-26T21:01:10.833Z",
+      "timestamp": "2026-11-26T21:30:05.822Z",
       "dbDriver": "sqlite",
-      "activeKeyId": "1GgMrjjlVw663A-71w_M-g",
+      "activeKeyId": "Vcjkn1IPxJdrGSRKoB2PYA",
       "heuristicsMode": "local"
     }
   },
@@ -17,10 +17,10 @@
     "correctos": 12,
     "fallidos": [],
     "omitidos": [],
-    "verificaciones": 126,
-    "verificacionesOk": 126,
+    "verificaciones": 127,
+    "verificacionesOk": 127,
     "hallazgos": 0,
-    "duracionMs": 152267
+    "duracionMs": 127117
   },
   "resultados": [
     {
@@ -70,18 +70,18 @@
         "respuesta del replay": "{\"error\":\"VERIFICATION_FAILED\",\"message\":\"No se pudo completar la verificación.\"}",
         "latencia verificación": {
           "n": 12,
-          "min": 1.9,
-          "p50": 13.2,
-          "p95": 14.7,
-          "p99": 14.9,
-          "max": 15,
+          "min": 1.8,
+          "p50": 13.3,
+          "p95": 15,
+          "p99": 15.2,
+          "max": 15.3,
           "media": 12.4
         }
       },
       "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T21:01:10.838Z",
-      "duracionMs": 19250
+      "inicio": "2026-11-26T21:30:05.826Z",
+      "duracionMs": 24263
     },
     {
       "id": "jwt",
@@ -169,14 +169,14 @@
         }
       ],
       "metricas": {
-        "JWT legítimo": "alg=EdDSA kid=1GgMrjjlVw663A-71w_M-g aud=app_42d2b26a225c6bf85eda7d7016b59087 ttl=300 s amr=[\"otp\"]"
+        "JWT legítimo": "alg=EdDSA kid=Vcjkn1IPxJdrGSRKoB2PYA aud=app_951ccda48e56de58c79ed5188dc86512 ttl=300 s amr=[\"otp\"]"
       },
       "notas": [
         "La caducidad real se prueba con --esperar-caducidad (espera TTL + 30 s de tolerancia)."
       ],
       "hallazgos": [],
-      "inicio": "2026-11-26T21:01:33.090Z",
-      "duracionMs": 174
+      "inicio": "2026-11-26T21:30:33.093Z",
+      "duracionMs": 205
     },
     {
       "id": "entradas",
@@ -480,17 +480,17 @@
         "latencia": {
           "n": 44,
           "min": 0.3,
-          "p50": 0.9,
-          "p95": 5.1,
-          "p99": 18,
-          "max": 27.6,
-          "media": 1.9
+          "p50": 0.7,
+          "p95": 4.7,
+          "p99": 32.4,
+          "max": 34.4,
+          "media": 2.3
         }
       },
       "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T21:01:36.264Z",
-      "duracionMs": 100
+      "inicio": "2026-11-26T21:30:36.298Z",
+      "duracionMs": 115
     },
     {
       "id": "dast",
@@ -513,7 +513,7 @@
         {
           "descripcion": "Certificado TLS vigente",
           "esperado": "no expirado",
-          "obtenido": "Feb 28 20:54:51 2029 GMT",
+          "obtenido": "Feb 28 21:03:59 2029 GMT",
           "ok": true
         },
         {
@@ -573,8 +573,8 @@
         "Auditoría de Set-Cookie admin en vivo disponible pasando --admin-user, --admin-pass y --admin-totp."
       ],
       "hallazgos": [],
-      "inicio": "2026-11-26T21:01:39.364Z",
-      "duracionMs": 36
+      "inicio": "2026-11-26T21:30:39.414Z",
+      "duracionMs": 54
     },
     {
       "id": "deriva",
@@ -597,7 +597,7 @@
         {
           "descripcion": "Rechazos de la ráfaga",
           "esperado": "401 VERIFICATION_FAILED o 429 (bloqueo progresivo), nunca 200 ni 5xx",
-          "obtenido": "{\"401\":3,\"429\":8}",
+          "obtenido": "{\"401\":5,\"429\":6}",
           "ok": true
         },
         {
@@ -620,29 +620,35 @@
         }
       ],
       "metricas": {
-        "ráfaga T+1…T+12": "T+1:200 T+2:401 T+3:401 T+4:401 T+5:429 T+6:429 T+7:429 T+8:429 T+9:429 T+10:429 T+11:429 T+12:429"
+        "ráfaga T+1…T+12": "T+1:200 T+2:401 T+3:401 T+4:401 T+5:401 T+6:401 T+7:429 T+8:429 T+9:429 T+10:429 T+11:429 T+12:429"
       },
       "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T21:01:42.401Z",
-      "duracionMs": 274
+      "inicio": "2026-11-26T21:30:42.469Z",
+      "duracionMs": 237
     },
     {
       "id": "fuerza-bruta",
       "nombre": "Fuerza bruta secuencial",
-      "demuestra": "Tras 5 fallos la cuenta se bloquea (429, 30 s); al vencer, el siguiente fallo vuelve a bloquear (escala 30 s → 2 min → 10 min → 1 h); un código correcto tampoco pasa durante el bloqueo.",
+      "demuestra": "Un ciudadano que falla 3 códigos rápido y teclea el correcto entra; tras 5 fallos la cuenta se bloquea (429, 30 s); al vencer, el siguiente fallo vuelve a bloquear (escala 30 s → 2 min → 10 min → 1 h); un código correcto tampoco pasa durante el bloqueo.",
       "ok": true,
       "verificaciones": [
         {
+          "descripcion": "Ciudadano: 3 fallos rápidos y luego el código correcto",
+          "esperado": "401 ×3 → 200 (sin bloqueo de 5 min)",
+          "obtenido": "401 → 401 → 401 → 200",
+          "ok": true
+        },
+        {
           "descripcion": "Bloqueo tras 5 fallos",
           "esperado": "429 en el intento 6",
-          "obtenido": "429 en el intento 4",
+          "obtenido": "429 en el intento 6",
           "ok": true
         },
         {
           "descripcion": "Primer escalón de bloqueo",
-          "esperado": "≈30 s (bloqueo progresivo) o 300 s (detector, si se adelanta)",
-          "obtenido": "300 (detector de anomalías)",
+          "esperado": "≈30 s (bloqueo progresivo; el detector no se adelanta)",
+          "obtenido": "30",
           "ok": true
         },
         {
@@ -677,27 +683,28 @@
         }
       ],
       "metricas": {
-        "secuencia de respuestas": "401 → 401 → 401 → 429",
-        "escalones observados": "300 s → 300 s (detector de anomalías)",
-        "peticiones": 21,
+        "ciudadano legítimo (3 fallos rápidos + correcto)": "401 → 401 → 401 → 200",
+        "secuencia de respuestas": "401 → 401 → 401 → 401 → 401 → 429",
+        "escalones observados": "30 s → 300 s (detector de anomalías)",
+        "peticiones": 26,
         "estados": {
-          "401": 3,
+          "401": 8,
           "429": 18
         },
         "latencia": {
-          "n": 21,
-          "min": 0.6,
-          "p50": 0.8,
-          "p95": 1.2,
-          "p99": 38.8,
-          "max": 48.2,
-          "media": 3
+          "n": 26,
+          "min": 0.5,
+          "p50": 0.6,
+          "p95": 2.6,
+          "p99": 31,
+          "max": 40.3,
+          "media": 2.3
         }
       },
       "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T21:01:45.675Z",
-      "duracionMs": 36717
+      "inicio": "2026-11-26T21:30:45.707Z",
+      "duracionMs": 31801
     },
     {
       "id": "fuerza-bruta-distribuida",
@@ -743,7 +750,7 @@
         }
       ],
       "metricas": {
-        "orígenes simulados": "40 IP de loopback reales (127.124.7.10 … 127.124.7.49)",
+        "orígenes simulados": "40 IP de loopback reales (127.217.7.10 … 127.217.7.49)",
         "Δ verificaciones bloqueadas (métrica locked)": 37,
         "Δ bloqueos del detector (métrica anomaly_blocked)": 37,
         "estados": {
@@ -752,18 +759,18 @@
         },
         "latencia": {
           "n": 40,
-          "min": 2.4,
-          "p50": 3,
-          "p95": 3.5,
-          "p99": 12.7,
-          "max": 18.1,
-          "media": 3.3
+          "min": 2.2,
+          "p50": 2.4,
+          "p95": 3.1,
+          "p99": 5.3,
+          "max": 5.9,
+          "media": 2.5
         }
       },
       "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T21:02:25.396Z",
-      "duracionMs": 247
+      "inicio": "2026-11-26T21:31:20.511Z",
+      "duracionMs": 231
     },
     {
       "id": "spraying",
@@ -792,7 +799,7 @@
         {
           "descripcion": "Sin enumeración por tiempo de respuesta",
           "esperado": "diferencia p50 < 15 ms",
-          "obtenido": "0.1 ms",
+          "obtenido": "0 ms",
           "ok": true
         },
         {
@@ -815,7 +822,7 @@
         }
       ],
       "metricas": {
-        "latencia p50 cuentas reales / inexistentes": "0.9 ms / 0.8 ms",
+        "latencia p50 cuentas reales / inexistentes": "0.8 ms / 0.8 ms",
         "verificación legítima posterior desde el origen atacante": "429 TOO_MANY_REQUESTS",
         "429 durante el spraying (bloqueo del detector)": 37,
         "Δ bloqueos del detector (métrica anomaly_blocked)": 38,
@@ -825,18 +832,18 @@
         },
         "latencia": {
           "n": 40,
-          "min": 0.8,
-          "p50": 0.9,
-          "p95": 1,
-          "p99": 7.9,
-          "max": 12.3,
-          "media": 1.2
+          "min": 0.6,
+          "p50": 0.8,
+          "p95": 2,
+          "p99": 6.8,
+          "max": 9.8,
+          "media": 1.1
         }
       },
       "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T21:02:28.644Z",
-      "duracionMs": 674
+      "inicio": "2026-11-26T21:31:23.742Z",
+      "duracionMs": 651
     },
     {
       "id": "origen-compartido",
@@ -888,7 +895,7 @@
         }
       ],
       "metricas": {
-        "IP TCP del portal": "127.124.9.2",
+        "IP TCP del portal": "127.217.9.2",
         "fallos de ciudadanos tras el portal": "48 (24 client_ip distintos × 2)",
         "respuestas al atacante": {
           "401": 3,
@@ -899,8 +906,8 @@
         "Sin client_ip todos los usuarios del integrador comparten origen (la IP de su servidor): el contrato recomienda enviarlo siempre."
       ],
       "hallazgos": [],
-      "inicio": "2026-11-26T21:02:32.320Z",
-      "duracionMs": 27942
+      "inicio": "2026-11-26T21:31:27.395Z",
+      "duracionMs": 2811
     },
     {
       "id": "inundacion",
@@ -941,8 +948,8 @@
       ],
       "metricas": {
         "peticiones / concurrencia": "400 / 50",
-        "duración de la ráfaga": "0.19 s",
-        "rendimiento": "2077 pet/s",
+        "duración de la ráfaga": "0.15 s",
+        "rendimiento": "2752 pet/s",
         "estados": {
           "401": 3,
           "429": 397
@@ -954,27 +961,27 @@
         },
         "latencia (todas)": {
           "n": 400,
-          "min": 1,
-          "p50": 14.6,
-          "p95": 72.5,
-          "p99": 98.9,
-          "max": 135,
-          "media": 22.2
+          "min": 4.5,
+          "p50": 11,
+          "p95": 49.1,
+          "p99": 57.8,
+          "max": 83.9,
+          "media": 16.4
         },
         "latencia de /health durante la ráfaga": {
           "n": 11,
-          "min": 0.9,
-          "p50": 1.1,
-          "p95": 42.4,
-          "p99": 63.4,
-          "max": 68.6,
-          "media": 8.6
+          "min": 1.7,
+          "p50": 2.3,
+          "p95": 24.1,
+          "p99": 39.2,
+          "max": 43,
+          "media": 6.2
         }
       },
       "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T21:03:03.266Z",
-      "duracionMs": 1201
+      "inicio": "2026-11-26T21:31:33.211Z",
+      "duracionMs": 1180
     },
     {
       "id": "caos",
@@ -1003,7 +1010,7 @@
         {
           "descripcion": "Titular con latencia 800 ms",
           "esperado": "200 (más lento)",
-          "obtenido": "200 en 803 ms",
+          "obtenido": "200 en 805 ms",
           "ok": true
         },
         {
@@ -1027,23 +1034,23 @@
         {
           "descripcion": "Tiempo de recuperación tras el corte",
           "esperado": "< 30 s",
-          "obtenido": "0 s",
+          "obtenido": "0.01 s",
           "ok": true
         }
       ],
       "metricas": {
-        "proxies de caos": "ráfaga 127.0.0.1:42801 · titular 127.0.0.1:36037 → localhost:18961",
-        "fase «base»": "26 pet · 26 con respuesta · 0 timeouts · 0 errores de red · p50 1.7 ms · p95 7.5 ms",
-        "fase «latencia 800 ms»": "14 pet · 12 con respuesta · 0 timeouts · 2 errores de red · p50 803.1 ms · p95 803.6 ms",
+        "proxies de caos": "ráfaga 127.0.0.1:42987 · titular 127.0.0.1:42619 → localhost:9643",
+        "fase «base»": "26 pet · 26 con respuesta · 0 timeouts · 0 errores de red · p50 4.5 ms · p95 5.6 ms",
+        "fase «latencia 800 ms»": "14 pet · 12 con respuesta · 0 timeouts · 2 errores de red · p50 806.3 ms · p95 835.4 ms",
         "fase «corte total 10 s»": "48 pet · 0 con respuesta · 0 timeouts · 48 errores de red · p50 — ms · p95 — ms",
-        "fase «restauración»": "26 pet · 26 con respuesta · 0 timeouts · 0 errores de red · p50 4.1 ms · p95 39.8 ms",
+        "fase «restauración»": "26 pet · 26 con respuesta · 0 timeouts · 0 errores de red · p50 4.6 ms · p95 5.8 ms",
         "estados (ráfaga completa)": {
           "401": 3,
           "429": 61,
           "ECONNRESET": 50
         },
-        "primera respuesta tras restaurar": "4 ms",
-        "tiempo de recuperación (/health 200)": "4 ms",
+        "primera respuesta tras restaurar": "10 ms",
+        "tiempo de recuperación (/health 200)": "10 ms",
         "estadísticas del proxy (ráfaga)": {
           "aceptadas": 52,
           "reenviadas": 4,
@@ -1052,14 +1059,14 @@
           "cortadas": 2,
           "erroresDestino": 0,
           "bytesSubida": 29793,
-          "bytesBajada": 65694,
+          "bytesBajada": 65687,
           "activas": 2
         }
       },
       "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T21:03:07.468Z",
-      "duracionMs": 29106
+      "inicio": "2026-11-26T21:31:37.393Z",
+      "duracionMs": 29022
     },
     {
       "id": "reinicio",
@@ -1080,7 +1087,7 @@
           "ok": true
         },
         {
-          "descripcion": "Matar el backend (PID 258080, SIGKILL)",
+          "descripcion": "Matar el backend (PID 277813, SIGKILL)",
           "esperado": "proceso terminado",
           "obtenido": "señal enviada",
           "ok": true
@@ -1106,15 +1113,15 @@
       ],
       "metricas": {
         "tiempo hasta dejar de responder": "10 ms",
-        "PID del backend relanzado": 260461,
-        "comando": "node --disable-warning=ExperimentalWarning src/main.js (cwd backend)"
+        "PID del backend relanzado": 278241,
+        "comando": "node src/main.js (cwd backend)"
       },
       "notas": [
-        "El backend relanzado sigue en marcha (PID 260461); salida en attack-lab/resultados/backend-reinicio.log."
+        "El backend relanzado sigue en marcha (PID 278241); salida en attack-lab/resultados/backend-reinicio.log."
       ],
       "hallazgos": [],
-      "inicio": "2026-11-26T21:03:39.579Z",
-      "duracionMs": 524
+      "inicio": "2026-11-26T21:32:09.419Z",
+      "duracionMs": 521
     }
   ]
 }
