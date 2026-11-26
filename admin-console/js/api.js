@@ -242,30 +242,18 @@ export const api = {
     try { await post('/admin/api/logout', undefined, { sinEventosSesion: true }); } catch { /* la sesión local se descarta igualmente */ }
   },
 
-  /** Resumen del panel: /admin/api/dashboard si existe; si no, el resumen de anomalías. */
+  /** Resumen del panel a partir del resumen del detector de anomalías. */
   async tablero() {
-    let d;
-    try {
-      d = await get('/admin/api/dashboard');
-    } catch (e) {
-      if (!(e instanceof ErrorApi) || (e.status !== 404 && e.status !== 405)) throw e;
-      d = await get('/admin/api/anomalies');
-    }
+    const d = await get('/admin/api/anomalies');
     return {
       politica: d?.policy ?? null,
       resumen: d?.summary ?? {},
       alertas: lista(d, 'alerts', 'alertas').map(normalizarAlerta),
     };
   },
-  /** Métricas: ruta JSON de administración; si no existe, se interpreta /metrics (Prometheus). */
+  /** Métricas en JSON (/metrics en texto queda reservado a la red local del servidor). */
   async metricas() {
-    try {
-      const d = await get('/admin/api/metrics');
-      if (d && typeof d === 'object') return d;
-    } catch (e) {
-      if (!(e instanceof ErrorApi) || (e.status !== 404 && e.status !== 405)) throw e;
-    }
-    return parsearPrometheus(await get('/metrics', { texto: true }));
+    return (await get('/admin/api/metrics')) ?? {};
   },
   /** /health/ready: devuelve el cuerpo aunque el estado sea 503 (degradado). */
   async salud() {

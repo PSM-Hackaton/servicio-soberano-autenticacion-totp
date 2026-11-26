@@ -172,10 +172,6 @@ export async function mockFetch(url, opciones = {}) {
   const exigir = (permiso) => (PERMISOS[permiso].includes(sesion.rol) ? null : error(403, 'FORBIDDEN', 'Acceso denegado.'));
 
   // ---- panel y métricas
-  if (ruta === '/admin/api/dashboard') {
-    const t = estado.tablero;
-    return json(200, { ...t, summary: { ...t.summary, totalVerifications: estado.metricas.totales.verificaciones }, alerts: estado.anomalias.alerts.slice(0, 5) });
-  }
   if (ruta === '/admin/api/metrics') {
     avanzarMetricas(estado.metricas);
     return json(200, estado.metricas);
