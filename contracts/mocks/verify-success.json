@@ -1,0 +1,18 @@
+{
+  "verified": true,
+  "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6ImtleS0yMDI2MTEyNi0wMSJ9.eyJzdWIiOiJobWFjXzg0MmI5YzFlIiwiaXNzIjoiaHR0cHM6Ly90b3RwLnNvYmVyYW5vLmxvY2FsIiwiYXVkIjoicG9ydGFsLXRyYW1pdGVzIiwiYW1yIjpbIm90cCJdLCJqdGkiOiJjNDFmN2YwMi00YTJiLTQ3ZWEtOGIzZC05OWEwMWI3OGRlMDQifQ.MOCK_SIGNATURE_ONLY",
+  "jti": "c41f7f02-4a2b-47ea-8b3d-99a01b78de04",
+  "kid": "key-20261126-01",
+  "expires_at": "2026-11-26T16:05:00.000Z",
+  "drift_steps": 0,
+  "risk": {
+    "score": 8.5,
+    "level": "LOW",
+    "action": "ALLOW",
+    "inference_ms": 1.4,
+    "reasons": [
+      "Patrón de acceso normal",
+      "Sin deriva temporal anómala"
+    ]
+  }
+}

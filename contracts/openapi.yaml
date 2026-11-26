@@ -1,0 +1,443 @@
+openapi: 3.1.0
+info:
+  title: Servicio Soberano de Autenticación TOTP API (v1)
+  version: 1.0.0
+  description: >
+    Contrato oficial congelado alineado 100% con docs/analisis/analisis-tecnico.html (Secciones 6 y 7).
+    Consumido por authenticator-app, admin-console, demo-portal-tramites, sdk y el sub-equipo del Reto 1.
+servers:
+  - url: https://localhost:8443
+    description: API Soberana HTTPS (TLS 1.3 vía Caddy o Node HTTPS)
+
+tags:
+  - name: System
+  - name: MFA v1
+  - name: Admin
+
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Estado operativo del servicio
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, timestamp, dbDriver, activeKeyId, heuristicsMode]
+                properties:
+                  status: { type: string, enum: [ok] }
+                  timestamp: { type: string, format: date-time }
+                  dbDriver: { type: string, enum: [postgres, sqlite] }
+                  activeKeyId: { type: string }
+                  heuristicsMode: { type: string, enum: [local, mock] }
+
+  /.well-known/jwks.json:
+    get:
+      tags: [MFA v1]
+      summary: Claves públicas Ed25519 (RFC 7517) para validación offline de JWT MFA
+      responses:
+        '200':
+          description: Conjunto JWKS activo y llaves en ventana de gracia
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [keys]
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      type: object
+                      required: [kty, crv, kid, use, alg, x]
+                      properties:
+                        kty: { type: string, example: OKP }
+                        crv: { type: string, example: Ed25519 }
+                        kid: { type: string }
+                        use: { type: string, example: sig }
+                        alg: { type: string, example: EdDSA }
+                        x: { type: string }
+
+  /api/v1/enrollments:
+    post:
+      tags: [MFA v1]
+      security: [{ appClientId: [], appClientSecret: [] }]
+      summary: Crea un enrolamiento PENDIENTE (expira en 10 min) y devuelve QR SVG + URI otpauth://
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [user_ref]
+              properties:
+                user_ref: { type: string, minLength: 2, maxLength: 160, description: "Identificador opaco; se almacena solo como HMAC-SHA256(user_ref, pepper)" }
+                account_label: { type: string, maxLength: 120, description: "Etiqueta visible solo en el QR/PWA, no se almacena en claro si la app no lo requiere" }
+                algorithm: { type: string, enum: [SHA256, SHA512, SHA1] }
+                digits: { type: integer, enum: [6, 8] }
+                period: { type: integer, minimum: 15, maximum: 60 }
+      responses:
+        '201':
+          description: Enrolamiento pendiente creado (la semilla NO vuelve a mostrarse nunca)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollmentCreatedResponse'
+        '400':
+          description: Error de validación genérico
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
+
+  /api/v1/enrollments/{id}/activate:
+    post:
+      tags: [MFA v1]
+      security: [{ appClientId: [], appClientSecret: [] }]
+      summary: Valida el primer código TOTP, activa el factor y entrega 10 códigos de recuperación (una sola vez)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [code]
+              properties:
+                code: { type: string, pattern: '^[0-9]{6,8}$' }
+      responses:
+        '200':
+          description: Factor activado + 10 códigos de recuperación de un solo uso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivateResponse'
+        '401':
+          description: Código inválido o enrolamiento expirado (error genérico)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
+
+  /api/v1/verify:
+    post:
+      tags: [MFA v1]
+      security: [{ appClientId: [], appClientSecret: [] }]
+      summary: Verifica código TOTP aplicando ventana, deriva, anti-replay, rate limit, bloqueo progresivo y detector local de anomalías
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [user_ref, code]
+              properties:
+                user_ref: { type: string, minLength: 2, maxLength: 160 }
+                code: { type: string, pattern: '^[0-9]{6,8}$' }
+      responses:
+        '200':
+          description: Desafío TOTP superado; JWT Ed25519 (5 min, jti único) emitido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifySuccessResponse'
+        '401':
+          description: Verificación rechazada (error genérico sin enumeración de usuario)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
+        '429':
+          description: Límite de tasa o bloqueo progresivo / adaptativo activo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
+
+  /api/v1/tokens/validate:
+    post:
+      tags: [MFA v1]
+      security: [{ appClientId: [], appClientSecret: [] }]
+      summary: Confirma autenticidad, vigencia y consumo único del jti de un JWT MFA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [token]
+              properties:
+                token: { type: string }
+                consume_jti: { type: boolean, default: true }
+      responses:
+        '200':
+          description: Resultado de validación
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [valid]
+                properties:
+                  valid: { type: boolean }
+                  sub: { type: string }
+                  aud: { type: string }
+                  jti: { type: string }
+                  kid: { type: string }
+                  amr:
+                    type: array
+                    items: { type: string }
+                  exp: { type: integer }
+                  reason: { type: string }
+
+  /api/v1/enrollments/{id}/resync:
+    post:
+      tags: [MFA v1]
+      security: [{ appClientId: [], appClientSecret: [] }]
+      summary: Resincroniza deriva de reloj con 2 códigos consecutivos en ventana amplia (±10 pasos)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [code_1, code_2]
+              properties:
+                code_1: { type: string, pattern: '^[0-9]{6,8}$' }
+                code_2: { type: string, pattern: '^[0-9]{6,8}$' }
+      responses:
+        '200':
+          description: Deriva actualizada correctamente
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [resynced, drift_steps]
+                properties:
+                  resynced: { type: boolean, enum: [true] }
+                  drift_steps: { type: integer }
+
+  /api/v1/recovery:
+    post:
+      tags: [MFA v1]
+      security: [{ appClientId: [], appClientSecret: [] }]
+      summary: Consume un código de recuperación de un solo uso y marca el enrolamiento para re-enrolar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [user_ref, recovery_code]
+              properties:
+                user_ref: { type: string }
+                recovery_code: { type: string, minLength: 8, maxLength: 32 }
+      responses:
+        '200':
+          description: Recuperación aceptada; obliga a re-enrolar
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [recovered, must_reenroll, remaining_codes]
+                properties:
+                  recovered: { type: boolean, enum: [true] }
+                  must_reenroll: { type: boolean, enum: [true] }
+                  remaining_codes: { type: integer }
+
+  /api/v1/enrollments/{id}:
+    delete:
+      tags: [MFA v1]
+      security: [{ appClientId: [], appClientSecret: [] }]
+      summary: Revoca definitivamente el enrolamiento TOTP
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Enrolamiento revocado
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [enrollment_id, estado, revoked_at]
+                properties:
+                  enrollment_id: { type: string, format: uuid }
+                  estado: { type: string, enum: [revocado] }
+                  revoked_at: { type: string, format: date-time }
+
+  /admin/api/login:
+    post:
+      tags: [Admin]
+      summary: Login administrativo con contraseña + TOTP propio (emite cookie HttpOnly; Secure; SameSite=Strict)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [usuario, password]
+              properties:
+                usuario: { type: string }
+                password: { type: string }
+                totp_code: { type: string, pattern: '^[0-9]{6,8}$' }
+      responses:
+        '200':
+          description: Sesión autenticada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [usuario, rol, csrf_token]
+                properties:
+                  usuario: { type: string }
+                  rol: { type: string, enum: [Administrador, Operador, Auditor] }
+                  csrf_token: { type: string }
+
+  /admin/api/apps:
+    get:
+      tags: [Admin]
+      summary: Lista aplicaciones integradoras y sus políticas TOTP (Portal Trámites, Reto 1, etc.)
+      responses:
+        '200':
+          description: Listado de apps registradas
+    post:
+      tags: [Admin]
+      summary: Registra o actualiza una app integradora y su política (algoritmo, dígitos, ventana, umbrales IA)
+      responses:
+        '201':
+          description: App registrada con client_id y client_secret (mostrado una sola vez)
+
+  /admin/api/keys/rotate:
+    post:
+      tags: [Admin]
+      summary: Rota la clave asimétrica Ed25519 (nuevo kid) manteniendo verificación para llaves previas
+      responses:
+        '200':
+          description: Rotación completada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [new_kid, previous_kid, rotated_at]
+                properties:
+                  new_kid: { type: string }
+                  previous_kid: { type: string, nullable: true }
+                  rotated_at: { type: string, format: date-time }
+
+  /admin/api/audit:
+    get:
+      tags: [Admin]
+      summary: Consulta bitácora encadenada por hashes y métricas anonimizadas
+      responses:
+        '200':
+          description: Eventos de auditoría encadenados
+
+  /admin/api/audit/verify-chain:
+    get:
+      tags: [Admin]
+      summary: Verifica criptográficamente la integridad completa de la cadena de hashes de audit_log
+      responses:
+        '200':
+          description: Resultado de integridad
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [intact, checked_records, last_hash]
+                properties:
+                  intact: { type: boolean }
+                  checked_records: { type: integer }
+                  broken_at_id: { type: integer, nullable: true }
+                  last_hash: { type: string, nullable: true }
+
+  /admin/api/anomalies:
+    get:
+      tags: [Admin]
+      summary: Métricas en vivo y alertas del detector local de anomalías (Isolation Forest / scoring)
+      responses:
+        '200':
+          description: Resumen de detecciones y latencia de inferencia
+
+components:
+  securitySchemes:
+    appClientId:
+      type: apiKey
+      in: header
+      name: X-Client-Id
+    appClientSecret:
+      type: apiKey
+      in: header
+      name: X-Client-Secret
+
+  schemas:
+    EnrollmentCreatedResponse:
+      type: object
+      required: [enrollment_id, estado, algoritmo, digitos, periodo, otpauth_uri, qr_svg, expires_at]
+      properties:
+        enrollment_id: { type: string, format: uuid }
+        estado: { type: string, enum: [pendiente] }
+        algoritmo: { type: string, enum: [SHA256, SHA512, SHA1] }
+        digitos: { type: integer, enum: [6, 8] }
+        periodo: { type: integer }
+        otpauth_uri: { type: string }
+        qr_svg: { type: string }
+        expires_at: { type: string, format: date-time }
+
+    ActivateResponse:
+      type: object
+      required: [enrollment_id, estado, activated_at, recovery_codes]
+      properties:
+        enrollment_id: { type: string, format: uuid }
+        estado: { type: string, enum: [activo] }
+        activated_at: { type: string, format: date-time }
+        recovery_codes:
+          type: array
+          minItems: 10
+          maxItems: 10
+          items: { type: string }
+
+    VerifySuccessResponse:
+      type: object
+      required: [verified, token, jti, kid, expires_at, drift_steps, risk]
+      properties:
+        verified: { type: boolean, enum: [true] }
+        token: { type: string, description: "JWT firmado con Ed25519 (EdDSA), TTL 5 min, amr: ['otp']" }
+        jti: { type: string, format: uuid }
+        kid: { type: string }
+        expires_at: { type: string, format: date-time }
+        drift_steps: { type: integer }
+        risk:
+          type: object
+          required: [score, level, action, inference_ms, reasons]
+          properties:
+            score: { type: number, minimum: 0, maximum: 100 }
+            level: { type: string, enum: [LOW, MEDIUM, HIGH, CRITICAL] }
+            action: { type: string, enum: [ALLOW, DELAY, BLOCK] }
+            inference_ms: { type: number }
+            reasons:
+              type: array
+              items: { type: string }
+
+    GenericError:
+      type: object
+      required: [error, message]
+      properties:
+        error: { type: string, example: "VERIFICATION_FAILED" }
+        message: { type: string, example: "No se pudo completar la verificación." }
+        retry_after_seconds: { type: integer, nullable: true }

@@ -1,0 +1,10 @@
+{
+  "enrollment_id": "9f3b8c2a-6e11-4d8a-9c52-2a1d84e901ab",
+  "estado": "pendiente",
+  "algoritmo": "SHA256",
+  "digitos": 6,
+  "periodo": 30,
+  "otpauth_uri": "otpauth://totp/MincytSoberanoTOTP:ciudadano-demo?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&issuer=MincytSoberanoTOTP&algorithm=SHA256&digits=6&period=30",
+  "qr_svg": "<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><rect width='180' height='180' fill='#fff'/><text x='20' y='95' font-size='14'>QR MOCK TOTP</text></svg>",
+  "expires_at": "2026-11-26T16:10:00.000Z"
+}

@@ -1,12 +1,31 @@
+# Secretos y configuracion local
 .env
 *.env
-__pycache__/
-*.pyc
-.venv/
+!.env.example
+
+# Certificados, llaves y bases de datos locales
+*.pem
+*.key
+*.crt
+*.p12
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+certs/
+data/
+
+# Dependencias y compilacion
 node_modules/
 dist/
 build/
-*.pem
-*.key
-*.db
+coverage/
+.venv/
+__pycache__/
+*.pyc
+
+# Sistema operativo e IDE
 .DS_Store
+Thumbs.db
+*.log

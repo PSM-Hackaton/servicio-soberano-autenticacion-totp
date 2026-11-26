@@ -1,0 +1,33 @@
+{
+  "policy": {
+    "defaultAlgorithm": "SHA256",
+    "digits": 6,
+    "stepSeconds": 30,
+    "driftWindow": 1,
+    "jwtTtlSeconds": 300,
+    "maxFailedAttempts": 5,
+    "lockoutMinutes": 5,
+    "anomalyBlockThreshold": 75.0
+  },
+  "summary": {
+    "totalVerifications": 142,
+    "blockedReplayCount": 4,
+    "blockedAnomalyCount": 9,
+    "avgInferenceMs": 1.8
+  },
+  "alerts": [
+    {
+      "id": "alrt-001",
+      "externalUserId": "usr-reto1-evaluador-01",
+      "ipHash": "hmac_9b34f1e2c8a7",
+      "riskScore": 91.5,
+      "level": "CRITICAL",
+      "action": "BLOCK",
+      "reasons": [
+        "Ráfaga de 14 intentos fallidos en 18 segundos",
+        "Dispersión anómala de 6 hashes de IP sobre la misma cuenta"
+      ],
+      "createdAt": "2026-11-26T16:12:04.000Z"
+    }
+  ]
+}
