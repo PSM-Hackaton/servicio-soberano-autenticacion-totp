@@ -76,3 +76,38 @@ test('alta manual: valida y vuelve a construir la URI', () => {
   assert.equal(datos.algoritmo, 'SHA512');
   assert.deepEqual(analizarOtpauth(construirOtpauth(datos)), datos);
 });
+
+test('formato Key URI estándar (D3): buildOtpauthUri cumple esquema otpauth://totp/issuer:cuenta y parámetros requeridos', async () => {
+  const { buildOtpauthUri } = await import('../../backend/src/core/totp/totp.js');
+  const perfiles = [
+    { algoritmo: 'SHA256', digitos: 6, bytes: 32, periodo: 30 },
+    { algoritmo: 'SHA512', digitos: 8, bytes: 64, periodo: 30 },
+    { algoritmo: 'SHA1', digitos: 6, bytes: 20, periodo: 30 },
+  ];
+  for (const p of perfiles) {
+    const semilla = Buffer.alloc(p.bytes, 0x35);
+    const uri = buildOtpauthUri({
+      semilla,
+      emisor: 'Servicio Soberano',
+      cuenta: 'ciudadano.01@ejemplo.local',
+      algoritmo: p.algoritmo,
+      digitos: p.digitos,
+      periodo: p.periodo,
+    });
+    assert.ok(uri.startsWith('otpauth://totp/'), `Prefijo inválido: ${uri}`);
+    const parsed = new URL(uri);
+    const etiqueta = decodeURIComponent(parsed.pathname.replace(/^\/+/, ''));
+    assert.equal(etiqueta, 'Servicio Soberano:ciudadano.01@ejemplo.local');
+    assert.equal(parsed.searchParams.get('issuer'), 'Servicio Soberano');
+    assert.equal(parsed.searchParams.get('algorithm'), p.algoritmo);
+    assert.equal(parsed.searchParams.get('digits'), String(p.digitos));
+    assert.equal(parsed.searchParams.get('period'), String(p.periodo));
+    assert.match(parsed.searchParams.get('secret') || '', /^[A-Z2-7]{32,}$/);
+
+    // Verificación de ida y vuelta en el analizador de la PWA
+    const cuenta = analizarOtpauth(uri);
+    assert.equal(cuenta.algoritmo, p.algoritmo);
+    assert.equal(cuenta.digitos, p.digitos);
+    assert.equal(cuenta.periodo, p.periodo);
+  }
+});
