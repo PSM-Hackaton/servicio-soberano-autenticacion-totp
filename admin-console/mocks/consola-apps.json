@@ -13,6 +13,8 @@
       "modo_heuristica": "bloqueo",
       "permitir_sha1": false,
       "estado": "activo",
+      "user_ref_desde_cedula": "hmac",
+      "cedula_prefijo": "ciud_",
       "created_at": "2026-11-20T13:02:11.000Z",
       "updated_at": "2026-11-25T09:14:03.000Z"
     },
@@ -29,6 +31,8 @@
       "modo_heuristica": "bloqueo",
       "permitir_sha1": false,
       "estado": "activo",
+      "user_ref_desde_cedula": "ninguno",
+      "cedula_prefijo": "",
       "created_at": "2026-11-22T10:40:52.000Z",
       "updated_at": "2026-11-26T11:05:44.000Z"
     },
@@ -45,6 +49,8 @@
       "modo_heuristica": "monitorizacion",
       "permitir_sha1": false,
       "estado": "activo",
+      "user_ref_desde_cedula": "ninguno",
+      "cedula_prefijo": "",
       "created_at": "2026-11-23T15:22:09.000Z",
       "updated_at": "2026-11-23T15:22:09.000Z"
     },
@@ -61,6 +67,8 @@
       "modo_heuristica": "bloqueo",
       "permitir_sha1": true,
       "estado": "suspendido",
+      "user_ref_desde_cedula": "ninguno",
+      "cedula_prefijo": "",
       "created_at": "2026-11-21T08:15:30.000Z",
       "updated_at": "2026-11-26T08:01:17.000Z"
     }

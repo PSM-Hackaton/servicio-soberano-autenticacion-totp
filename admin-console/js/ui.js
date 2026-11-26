@@ -171,6 +171,52 @@ export function valorHash(hash, { corto = true, etiqueta = 'hash' } = {}) {
   return h('span.hash', null, h('code', { title: hash, text: texto }), boton);
 }
 
+/**
+ * Diálogo para datos que el servidor entrega UNA sola vez (client_secret, contraseña inicial…).
+ * Cada valor se muestra completo, con botón de copia; el diálogo solo se cierra con el botón final
+ * tras confirmar que se guardaron (Escape y clic fuera no lo cierran). Nada se guarda en el navegador.
+ * @param {{ titulo: string, intro: string | Node, datos: { etiqueta: string, valor: string }[], extra?: Node | null, alCerrar?: () => void }} op
+ */
+export function mostrarUnaVez({ titulo, intro, datos, extra = null, alCerrar }) {
+  const idCasilla = idUnico('guardado');
+  const casilla = h('input', { type: 'checkbox', id: idCasilla });
+  const cerrarBtn = h('button.boton.boton--primario', { type: 'button', text: 'He guardado los datos', disabled: true });
+  casilla.addEventListener('change', () => { cerrarBtn.disabled = !casilla.checked; });
+  const filas = datos.filter((d) => d.valor).map((d) => {
+    const copiarBtn = h('button.boton.boton--secundario.boton--compacto', { type: 'button', 'aria-label': `Copiar ${d.etiqueta}` }, icono('copiar'), h('span', { text: 'Copiar' }));
+    copiarBtn.addEventListener('click', async () => {
+      const ok = await copiar(d.valor);
+      notificar(ok ? `${d.etiqueta} copiado al portapapeles.` : 'No se pudo copiar.', ok ? 'ok' : 'aviso', 2500);
+    });
+    return h('div.credencial', null,
+      h('dt', { text: d.etiqueta }),
+      h('dd', null, h('code.credencial-valor', { text: d.valor }), copiarBtn));
+  });
+  const cerrar = abrirDialogo({
+    titulo,
+    ancho: 'ancho',
+    contenido: [
+      typeof intro === 'string' ? h('p', { text: intro }) : intro,
+      h('div.alerta.alerta--aviso', { role: 'note' }, icono('aviso'),
+        h('p', null, h('strong', { text: 'Se muestran una sola vez. ' }), 'El servicio solo guarda su huella (o el valor cifrado); si se pierden habrá que generar otros nuevos.')),
+      h('dl.credenciales', null, filas),
+      extra,
+      h('label.casilla-linea', { for: idCasilla }, casilla, 'He copiado y guardado estos datos en un lugar seguro'),
+    ],
+    pie: [cerrarBtn],
+    alCerrar,
+  });
+  const d = dialogo();
+  const bloquear = (ev) => { if (cerrarBtn.disabled) ev.preventDefault(); };
+  d.addEventListener('cancel', bloquear);
+  d.onclick = null; // un clic fuera no descarta datos que no se pueden recuperar
+  const cruz = d.querySelector('.dialogo-cabecera .boton-icono');
+  if (cruz) cruz.hidden = true;
+  cerrarBtn.addEventListener('click', () => { d.removeEventListener('cancel', bloquear); cerrar(); });
+  casilla.focus();
+  return cerrar;
+}
+
 /** Botón que respeta permisos: deshabilitado con explicación si el rol no lo permite. */
 export function botonConPermiso({ permitido, motivo, ...atributos }, ...hijos) {
   const b = h('button', { type: 'button', ...atributos }, ...hijos);

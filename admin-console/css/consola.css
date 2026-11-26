@@ -1069,3 +1069,22 @@ th.num, td.num { text-align: right; }
 .tabla code.ruta { white-space: normal; overflow-wrap: anywhere; }
 .texto-fuerte { font-weight: 700; }
 @media (max-width: 700px) { .cabecera-titulo { display: none; } }
+
+/* ----------------------------------------------------------------- búsqueda de soporte, credenciales y cuentas (#21) */
+.busqueda-soporte { padding: 0 0 4px; gap: 12px; }
+.busqueda-soporte .segmentado { max-width: 460px; }
+.busqueda-soporte-campos { display: grid; grid-template-columns: minmax(180px, 260px) minmax(220px, 1fr) auto; gap: 12px 16px; align-items: start; }
+.busqueda-soporte-campos .fila-botones { margin-top: 24px; }
+.busqueda-soporte-valor input { font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); }
+@media (max-width: 860px) { .busqueda-soporte-campos { grid-template-columns: minmax(0, 1fr); } .busqueda-soporte-campos .fila-botones { margin-top: 0; } }
+.alerta--busqueda { margin-bottom: 16px; }
+.chip--cedula { margin-top: 4px; justify-self: start; align-self: flex-start; width: max-content; background: var(--acento-suave); border-color: var(--acento-borde); color: var(--acento-texto); font-size: 11.5px; }
+.credenciales { display: grid; gap: 12px; margin: 14px 0; }
+.credencial dt { font-size: 12.5px; font-weight: 600; color: var(--texto-2); margin-bottom: 4px; }
+.credencial dd { display: flex; gap: 8px; align-items: flex-start; margin: 0; }
+.credencial-valor { flex: 1 1 auto; min-width: 0; padding: 8px 10px; border: 1px solid var(--borde); border-radius: var(--radio-s); background: var(--superficie-2); font-size: 13px; color: var(--texto); overflow-wrap: anywhere; word-break: break-all; user-select: all; }
+.qr-figura { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 4px 0 12px; }
+.qr-totp { width: 200px; height: 200px; padding: 8px; background: #ffffff; border: 1px solid var(--borde); border-radius: var(--radio-s); }
+.tabla--apps .celda-principal--app { min-width: 200px; }
+.tabla--apps td time { white-space: normal; }
+.tabla--apps th, .tabla--apps td { padding-left: 10px; padding-right: 10px; }
