@@ -1,0 +1,11 @@
+#!/bin/sh
+# Gancho pre-push del equipo (se instala con: sh scripts/instalar-hooks.sh).
+# 1) Revisa autor, quien confirma y mensaje de cada commit nuevo (sin coautorías, menciones ni bots).
+# 2) Ejecuta node scripts/verificar-todo.js (OpenAPI, todas las pruebas, SBOM, higiene) y bloquea si falla.
+#
+# Emergencias (solo acordadas con Diego o Juan, y anotadas en el Merge Request):
+#   SALTAR_VERIFICACION=1 git push …    omite el paso 2; el paso 1 se hace siempre.
+# No use git push --no-verify: se salta también el paso 1.
+DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+command -v node >/dev/null 2>&1 || { echo 'pre-push: se necesita Node.js 22 en el PATH' >&2; exit 1; }
+exec node "$DIR/revisar.mjs" envio "$1"

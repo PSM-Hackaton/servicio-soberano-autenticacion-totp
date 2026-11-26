@@ -135,6 +135,25 @@ paths:
         '429': { $ref: '#/components/responses/TooManyRequests' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
 
+  /ca.crt:
+    get:
+      tags: [System]
+      summary: Certificado público de la CA propia (para instalarlo en teléfonos y equipos de la red)
+      operationId: certificadoCa
+      description: |
+        Solo existe si el despliegue configura `TLS_CA_PUBLIC_PATH`; si no, responde 404. Nunca
+        contiene llaves privadas. Se descarga como `ca-servicio-totp.crt`.
+      security:
+        - {}
+      responses:
+        '200':
+          description: Certificado X.509 de la CA en PEM
+          content:
+            application/x-x509-ca-cert:
+              schema: { type: string }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
   /.well-known/jwks.json:
     get:
       tags: [System]

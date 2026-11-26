@@ -20,8 +20,8 @@
     },
     {
       "id": "b2d4f3a1-8c2e-4a1f-8b62-2d3e4f5a6b72",
-      "nombre": "Agente Evaluador de Propuestas (Reto 1)",
-      "client_id": "reto1-evaluador",
+      "nombre": "Agente Evaluador de Propuestas (Reto 3)",
+      "client_id": "reto3-evaluador",
       "algoritmo": "SHA512",
       "digitos": 8,
       "periodo": 30,

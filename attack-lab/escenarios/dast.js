@@ -29,6 +29,7 @@ export const RUTAS_CONTRATO = Object.freeze([
   { metodo: 'GET', ruta: '/health', tipo: 'api', auth: 'publica' },
   { metodo: 'GET', ruta: '/health/ready', tipo: 'api', auth: 'publica' },
   { metodo: 'GET', ruta: '/.well-known/jwks.json', tipo: 'jwks', auth: 'publica' },
+  { metodo: 'GET', ruta: '/ca.crt', tipo: 'api', auth: 'publica' },
   { metodo: 'GET', ruta: '/metrics', tipo: 'texto', auth: 'loopback' },
   { metodo: 'GET', ruta: '/app/', tipo: 'estatico', auth: 'publica' },
   { metodo: 'GET', ruta: '/consola/', tipo: 'estatico', auth: 'publica' },
@@ -49,6 +50,15 @@ export const RUTAS_CONTRATO = Object.freeze([
   { metodo: 'GET', ruta: '/admin/api/audit/verify-chain', tipo: 'api', auth: 'admin' },
   { metodo: 'GET', ruta: '/admin/api/anomalies', tipo: 'api', auth: 'admin' },
   { metodo: 'GET', ruta: '/admin/api/metrics', tipo: 'api', auth: 'admin' },
+  { metodo: 'GET', ruta: '/admin/api/keys', tipo: 'api', auth: 'admin' },
+  { metodo: 'POST', ruta: '/admin/api/apps', tipo: 'api', auth: 'admin' },
+  { metodo: 'POST', ruta: `/admin/api/apps/${UUID_PRUEBA}/secret`, tipo: 'api', auth: 'admin' },
+  { metodo: 'POST', ruta: `/admin/api/enrollments/${UUID_PRUEBA}/suspend`, tipo: 'api', auth: 'admin' },
+  { metodo: 'POST', ruta: `/admin/api/enrollments/${UUID_PRUEBA}/reactivate`, tipo: 'api', auth: 'admin' },
+  { metodo: 'POST', ruta: `/admin/api/enrollments/${UUID_PRUEBA}/revoke`, tipo: 'api', auth: 'admin' },
+  { metodo: 'GET', ruta: '/admin/api/admins', tipo: 'api', auth: 'admin' },
+  { metodo: 'POST', ruta: '/admin/api/admins', tipo: 'api', auth: 'admin' },
+  { metodo: 'POST', ruta: `/admin/api/admins/${UUID_PRUEBA}/disable`, tipo: 'api', auth: 'admin' },
   { metodo: 'GET', ruta: '/ruta-inexistente-dast', tipo: 'error', auth: 'publica' },
 ]);
 
@@ -250,6 +260,7 @@ export async function ejecutar(ctx, res) {
   const avisosCabeceras = [];
   const fallosErrorGenerico = [];
   const adminSinSesionFallos = [];
+  let politicaPwa = '';
 
   for (const item of RUTAS_CONTRATO) {
     metricas.rutasAuditadas++;
@@ -275,6 +286,7 @@ export async function ejecutar(ctx, res) {
       fallosCabeceras.push(`${item.ruta}: ${[...cab.faltantes, ...cab.inseguras].join(', ')}`);
     }
     for (const av of cab.avisos) avisosCabeceras.push(av);
+    if (item.ruta === '/app/') politicaPwa = String(r.cabeceras['permissions-policy'] ?? '');
 
     // En rutas API con respuesta 4xx, exige formato GenericError { error, message }
     if (item.tipo === 'api' && r.status >= 400 && r.status < 500) {
@@ -305,10 +317,14 @@ export async function ejecutar(ctx, res) {
   );
   if (fallosCabeceras.length) res.hallazgo(`Cabeceras incompletas o huellas expuestas: ${fallosCabeceras.join(' ; ')}`);
 
-  for (const av of avisosCabeceras) {
-    res.verificar('Política Permissions-Policy en PWA (/app/)', 'camera=(self) para escáner QR', av, null);
-    res.nota(av);
-  }
+  // La PWA necesita la cámara para leer el QR; el resto del servicio la mantiene bloqueada.
+  res.verificar(
+    'Política Permissions-Policy en PWA (/app/)',
+    'camera=(self) para escáner QR',
+    politicaPwa || '(sin cabecera)',
+    /camera=\(self\)/i.test(politicaPwa),
+  );
+  for (const av of avisosCabeceras) res.nota(av);
 
   res.verificar(
     'Rutas administrativas protegidas sin sesión',

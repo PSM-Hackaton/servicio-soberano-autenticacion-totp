@@ -17,8 +17,9 @@ import {
 } from 'node:fs';
 import { join, relative, dirname, resolve, sep, basename } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
-const LIMITE_TAMANO = 5 * 1024 * 1024; // 5 MB
+export const LIMITE_TAMANO = 5 * 1024 * 1024; // 5 MB
 
 // ------------------------------------------------------------------ utilidades
 
@@ -50,13 +51,13 @@ function podarVacios(raiz) {
   podar(raiz);
 }
 
-function esBinario(buf) {
+export function esBinario(buf) {
   const n = Math.min(buf.length, 8000);
   for (let i = 0; i < n; i += 1) if (buf[i] === 0) return true;
   return false;
 }
 
-function leerLista(archivo) {
+export function leerLista(archivo) {
   return readFileSync(archivo, 'utf8').split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
 }
 
@@ -89,7 +90,7 @@ function patronARegex(patron) {
   return new RegExp(prefijo + re + sufijo);
 }
 
-function cargarExclusiones(archivo) {
+export function cargarExclusiones(archivo) {
   return leerLista(archivo).map((linea) => {
     const negado = linea.startsWith('!');
     const patron = negado ? linea.slice(1) : linea;
@@ -98,7 +99,7 @@ function cargarExclusiones(archivo) {
 }
 
 /** La última regla que coincide decide (como en .gitignore, pero evaluada archivo por archivo). */
-function excluido(ruta, reglas) {
+export function excluido(ruta, reglas) {
   let resultado = false;
   for (const r of reglas) if (r.re.test(ruta)) resultado = !r.negado;
   return resultado;
@@ -122,7 +123,7 @@ function cmdExcluir(copia, archivoExclusiones) {
 
 // ------------------------------------------------------------------ ajustar (enlaces y menciones)
 
-const PALABRAS_HERRAMIENTAS = /claude|anthropic|gemini|chatgpt|openai|copilot|co-authored-by/i;
+export const PALABRAS_HERRAMIENTAS = /claude|anthropic|gemini|chatgpt|openai|copilot|co-authored-by/i;
 
 const RE_ENLACE_MD = /\[([^\]]*)\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/g;
 const RE_ENLACE_HTML = /\b(?:href|src)\s*=\s*["']([^"']+)["']/gi;
@@ -260,7 +261,7 @@ const SECCIONES_README = [
 
 const sinAcentos = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-function cargarPermitidos(archivo) {
+export function cargarPermitidos(archivo) {
   const permitidos = { marcas: new Set(), rutas: new Set(), secretos: new Set() };
   if (!archivo) return permitidos;
   for (const linea of leerLista(archivo)) {
@@ -283,6 +284,49 @@ function recortar(s) {
   return t.length > 140 ? `${t.slice(0, 137)}...` : t;
 }
 
+/**
+ * Revisa un archivo (ruta relativa y contenido) con las reglas de la entrega. Lo usan cmdVerificar y los
+ * ganchos de git (scripts/hooks/revisar.mjs, sobre el contenido preparado para el commit).
+ * Devuelve { hallazgos: [[categoría, texto], ...], pdfSinTexto } con categorías
+ * marcas | rutas | secretos | nombres | tamano. Con rutaEnDisco se extrae además el texto de los PDF.
+ */
+export function revisarArchivo(archivo, buf, { rutaEnDisco = null } = {}) {
+  const hallazgos = [];
+  let pdfSinTexto = false;
+  if (buf.length > LIMITE_TAMANO) hallazgos.push(['tamano', `${archivo}: ${(buf.length / 1048576).toFixed(1)} MB`]);
+  if (NOMBRES_SENSIBLES.some((re) => re.test(archivo))) hallazgos.push(['nombres', archivo]);
+
+  const binario = esBinario(buf) || /\.pdf$/i.test(archivo);
+  const fuentes = [];
+  if (!binario) fuentes.push(['', buf.toString('utf8')]);
+  else {
+    fuentes.push([' (bytes)', buf.toString('latin1')]);
+    if (/\.pdf$/i.test(archivo)) {
+      const t = rutaEnDisco ? textoPdf(rutaEnDisco) : null;
+      if (t === null) pdfSinTexto = true; else fuentes.push([' (texto del PDF)', t]);
+    }
+  }
+  for (const [origen, contenido] of fuentes) {
+    const enBytes = binario && !origen.includes('texto');
+    contenido.split('\n').forEach((linea, i) => {
+      const pos = enBytes ? '' : `:${i + 1}`;
+      const m = PALABRAS_HERRAMIENTAS.exec(linea);
+      if (m) hallazgos.push(['marcas', `${archivo}${pos}${origen}: «${m[0]}» en ${recortar(enBytes ? m[0] : linea)}`]);
+      if (RE_RUTAS_LOCALES.test(linea)) hallazgos.push(['rutas', `${archivo}${pos}${origen}: ${recortar(enBytes ? '/home/…' : linea)}`]);
+      for (const [nombre, re] of PATRONES_SECRETOS) {
+        const s = re.exec(linea);
+        if (s) hallazgos.push(['secretos', `${archivo}${pos}${origen}: ${nombre} (${s[0].slice(0, 8)}…)`]);
+      }
+    });
+    const pem = RE_PEM_PRIVADA.exec(contenido);
+    if (pem) {
+      const linea = contenido.slice(0, pem.index).split('\n').length;
+      hallazgos.push(['secretos', `${archivo}:${linea}${origen}: bloque PEM de llave privada (${pem[1]})`]);
+    }
+  }
+  return { hallazgos, pdfSinTexto };
+}
+
 function cmdVerificar(copia, archivoPermitidos, { sinReadme = false } = {}) {
   const permitidos = cargarPermitidos(archivoPermitidos);
   const archivos = listarArchivos(copia);
@@ -297,39 +341,9 @@ function cmdVerificar(copia, archivoPermitidos, { sinReadme = false } = {}) {
 
   for (const archivo of archivos) {
     const ruta = join(copia, archivo);
-    const st = statSync(ruta);
-    if (st.size > LIMITE_TAMANO) hallazgos.tamano.push(`${archivo}: ${(st.size / 1048576).toFixed(1)} MB`);
-    if (NOMBRES_SENSIBLES.some((re) => re.test(archivo))) hallazgos.nombres.push(archivo);
-
-    const buf = readFileSync(ruta);
-    const binario = esBinario(buf) || /\.pdf$/i.test(archivo);
-    const fuentes = [];
-    if (!binario) fuentes.push(['', buf.toString('utf8')]);
-    else {
-      fuentes.push([' (bytes)', buf.toString('latin1')]);
-      if (/\.pdf$/i.test(archivo)) {
-        const t = textoPdf(ruta);
-        if (t === null) pdfSinTexto += 1; else fuentes.push([' (texto del PDF)', t]);
-      }
-    }
-    for (const [origen, contenido] of fuentes) {
-      const lineas = contenido.split('\n');
-      lineas.forEach((linea, i) => {
-        const pos = binario && !origen.includes('texto') ? '' : `:${i + 1}`;
-        const m = PALABRAS_HERRAMIENTAS.exec(linea);
-        if (m) anotar('marcas', archivo, `${archivo}${pos}${origen}: «${m[0]}» en ${recortar(binario && !origen.includes('texto') ? m[0] : linea)}`);
-        if (RE_RUTAS_LOCALES.test(linea)) anotar('rutas', archivo, `${archivo}${pos}${origen}: ${recortar(binario && !origen.includes('texto') ? '/home/…' : linea)}`);
-        for (const [nombre, re] of PATRONES_SECRETOS) {
-          const s = re.exec(linea);
-          if (s) anotar('secretos', archivo, `${archivo}${pos}${origen}: ${nombre} (${s[0].slice(0, 8)}…)`);
-        }
-      });
-      const pem = RE_PEM_PRIVADA.exec(contenido);
-      if (pem) {
-        const linea = contenido.slice(0, pem.index).split('\n').length;
-        anotar('secretos', archivo, `${archivo}:${linea}${origen}: bloque PEM de llave privada (${pem[1]})`);
-      }
-    }
+    const r = revisarArchivo(archivo, readFileSync(ruta), { rutaEnDisco: ruta });
+    if (r.pdfSinTexto) pdfSinTexto += 1;
+    for (const [cat, texto] of r.hallazgos) anotar(cat, archivo, texto);
   }
 
   // README.md: seis apartados obligatorios, en orden, como títulos de nivel 2.
@@ -487,6 +501,7 @@ function cmdEtapas(copia, archivoEtapas, archivoExclusiones, dirPlan, opciones) 
 
   const limpiar = (s) => s.replace(/[\t\r\n]+/g, ' ');
   const tsv = etapas.map((e, i) => [i + 1, e.id, e.rama, e.nombre, e.correo, e.archivos.length, e.mensaje].map((c) => limpiar(String(c))).join('\t'));
+  mkdirSync(dirPlan, { recursive: true });
   writeFileSync(join(dirPlan, 'plan.tsv'), `${tsv.join('\n')}\n`);
   etapas.forEach((e, i) => writeFileSync(join(dirPlan, `etapa-${i + 1}.lista`), `${e.archivos.join('\n')}\n`));
 
@@ -515,29 +530,49 @@ function cmdCopiar(origen, lista, destino) {
 
 // ------------------------------------------------------------------ principal
 
-const [cmd, ...resto] = process.argv.slice(2);
-const banderas = new Set(resto.filter((a) => a === '--sin-readme'));
-const args = resto.filter((a) => !banderas.has(a));
-/** Extrae "--opcion valor" de args (para valores que pueden contener espacios). */
-function opcionConValor(nombre) {
-  const i = args.indexOf(nombre);
-  if (i === -1) return undefined;
-  const valor = args[i + 1] ?? '';
-  args.splice(i, 2);
-  return valor;
+// Solo se ejecuta como programa; al importarlo (ganchos de git) solo aporta las reglas exportadas.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  principal();
 }
-const autorLaya = opcionConValor('--autor-laya');
-const comandos = {
-  excluir: () => cmdExcluir(resolve(args[0]), resolve(args[1])),
-  ajustar: () => cmdAjustar(resolve(args[0]), resolve(args[1])),
-  verificar: () => cmdVerificar(resolve(args[0]), args[1] ? resolve(args[1]) : null, { sinReadme: banderas.has('--sin-readme') }),
-  env: () => cmdEnv(resolve(args[0])),
-  etapas: () => cmdEtapas(resolve(args[0]), resolve(args[1]), resolve(args[2]), resolve(args[3]), { autorLaya }),
-  copiar: () => cmdCopiar(resolve(args[0]), resolve(args[1]), resolve(args[2])),
-};
-if (!comandos[cmd] || !args[0]) {
-  console.error('Uso: node entrega-herramientas.mjs excluir|ajustar|verificar|env|etapas|copiar <copia> [...]');
-  process.exitCode = 2;
-} else {
-  process.exitCode = comandos[cmd]();
+
+function principal() {
+  const [cmd, ...resto] = process.argv.slice(2);
+  const banderas = new Set(resto.filter((a) => a === '--sin-readme'));
+  const args = resto.filter((a) => !banderas.has(a));
+  /** Extrae "--opcion valor" de args (para valores que pueden contener espacios). */
+  function opcionConValor(nombre) {
+    const i = args.indexOf(nombre);
+    if (i === -1) return undefined;
+    const valor = args[i + 1] ?? '';
+    args.splice(i, 2);
+    return valor;
+  }
+  const autorLaya = opcionConValor('--autor-laya');
+  const comandos = {
+    excluir: () => cmdExcluir(resolve(args[0]), resolve(args[1])),
+    ajustar: () => cmdAjustar(resolve(args[0]), resolve(args[1])),
+    verificar: () => cmdVerificar(resolve(args[0]), args[1] ? resolve(args[1]) : null, { sinReadme: banderas.has('--sin-readme') }),
+    env: () => cmdEnv(resolve(args[0])),
+    etapas: () => cmdEtapas(resolve(args[0]), resolve(args[1]), resolve(args[2]), resolve(args[3]), { autorLaya }),
+    copiar: () => cmdCopiar(resolve(args[0]), resolve(args[1]), resolve(args[2])),
+  };
+  // Argumentos obligatorios de cada subcomando (sin ellos resolve() recibiría undefined y lanzaría TypeError).
+  const usos = {
+    excluir: ['<copia>', '<exclusiones.txt>'],
+    ajustar: ['<copia>', '<lista-excluidos.txt>'],
+    verificar: ['<copia>'],
+    env: ['<archivo .env>'],
+    etapas: ['<copia>', '<etapas.txt>', '<exclusiones.txt>', '<dir-plan>'],
+    copiar: ['<origen>', '<lista>', '<destino>'],
+  };
+  if (!comandos[cmd] || args.length < usos[cmd].length || args.slice(0, usos[cmd].length).some((a) => !a)) {
+    if (comandos[cmd]) {
+      console.error(`Uso: node entrega-herramientas.mjs ${cmd} ${usos[cmd].join(' ')}${cmd === 'etapas' ? ' [--autor-laya "Nombre <correo>"]' : ''}`);
+    } else {
+      console.error('Uso: node entrega-herramientas.mjs excluir|ajustar|verificar|env|etapas|copiar <copia> [...]');
+    }
+    process.exitCode = 2;
+  } else {
+    process.exitCode = comandos[cmd]();
+  }
 }

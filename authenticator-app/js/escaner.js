@@ -57,7 +57,3 @@ export function detenerEscaner(video) {
   flujo = null;
   if (video) video.srcObject = null;
 }
-
-export function escaneando() {
-  return activo;
-}

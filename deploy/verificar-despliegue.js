@@ -48,7 +48,7 @@ function ejecutarComando(bin, args) {
   return { ok: r.status === 0, status: r.status, stdout: (r.stdout || '').trim(), stderr: (r.stderr || '').trim() };
 }
 
-export async function verificarDespliegue({ guardarInformeDast = null } = {}) {
+export async function verificarDespliegue({ guardarInformeDast = null, puerto = 18443 } = {}) {
   const workDir = mkdtempSync(join(tmpdir(), 'totp-deploy-verify-'));
   const envDir = join(workDir, 'etc');
   const tlsDir = join(envDir, 'tls');
@@ -100,7 +100,7 @@ export async function verificarDespliegue({ guardarInformeDast = null } = {}) {
     const certPath = join(tlsDir, 'servidor.crt');
     const keyPath = join(tlsDir, 'servidor.key');
     const dbPath = join(dataDir, 'totp_soberano.db');
-    const port = 18443;
+    const port = puerto;
 
     // 3. Generar certificado EC P-256 con openssl según deploy/README.md §4
     execFileSync('openssl', [
@@ -153,8 +153,8 @@ export async function verificarDespliegue({ guardarInformeDast = null } = {}) {
     });
     const qrAdminPath = join(REPO_ROOT, 'backend', 'data', 'admin-qr.svg');
     if (existsSync(qrAdminPath)) rmSync(qrAdminPath, { force: true });
-    const seedOk = /Portal de Trámites/i.test(seedOut) && /Reto 1/i.test(seedOut) && existsSync(dbPath);
-    registrar('Semilla inicial (Portal de Trámites, Reto 1 y admin)', seedOk, 'BD SQLite WAL inicializada con 8 tablas y apps semilla');
+    const seedOk = /Portal de Trámites/i.test(seedOut) && /Agente Evaluador \(Reto 3\)/i.test(seedOut) && existsSync(dbPath);
+    registrar('Semilla inicial (Portal de Trámites, Reto 3 y admin)', seedOk, 'BD SQLite WAL inicializada con 8 tablas y apps semilla');
 
     // 6. Arrancar el servidor real en modo NODE_ENV=production (deploy/README.md §7)
     const tArranque = Date.now();
@@ -261,7 +261,9 @@ export async function verificarDespliegue({ guardarInformeDast = null } = {}) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const outIdx = process.argv.indexOf('--guardar-dast');
   const guardarInformeDast = outIdx !== -1 ? process.argv[outIdx + 1] : null;
-  const res = await verificarDespliegue({ guardarInformeDast });
+  const pIdx = process.argv.indexOf('--puerto');
+  const puerto = pIdx !== -1 ? Number(process.argv[pIdx + 1]) : 18443; // --puerto N cuando 18443 está ocupado
+  const res = await verificarDespliegue({ guardarInformeDast, puerto });
   console.log('\n=== VERIFICACIÓN DE DESPLIEGUE INSTITUCIONAL (systemd + TLS 1.3 + DAST) ===');
   console.table(res.checks.map((c) => ({ Paso: c.paso, Estado: c.ok ? 'OK' : 'FALLO', Detalle: c.detalle.slice(0, 90) })));
   if (res.dastRutas) {

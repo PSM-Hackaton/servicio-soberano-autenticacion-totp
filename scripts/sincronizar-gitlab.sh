@@ -13,8 +13,9 @@
 #      Los commits que solo tocan material excluido no generan commit en la entrega.
 #   3. Antes de cada commit verifica el árbol resultante (rastros de herramientas, rutas /home/,
 #      secretos, archivos sensibles, tamaño, README de 6 apartados) y ejecuta todas las pruebas.
-#   4. Cada commit mueve la rama de trabajo de su autor (diego o laya) por avance rápido, igual que en
-#      subir-por-etapas.sh. Con --subir ofrece "git push gitlab <rama>" y solo lo ejecuta si se escribe SI.
+#   4. Cada commit mueve la rama de trabajo de su autor (diego, laya, javier, enggel o giovani) por
+#      avance rápido, igual que en subir-por-etapas.sh. Con --subir ofrece "git push gitlab <rama>" y
+#      solo lo ejecuta si se escribe SI.
 #   5. Guarda el último commit de GitHub sincronizado en .git/entrega-sincronizacion de la copia de
 #      entrega (nunca se versiona); la siguiente ejecución continúa desde ahí sin --desde.
 #
@@ -25,6 +26,10 @@ set -eu
 
 # Autores de GitHub cuyos commits van a la rama laya (nombre o correo, sin distinguir mayúsculas).
 PATRON_LAYA='laya|lya0509'
+# Ramas personales del resto del equipo (docs/entrega/flujo-gitlab.md). Lo que no coincide va a diego.
+PATRON_JAVIER='javier|jarviscott'
+PATRON_ENGGEL='enggel|metagamingprohd'
+PATRON_GIOVANI='giovani'
 
 uso() {
   cat <<'FIN'
@@ -139,7 +144,11 @@ arbol_limpio() {
 
 # Rama de trabajo de un autor de GitHub ("nombre correo" en $1).
 rama_de() {
-  if printf '%s\n' "$1" | grep -Eiq "$PATRON_LAYA"; then echo laya; else echo diego; fi
+  if printf '%s\n' "$1" | grep -Eiq "$PATRON_LAYA"; then echo laya
+  elif printf '%s\n' "$1" | grep -Eiq "$PATRON_JAVIER"; then echo javier
+  elif printf '%s\n' "$1" | grep -Eiq "$PATRON_ENGGEL"; then echo enggel
+  elif printf '%s\n' "$1" | grep -Eiq "$PATRON_GIOVANI"; then echo giovani
+  else echo diego; fi
 }
 
 describir() { git -C "$RAIZ" log -1 --format='%h  %an  %s' "$1"; }

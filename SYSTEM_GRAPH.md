@@ -11,8 +11,8 @@ flowchart TD
     PWA["authenticator-app/\n(Servida en /app/: SW offline, Web Crypto, PIN+IndexedDB, QR/URI/Manual)"]
     ADMIN["admin-console/\n(Servida en /consola/: RBAC + TOTP + Apps + Llaves + Auditoría + Anomalías)"]
     DEMO["demo-portal-tramites/\n(Servidor HTTPS/HTTP propio, cookies __Host-, Step-Up MFA)"]
-    RETO1["Reto 1: Evaluador de Propuestas\n(Integración vía sdk/INTEGRACION_RETO1.md)"]
-    ATK["attack-lab/\n(10 escenarios: Replay, JWT, Entradas, DAST, Brute Force, Spraying, Flood + Proxy Caos)"]
+    RETO3["Reto 3: Evaluador de Propuestas\n(Integración vía sdk/INTEGRACION_RETO3.md)"]
+    ATK["attack-lab/\n(11 escenarios + DAST: Replay, JWT, Entradas, Deriva, Fuerza bruta, Distribuida, Spraying, Origen compartido, Inundación, Caos, Reinicio)"]
     SDK["sdk/\n(crearClienteTotp, verificarTokenLocal, crearCacheJwks, servicio-falso.js)"]
 
     %% Contratos y Despliegue
@@ -34,9 +34,9 @@ flowchart TD
 
     %% Conexiones
     PWA -->|"Código 6/8d + QR/otpauth"| DEMO
-    PWA -->|"Código 6/8d"| RETO1
+    PWA -->|"Código 6/8d"| RETO3
     DEMO --> SDK
-    RETO1 --> SDK
+    RETO3 --> SDK
     SDK -->|"HTTPS TLS 1.3 + Idempotency-Key"| API
     ADMIN -->|"HTTPS + Cookie HttpOnly + CSRF + TOTP"| API
     ATK -->|"Ataques + DAST + Proxy Caos TCP"| API
@@ -73,7 +73,7 @@ flowchart TD
 | `backend/src/api/` | `servidor.js`, `router.js`, `src/main.js` | Servidor HTTPS TLS 1.3 propio + rutas v1/admin + páginas públicas `/`, `/instalar-certificado`, `/estado` y estáticos `/sitio/`, `/app/`, `/consola/` | `sdk/`, `admin-console/`, `authenticator-app/`, `sitio-publico/`, `attack-lab/` |
 | `authenticator-app/` | `index.html`, `sw.js`, `manifest.json`, `js/{app,totp,cripto,boveda,almacen,otpauth,escaner}.js` | PWA offline con PIN, IndexedDB cifrado, SHA-256/512 (6/8d) y alta por enlace/URI/Base32/cámara | Usuario final, `demo-portal-tramites/` |
 | `admin-console/` | `index.html`, `js/{api,app,rbac,cadena,graficos,mock}.js`, `js/vistas/*.js` | Consola RBAC + TOTP contra `/admin/api/*` (con modo mock de respaldo) | `backend/src/api` |
-| `sdk/` | `src/{index,cliente,http,jwks,jwt,local,errores}.js`, `testing/servicio-falso.js`, `INTEGRACION_RETO1.md` | `crearClienteTotp`, `verificarTokenLocal` offline, timeout 3 s + 1 reintento idempotente | `demo-portal-tramites/`, Reto 1 |
+| `sdk/` | `src/{index,cliente,http,jwks,jwt,local,errores}.js`, `testing/servicio-falso.js`, `INTEGRACION_RETO3.md` | `crearClienteTotp`, `verificarTokenLocal` offline, timeout 3 s + 1 reintento idempotente | `demo-portal-tramites/`, Reto 3 |
 | `demo-portal-tramites/` | `server.js`, `src/{cedula,portal,sesiones,tramites,usuarios,vistas}.js`, `scripts/crear-usuarios.js` | Portal institucional demo con cédula (V/E), enrolamiento, verificación, step-up MFA, centro de ayuda `/ayuda` y panel de traza | `sdk/`, `authenticator-app/` |
 | `attack-lab/` | `ejecutar-todo.js`, `escenarios/*.js` (incl. `dast.js`), `caos/{proxy-caos,escenario-caos,reinicio}.js` | Ataques reales, escáner DAST propio y proxy TCP de caos -> informes JSON/HTML autocontenidos | `backend/src/api`, `backend/src/core/` |
 | `deploy/` & `docs/` | `deploy/servicio-totp.service`, `deploy/verificar-despliegue.js`, `docs/sbom/`, `docs/cumplimiento/`, `docs/evidencias/` | Unidad `systemd` verificada, inventario CycloneDX 1.5 (0 deps npm), matriz de cumplimiento y evidencias | Entrega / Producción |

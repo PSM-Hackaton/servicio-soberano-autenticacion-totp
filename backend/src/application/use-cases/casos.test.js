@@ -40,7 +40,7 @@ function montar({ config: configExtra = {}, detectorReal = null } = {}) {
   const metricas = crearMetricas({ ahora: reloj });
   const politica = { algoritmo: 'SHA256', digitos: 6, periodo: 30, ventana: 1, max_intentos: 5, modo_heuristica: 'bloqueo' };
   const app = repos.apps.crear({ nombre: 'Portal de Trámites', client_id: 'portal', secret_hash: hashSecreto('secreto-portal'), ...politica });
-  const otra = repos.apps.crear({ nombre: 'Reto 1', client_id: 'reto1', secret_hash: hashSecreto('secreto-reto1'), ...politica });
+  const otra = repos.apps.crear({ nombre: 'Agente Evaluador (Reto 3)', client_id: 'reto3', secret_hash: hashSecreto('secreto-reto3'), ...politica });
   const config = {
     userRefPepper: 'pepper-usuarios', ipPepperSemilla: 'semilla-ip', emisorTotp: 'SoberanoTOTP',
     emisorJwt: 'https://totp.soberano.local', ttlJwtSegundos: 300, minutosPendiente: 10, ...configExtra,
