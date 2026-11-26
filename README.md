@@ -60,8 +60,8 @@ llamadas a servicios de terceros.
 
 - **Motor criptográfico y backend propio ([`backend/`](backend/)):** solo módulos nativos de Node.js 22 (`node:https`, `node:crypto`, `node:sqlite`, `node:test`). RFC 6238 / RFC 4226 con **HMAC-SHA256 y HMAC-SHA512** (6 u 8 dígitos; SHA-1 solo si la política de la app lo permite), semillas CSPRNG cifradas con **AES-256-GCM + AAD**, **JWT Ed25519 (EdDSA)** con `/.well-known/jwks.json` y rotación de `kid`, **QR SVG propio (ISO/IEC 18004 + Reed-Solomon)**, anti replay atómico, `jti` de un solo uso, bitácora encadenada por SHA-256 (`audit_log`), métricas locales estilo Prometheus y **detector local de anomalías (Isolation Forest propio + reglas explicables)** sin telemetría externa.
 - **App autenticadora PWA propia ([`authenticator-app/`](authenticator-app/)):** servida por la institución en `/app/`, funciona **sin conexión** (Service Worker + Web Crypto), cifra las semillas en el dispositivo con un **PIN (PBKDF2 + AES-GCM)**, SHA-1/256/512 con 6 u 8 dígitos; alta por enlace del portal, URI `otpauth://` pegada, clave manual Base32 o cámara; respaldo cifrado y comprobación de la hora.
-- **Consola administrativa con RBAC ([`admin-console/`](admin-console/)):** servida en `/consola/`, inicio de sesión con contraseña + **TOTP propio**, cookie `HttpOnly; Secure; SameSite=Strict` + CSRF, roles `Administrador`, `Operador` y `Auditor`. Políticas por app, enrolamientos por estado, alertas del detector, rotación de llaves Ed25519 con un botón y verificación de la cadena `audit_log`.
-- **SDK y Portal de demostración ([`sdk/`](sdk/), [`demo-portal-tramites/`](demo-portal-tramites/)):** SDK ESM sin dependencias con tiempo de espera de 3 s, un reintento idempotente (`Idempotency-Key`), política estricta de **falla cerrado** y **validación local del JWT con caché JWKS**; Portal de Trámites del Estado (ficticio) con enrolamiento, códigos de recuperación y *step-up* en trámites sensibles.
+- **Consola administrativa con RBAC ([`admin-console/`](admin-console/)):** servida en `/consola/`, inicio de sesión con contraseña + **TOTP propio**, cookie `HttpOnly; Secure; SameSite=Strict` + CSRF, roles `Administrador`, `Operador` y `Auditor`. Registro de apps integradoras y regeneración de su `client_secret`, políticas por app, enrolamientos por estado con búsqueda por **cédula** (convertida en el servidor al mismo `user_ref` HMAC) y acciones de **suspender, reactivar y revocar**, gestión de cuentas de administración (crear `Operador`/`Auditor`/`Administrador` y deshabilitar), alertas del detector, rotación de llaves Ed25519 con un botón y verificación de la cadena `audit_log`.
+- **SDK y Portal de demostración ([`sdk/`](sdk/), [`demo-portal-tramites/`](demo-portal-tramites/)):** SDK ESM sin dependencias con tiempo de espera de 3 s, un reintento idempotente (`Idempotency-Key`), política estricta de **falla cerrado** y **validación local del JWT con caché JWKS**; Portal de Trámites del Estado (ficticio) con ingreso por **cédula** (V/E), enrolamiento, códigos de recuperación y *step-up* en trámites sensibles.
 - **Laboratorio de ataques, DAST y caos ([`attack-lab/`](attack-lab/)):** 12 escenarios (replay con carrera paralela, JWT alterados, entradas malformadas, **escáner DAST propio**, deriva de reloj, origen compartido, fuerza bruta local y distribuida, spraying, inundación, proxy TCP de caos con latencia y cortes, reinicio del backend) con informes autocontenidos.
 
 ### Estructura del repositorio
@@ -103,20 +103,20 @@ docs/                   Reto, análisis, API, SBOM, cumplimiento, manual, presen
 
 - **Motor criptográfico propio** (RFC 4226/6238): HMAC-SHA256 y HMAC-SHA512, 6 u 8 dígitos, periodo de 15 a 60 s, ventana configurable (0–3 pasos), compensación de deriva, resincronización con dos códigos consecutivos (±10 pasos) y anti replay atómico. Probado con los vectores oficiales del RFC 6238 (Apéndice B) y del RFC 4226 (Apéndice D).
 - **Semillas CSPRNG** (32 bytes para SHA-256, 64 para SHA-512) cifradas con **AES-256-GCM** y datos asociados `enrollment_id:versión`; llave maestra versionada fuera de la base y rotación con recifrado en lote (`npm run rotar-llave-maestra`).
-- **API v1 de integración** ([`contracts/openapi.yaml`](contracts/openapi.yaml), 22 operaciones): enrolamiento con QR SVG y URI `otpauth://`, activación con 10 códigos de recuperación, verificación, validación de token con consumo del `jti`, resincronización, recuperación y revocación; idempotencia con `Idempotency-Key`.
+- **API completa en el contrato** ([`contracts/openapi.yaml`](contracts/openapi.yaml)): las **31 rutas** que monta el servidor (7 de integración v1, 5 de sistema y 19 de la consola) están documentadas y validadas sin claves duplicadas ni `$ref` rotas. API v1 de integración: enrolamiento con QR SVG y URI `otpauth://`, activación con 10 códigos de recuperación, verificación, validación de token con consumo del `jti`, resincronización, recuperación y revocación; idempotencia con `Idempotency-Key` y `client_ip` opcional para que el detector y los límites distingan a cada ciudadano detrás del servidor del integrador.
 - **Tokens firmados**: JWT EdDSA (Ed25519) con `sub` seudónimo, `aud` = app, `amr: ["otp"]`, `jti` de un solo uso y 300 s de vida; JWKS pública y rotación sin invalidar tokens emitidos.
 - **Seguridad**: TLS 1.3 mínimo, esquemas de entrada cerrados, errores genéricos sin enumeración de usuarios, límites de tasa global, por app y por origen, bloqueo progresivo por cuenta (30 s, 2 min, 10 min, 1 h), límites de tamaño y tiempo de cuerpo, cabeceras OWASP, CORS por lista blanca y sesión de consola con CSRF y caducidad (30 min deslizantes, 8 h máximo).
 - **Detector local de anomalías** (sin telemetría): Isolation Forest implementado desde cero + reglas explicables; modos `local`, `monitorizacion` y `mock`; respuesta adaptativa (`ANOMALY_BLOCKED`) según la política de cada app.
 - **Anonimización**: `user_ref` solo como HMAC-SHA256 con *pepper*; IP solo como HMAC con *pepper* diario; la bitácora filtra campos sensibles.
 - **Auditoría y métricas** locales: bitácora encadenada verificable desde la consola; métricas JSON y formato de texto estilo Prometheus.
 - **Clientes propios** (HTML + CSS + JS, sin frameworks, empaquetadores ni CDN): app autenticadora, consola y Portal de Trámites; **SDK** y **laboratorio de ataques y caos**.
-- **Pruebas automatizadas y cobertura (CI sin dependencias):** **287 pruebas** con `node:test` (backend 193 con **98,2 %** de cobertura de líneas, app 26 con **83,3 %**, SDK 26 con **96,2 %**, portal 14 con **93,1 %**, laboratorio + DAST 28 con **87,4 %**), todas en verde el 26-11-2026 ([`docs/evidencias/cobertura-2026-11-26.txt`](docs/evidencias/cobertura-2026-11-26.txt)); automatizadas en `.gitlab-ci.yml` y `.github/workflows/pruebas.yml` mediante `node scripts/verificar-todo.js` (0 `npm install`).
+- **Pruebas automatizadas y cobertura (CI sin dependencias):** **307 pruebas** con `node:test` (backend 211 con **93,7 %** de cobertura de líneas, app 26 con **83,3 %**, SDK 26 con **95,4 %**, portal 16 con **93,1 %**, laboratorio + DAST 28 con **87,5 %**), todas en verde el 26-11-2026 ([`docs/evidencias/cobertura-2026-11-26.txt`](docs/evidencias/cobertura-2026-11-26.txt)); automatizadas en `.gitlab-ci.yml` y `.github/workflows/pruebas.yml` mediante `node scripts/verificar-todo.js` (0 `npm install`).
 - **Compatibilidad abierta y app móvil:** formato Key URI (`otpauth://`) verificado por pruebas automatizadas para clientes libres ([`docs/evidencias/compatibilidad-clientes-totp.md`](docs/evidencias/compatibilidad-clientes-totp.md)); decisión arquitectónica ADR-004 y base Kotlin nativa en [`mobile-android/`](mobile-android/); páginas ciudadanas de inicio, certificado y estado en [`sitio-publico/`](sitio-publico/).
 
 ### Límites de la entrega
 
 - **Contenedores Docker y PostgreSQL** quedan fuera (ADR-002): ejecución nativa con `systemd` + SQLite WAL en un nodo. `contracts/schema.sql` (PostgreSQL) es referencia para crecer; ver [`docs/escalabilidad/`](docs/escalabilidad/).
-- **Consola**: no registra apps nuevas ni crea cuentas `Operador`/`Auditor` desde la interfaz (las apps se registran con `npm run seed` o `POST /admin/api/apps`; la semilla crea solo el Administrador). La **revocación** de un enrolamiento la ejecuta la app integradora (`DELETE /api/v1/enrollments/{id}`); la consola la muestra y la audita.
+- **Consola**: la revocación desde la consola es definitiva (como `DELETE /api/v1/enrollments/{id}` de la app integradora); para volver a usar el segundo factor, el ciudadano se enrola de nuevo desde su sistema institucional. Deshabilitar una cuenta de administración no la borra (queda en la bitácora).
 - **Cámara en la app**: usa `BarcodeDetector` del navegador (no todos lo implementan). El servidor envía `Permissions-Policy: camera=(self)` solo en `/app/`; la API y la consola siguen con `camera=()`. Sin `BarcodeDetector`, el alta funciona por enlace del portal, URI pegada o clave manual.
 - **Certificados**: `npm run certs` emite certificados de desarrollo solo para `localhost`, `127.0.0.1` y `::1`. Para un teléfono en la red local, ver el Paso 6; en producción, CA institucional ([`deploy/README.md`](deploy/README.md)).
 - **HSM/TPM**: la llave maestra vive en el `.env` (permisos 600); `core/vault` la aísla y versiona para conectarla a un HSM o TPM institucional en el futuro.
@@ -245,7 +245,7 @@ npm run seed     # apps "Portal de Trámites" y "Reto 1" + administrador inicial
 ### Paso 4 — Ejecutar el servicio
 
 ```bash
-npm start        # en backend/ → «Servicio escuchando en https://0.0.0.0:8443 (22 rutas API)»
+npm start        # en backend/ → «Servicio escuchando en https://0.0.0.0:8443 (31 rutas API)»
 ```
 
 Comprobación desde otra terminal, en `backend/`:
@@ -308,14 +308,15 @@ Comprobado de punta a punta contra el backend real.
 ### Paso 8 — Pruebas automatizadas
 
 ```bash
-cd backend && npm test && cd ..                            # 171
-node --test authenticator-app/tests/*.test.mjs             # 25
-cd sdk && npm test && cd ..                                # 23
-cd demo-portal-tramites && npm test && cd ..               # 12
-cd attack-lab && npm test && cd ..                         # 25
+cd backend && npm test && cd ..                            # 211
+node --test authenticator-app/tests/*.test.mjs             # 26
+cd sdk && npm test && cd ..                                # 26
+cd demo-portal-tramites && npm test && cd ..               # 16
+cd attack-lab && npm test && cd ..                         # 28
+node scripts/verificar-todo.js                             # todo lo anterior + OpenAPI estricto, SBOM e higiene
 ```
 
-Resultado el 26-11-2026: **256 pruebas, 0 fallos**.
+Resultado el 26-11-2026: **307 pruebas, 0 fallos** (cobertura en [`docs/evidencias/cobertura-2026-11-26.txt`](docs/evidencias/cobertura-2026-11-26.txt)).
 
 ### Paso 9 — Laboratorio de ataques y caos contra el servicio real
 
@@ -324,10 +325,11 @@ Desde la raíz, con el servicio en marcha:
 ```bash
 export ATTACK_CLIENT_ID=app_...   ATTACK_CLIENT_SECRET=...     # "Portal de Trámites"
 export ATTACK_CLIENT_ID_2=app_... ATTACK_CLIENT_SECRET_2=...   # "Reto 1" (prueba de otra audiencia)
-node attack-lab/ejecutar-todo.js --rapido
-#   → 8/8 escenarios OK · 85/85 verificaciones · 0 hallazgos; informe HTML y JSON en attack-lab/resultados/
-node attack-lab/caos/reinicio.js --comando "node src/main.js" --cwd backend --pid <PID del backend>
-#   → listo de nuevo en 0,33 s; el bloqueo de la cuenta sobrevive al reinicio
+node attack-lab/ejecutar-todo.js --comando-arranque "node src/main.js" --pid-backend <PID del backend>
+#   → 11/11 escenarios OK · 116/116 verificaciones · 0 hallazgos (incluye el reinicio: los bloqueos
+#     sobreviven); informe HTML y JSON en attack-lab/resultados/
+node attack-lab/escenarios/dast.js --admin-user admin_seguridad --admin-pass … --admin-totp …
+#   → escaneo dinámico: 12/12 verificaciones, 34 sondas (31 rutas + /app/ + /consola/ + ruta inexistente)
 ```
 
 Informe de la ejecución de verificación: [`docs/evidencias/`](docs/evidencias/).
