@@ -172,6 +172,16 @@ describe('verificación', () => {
     assert.equal((await m.casos.validarToken({ token: ver.cuerpo.token }, m.ctx)).cuerpo.valid, true);
     const segunda = await m.casos.validarToken({ token: ver.cuerpo.token }, m.ctx);
     assert.deepEqual(segunda.cuerpo, { valid: false, reason: 'jti_consumido' });
+    const consulta = await m.casos.validarToken({ token: ver.cuerpo.token, consume_jti: false }, m.ctx);
+    assert.deepEqual(consulta.cuerpo, { valid: false, reason: 'jti_consumido' });
+  });
+
+  test('consultar sin consumir no gasta el jti', async () => {
+    const m = montar();
+    const { semilla } = await enrolarYActivar(m);
+    const ver = await m.casos.verificar({ user_ref: 'ciudadano-1', code: codigo(semilla, m.estado.t) }, m.ctx);
+    assert.equal((await m.casos.validarToken({ token: ver.cuerpo.token, consume_jti: false }, m.ctx)).cuerpo.valid, true);
+    assert.equal((await m.casos.validarToken({ token: ver.cuerpo.token }, m.ctx)).cuerpo.valid, true);
   });
 
   test('token de otra app (aud distinta) es inválido y no consume el jti', async () => {

@@ -404,7 +404,10 @@ export function crearCasosMfa(d) {
     if (typeof claims.jti !== 'string' || claims.jti.length === 0) {
       return { status: 200, cuerpo: { valid: false, reason: 'formato' }, cabeceras: {} };
     }
-    if (v.consume_jti !== false && !repos.consumedJti.consumir(claims.jti, iso(claims.exp * 1000))) {
+    const yaUsado = v.consume_jti === false
+      ? repos.consumedJti.estaConsumido(claims.jti)
+      : !repos.consumedJti.consumir(claims.jti, iso(claims.exp * 1000));
+    if (yaUsado) {
       auditar(actorApp(app), 'token.reutilizado', claims.jti, { kid: header.kid });
       return { status: 200, cuerpo: { valid: false, reason: 'jti_consumido' }, cabeceras: { 'Cache-Control': 'no-store' } };
     }

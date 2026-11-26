@@ -295,10 +295,13 @@ export function crearRepositorios(db) {
   const sJti = {
     consumir: db.prepare('INSERT INTO consumed_jti (jti, expira_en) VALUES (?, ?) ON CONFLICT(jti) DO NOTHING'),
     purgar: db.prepare('DELETE FROM consumed_jti WHERE expira_en < ?'),
+    existe: db.prepare('SELECT 1 AS si FROM consumed_jti WHERE jti = ?'),
   };
   const consumedJti = {
     /** Un solo uso: true si se insertó, false si el jti ya estaba consumido. @param {string} jti @param {string} expiraEn */
     consumir: (jti, expiraEn) => sJti.consumir.run(jti, expiraEn).changes === 1,
+    /** Consulta sin consumir. @param {string} jti @returns {boolean} */
+    estaConsumido: (jti) => sJti.existe.get(jti) !== undefined,
     /** @param {string} [ahora] @returns {number} */
     purgarCaducados: (ahora = ahoraIso()) => Number(sJti.purgar.run(ahora).changes),
   };
