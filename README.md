@@ -200,6 +200,20 @@ Pasos ejecutados y comprobados el 26-11-2026 en una copia limpia del repositorio
 No necesitan Internet después de clonar. Node.js 22 imprime `ExperimentalWarning: SQLite is an
 experimental feature`: es un aviso informativo de `node:sqlite`, no un error.
 
+### Despliegue como servicio (un solo comando)
+
+Para dejar el sistema instalado y funcionando como servicio `systemd`, accesible desde la red local
+(servicio, PWA y consola en `https://<IP>:8443`, portal en `https://<IP>:8444`), tras clonar (Paso 1):
+
+```bash
+sh deploy/instalar.sh          # como root: modo sistema (/opt, /etc, /var/lib); sin root: modo usuario (systemctl --user)
+```
+
+Genera secretos, CA propia y certificado con las IP del equipo, ejecuta la semilla (credenciales en un
+archivo 0600), arranca servicio y portal, programa el respaldo diario cifrado e imprime las URL. Opción
+`--datos-demo` para poblar la consola. Operación, respaldos, actualización y desinstalación:
+[`deploy/README.md`](deploy/README.md). Los pasos siguientes describen la ejecución manual para desarrollo.
+
 ### Paso 1 — Clonar el repositorio
 
 ```bash

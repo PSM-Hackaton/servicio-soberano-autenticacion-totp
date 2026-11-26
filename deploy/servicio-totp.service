@@ -1,12 +1,12 @@
-# Unidad systemd de ejemplo para el Servicio Soberano TOTP (servidor institucional, sin contenedores).
-# Instalación: ver deploy/README.md.
+# Unidad systemd del Servicio Soberano TOTP (modo sistema: servidor institucional, sin contenedores).
+# La instala `sudo sh deploy/instalar.sh` (ver deploy/README.md); a mano:
 #   sudo cp deploy/servicio-totp.service /etc/systemd/system/
 #   sudo systemctl daemon-reload && sudo systemctl enable --now servicio-totp
 #
-# Rutas supuestas (ajústelas si cambian):
-#   /opt/servicio-totp                     copia del repositorio (solo lectura para el servicio)
-#   /etc/servicio-totp/servicio-totp.env   configuración y secretos (propietario root, grupo totp, 0640)
-#   /etc/servicio-totp/tls/                certificado y llave institucionales (llave 0640 root:totp)
+# Rutas (las mismas que usa deploy/instalar.sh en modo sistema):
+#   /opt/servicio-totp                     copia del código (propiedad de root, solo lectura para el servicio)
+#   /etc/servicio-totp/servicio-totp.env   configuración y secretos (propietario totp, 0600, carpeta 0700)
+#   /etc/servicio-totp/tls/                certificado y llave del servidor (llave 0600 totp)
 #   /var/lib/servicio-totp                 base de datos SQLite (única ruta escribible)
 
 [Unit]
@@ -25,7 +25,8 @@ Group=totp
 WorkingDirectory=/opt/servicio-totp/backend
 Environment=NODE_ENV=production
 Environment=ENV_FILE=/etc/servicio-totp/servicio-totp.env
-ExecStart=/usr/bin/node src/main.js
+# El aviso «SQLite is an experimental feature» de Node 22 es informativo: no se lleva al diario.
+ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning src/main.js
 
 # Reinicio automático ante fallos; el servicio cierra conexiones y la base en SIGTERM (máx. 10 s).
 Restart=on-failure

@@ -1,0 +1,11 @@
+# Temporizador del respaldo diario cifrado del Servicio Soberano TOTP (modo sistema).
+[Unit]
+Description=Respaldo diario del Servicio Soberano TOTP
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
