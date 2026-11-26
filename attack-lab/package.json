@@ -1,13 +1,15 @@
 {
-  "name": "totp-attack-lab",
+  "name": "servicio-soberano-totp-attack-lab",
   "version": "1.0.0",
-  "description": "Laboratorio de ataques simulados y pruebas de caos (0 dependencias npm, Node.js 22)",
+  "private": true,
+  "description": "Laboratorio de ataques simulados y pruebas de caos contra el servicio TOTP local. Sin dependencias: solo módulos nativos de Node.js.",
   "type": "module",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.5"
   },
   "scripts": {
-    "run:demo": "node run-all.js",
-    "test": "node --test attack-lab.test.js"
+    "test": "node --test \"tests/*.test.js\"",
+    "todo": "node ejecutar-todo.js",
+    "proxy": "node caos/proxy-caos.js"
   }
 }

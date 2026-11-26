@@ -1,0 +1,13 @@
+{
+  "status": "ok",
+  "timestamp": "2026-11-26T16:20:00.000Z",
+  "checks": {
+    "base_datos": "ok",
+    "llaves_firma": "ok",
+    "detector_anomalias": "ok",
+    "reloj": "ok"
+  },
+  "dbDriver": "sqlite",
+  "activeKeyId": "key-20261126-01",
+  "heuristicsMode": "local"
+}

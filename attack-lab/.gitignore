@@ -1,0 +1,3 @@
+# Resultados de cada ejecución (informes JSON/HTML y logs): no se versionan.
+resultados/*
+!resultados/.gitkeep

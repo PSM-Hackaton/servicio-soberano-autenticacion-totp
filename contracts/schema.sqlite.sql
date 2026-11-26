@@ -1,11 +1,23 @@
 -- ==============================================================================
--- ESQUEMA OFICIAL ÚNICO — SQLite WAL Nativo (`node:sqlite`, Node.js 22)
--- Decisión ADR-002 (26-11-2026): 0 dependencias npm, PostgreSQL y Docker fuera.
--- 8 tablas oficiales con anti-replay atómico y jti de un solo uso.
+-- CONTRATO: esquema SQLite del Servicio Soberano TOTP (base de datos de esta versión).
+-- Copia exacta de backend/migrations/001_esquema.sql, que es la fuente de verdad:
+-- el backend aplica esa migración al abrir la base (node:sqlite, modo WAL y
+-- foreign_keys activados por backend/src/infrastructure/persistence/db.js).
+-- Si cambia la migración, este archivo se regenera copiándola tal cual.
+-- Alineado con el código el 26-11-2026.
 -- ==============================================================================
 
-PRAGMA journal_mode = WAL;
-PRAGMA foreign_keys = ON;
+-- ==============================================================================
+-- Migración 001: esquema inicial SQLite (8 tablas de contracts/schema.sqlite.sql).
+-- Copia fiel del contrato con estos ajustes, documentados aquí:
+--   1. Se quitan los PRAGMA (journal_mode, foreign_keys): no tienen efecto dentro
+--      de la transacción de la migración; los activa db.js al abrir la conexión.
+--   2. Se añaden los índices que el esquema PostgreSQL define y el SQLite omite:
+--      idx_recovery_enrollment, idx_attempts_user_ts, idx_consumed_jti_exp, idx_audit_ts.
+-- Las semillas y claves privadas cifradas se guardan como TEXT base64, tal como
+-- define el contrato; el repositorio expone siempre Buffer hacia fuera.
+-- Fechas: texto ISO 8601 UTC con milisegundos (mismo formato que toISOString()).
+-- ==============================================================================
 
 CREATE TABLE IF NOT EXISTS apps (
     id TEXT PRIMARY KEY,
@@ -56,6 +68,9 @@ CREATE TABLE IF NOT EXISTS recovery_codes (
     used_at TEXT
 );
 
+-- Ajuste 2: índice presente en contracts/schema.sql
+CREATE INDEX IF NOT EXISTS idx_recovery_enrollment ON recovery_codes(enrollment_id);
+
 CREATE TABLE IF NOT EXISTS attempts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     enrollment_id TEXT REFERENCES enrollments(id) ON DELETE SET NULL,
@@ -71,11 +86,16 @@ CREATE TABLE IF NOT EXISTS attempts (
 
 CREATE INDEX IF NOT EXISTS idx_attempts_ts ON attempts(ts DESC);
 CREATE INDEX IF NOT EXISTS idx_attempts_ip_ts ON attempts(ip_hash, ts DESC);
+-- Ajuste 2: índice presente en contracts/schema.sql
+CREATE INDEX IF NOT EXISTS idx_attempts_user_ts ON attempts(user_ref_hash, ts DESC);
 
 CREATE TABLE IF NOT EXISTS consumed_jti (
     jti TEXT PRIMARY KEY,
     expira_en TEXT NOT NULL
 );
+
+-- Ajuste 2: índice presente en contracts/schema.sql
+CREATE INDEX IF NOT EXISTS idx_consumed_jti_exp ON consumed_jti(expira_en);
 
 CREATE TABLE IF NOT EXISTS signing_keys (
     kid TEXT PRIMARY KEY,
@@ -109,3 +129,6 @@ CREATE TABLE IF NOT EXISTS audit_log (
     prev_hash TEXT NOT NULL,
     hash TEXT NOT NULL
 );
+
+-- Ajuste 2: índice presente en contracts/schema.sql
+CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts DESC);

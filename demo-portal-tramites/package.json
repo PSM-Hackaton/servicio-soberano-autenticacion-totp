@@ -1,13 +1,16 @@
 {
   "name": "demo-portal-tramites",
   "version": "1.0.0",
-  "description": "Portal Institucional de Trámites demo integrado con sdk/ (0 dependencias npm, Node.js 22)",
+  "private": true,
+  "description": "Portal de Trámites del Estado (ficticio): ejemplo de integración del segundo factor con el SDK del Servicio Soberano TOTP.",
   "type": "module",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22"
   },
   "scripts": {
     "start": "node server.js",
-    "test": "node --test portal.test.js"
+    "usuarios": "node scripts/crear-usuarios.js",
+    "servicio-falso": "node ../sdk/testing/servicio-falso.js --puerto 8099",
+    "test": "node --test \"tests/*.test.js\""
   }
 }

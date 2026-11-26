@@ -1,70 +1,77 @@
 # Guion de Demostración en Vivo ante el Jurado (7 minutos)
 
-> **Propósito:** Demostrar de punta a punta soberanía real (0 dependencias npm, 0 llamadas a Internet), criptografía estándar RFC 6238 (SHA-256 y SHA-512), resiliencia *fail-closed*, detección de ataques y trazabilidad verificable.
+> **Propósito:** Demostrar de punta a punta soberanía real (**0 dependencias npm**, **0 llamadas a Internet**, **0 contenedores obligatorios**), criptografía RFC 6238 (SHA-256 y SHA-512), resiliencia *fail-closed*, IA local explicable y trazabilidad auditable.
 
 ---
 
 ## Preparación previa (2 minutos antes de subir)
 
-1. Abrir 3 pestañas en el navegador local (sin acceso a Internet / modo avión listo):
-   - Pestaña 1: `http://127.0.0.1:3000/` (**Portal Institucional de Trámites**)
-   - Pestaña 2: `http://127.0.0.1:3000/authenticator/` (**PWA Autenticadora Soberana**)
-   - Pestaña 3: `http://127.0.0.1:3000/admin/` (**Consola Administrativa RBAC**)
-2. Tener una terminal abierta en la raíz del repositorio lista para ejecutar `node attack-lab/run-all.js`.
-3. En la PWA, crear un PIN rápido (ej. `2468`) y pulsar **"Cargar cuentas demo"** (deja lista la cuenta `SHA-256 / 6 dígitos` del Portal de Trámites y la cuenta `SHA-512 / 8 dígitos` del Reto 1).
+### 1. Arrancar el Backend Soberano HTTPS (Terminal 1)
+```bash
+cd backend
+npm run env      # genera backend/.env con llave maestra y peppers aleatorios (CSPRNG)
+npm run certs    # genera CA local y certificado TLS 1.3 en backend/certs/
+npm run seed     # crea apps "Portal de Trámites" y "Reto 1" + admin inicial (guardar secretos)
+npm start        # levanta https://localhost:8443 (API + /app/ PWA + /consola/ Admin)
+```
+
+### 2. Arrancar el Portal de Trámites Demo (Terminal 2)
+```bash
+cd demo-portal-tramites
+cp .env.example .env  # colocar TOTP_CLIENT_ID y TOTP_CLIENT_SECRET impresos por npm run seed
+node scripts/crear-usuarios.js
+node server.js        # levanta https://localhost:8444
+```
+
+### 3. Abrir 3 pestañas locales y 1 terminal para el Attack Lab
+- Pestaña 1: `https://localhost:8444` (**Portal de Trámites del Estado**)
+- Pestaña 2: `https://localhost:8443/app/` (**PWA Autenticadora Soberana**)
+- Pestaña 3: `https://localhost:8443/consola/` (**Consola Administrativa RBAC**)
+- Terminal 3: exportar `ATTACK_CLIENT_ID` y `ATTACK_CLIENT_SECRET` para `attack-lab/`.
 
 ---
 
-## Minuto 0:00 – 1:00 · Problema y Soberanía Real (8 Pilares)
+## Minuto 0:00 – 1:00 · Soberanía Real y Cero Dependencias
 
-- **Mensaje clave:** *"Las apps autenticadoras comerciales obligan a usar SHA-1, dependen de tiendas extranjeras y sincronizan semillas en nubes fuera de nuestra jurisdicción. Nuestra solución corre 100 % en infraestructura propia con **cero dependencias npm externas** (ver `docs/sbom/sbom.cdx.json`), sobre Node.js 22 nativo, SQLite WAL y Web Crypto."*
-- Mostrar rápidamente el **SBOM CycloneDX 1.5** (`0` dependencias externas) y la pestaña **Red (Network)** del navegador confirmando **0 llamadas a CDNs o dominios externos**.
+- **Mensaje clave:** *"Las apps comerciales imponen SHA-1, dependen de tiendas extranjeras y sincronizan semillas fuera del país. Nuestro servicio funciona 100 % en infraestructura propia con **cero dependencias npm externas** — todo el motor TOTP RFC 6238, AES-256-GCM, Ed25519/JWKS, generador QR ISO/IEC 18004, Isolation Forest local y servidor TLS 1.3 son código propio sobre Node.js 22 nativo."*
+- Mostrar [`docs/sbom/sbom.cdx.json`](./sbom/sbom.cdx.json) (`third_party_runtime_dependencies: 0`) y la pestaña **Red** del navegador con **0 llamadas a CDNs o dominios externos**.
 
 ---
 
 ## Minuto 1:00 – 2:45 · Flujo Ciudadano Completo + Modo Sin Internet
 
-1. **Desconectar el equipo de Internet** (o activar modo Offline en DevTools) para probar soberanía real.
-2. En **Pestaña 1 (Portal de Trámites)**: ingresar `ciudadano-demo` / `Tramites2026!` → avanza al **Paso 2: Desafío TOTP**.
-3. En **Pestaña 2 (PWA Autenticadora)**:
-   - Mostrar el badge **Modo Sin Conexión**, la bóveda cifrada por PIN (`PBKDF2-SHA256 + AES-256-GCM` en IndexedDB), las dos cuentas (`SHA-256 6d` y `SHA-512 8d`) y el **anillo animado de 30 s**.
-   - Tocar la tarjeta para **copiar el código con un toque**.
-4. Pegar el código en el Portal de Trámites → **Paso 3: Acceso autorizado**:
-   - Mostrar la evidencia del **SDK (`sdk/`)**: JWT firmado con **Ed25519 (`EdDSA`)**, `amr: ["otp"]`, `jti` consumido una sola vez y **validado offline con caché JWKS**.
-5. Mostrar opcionalmente el flujo **"Enrolar nuevo dispositivo"** con **HMAC-SHA512 / 8 dígitos**, URI `otpauth://` y entrega única de **10 códigos de recuperación**.
+1. **Desconectar Internet** del equipo antes de iniciar el flujo para demostrar operación 100 % aislada.
+2. En **Portal de Trámites (`https://localhost:8444`)**: iniciar sesión con usuario demo → el sistema muestra el **QR SVG generado localmente** + botón *"Abrir en el Autenticador Soberano"* + clave manual Base32.
+3. En **PWA Autenticadora (`https://localhost:8443/app/`)**:
+   - Desbloquear bóveda cifrada por **PIN** (IndexedDB + PBKDF2 + AES-256-GCM).
+   - Importar la cuenta (`HMAC-SHA256` o `HMAC-SHA512` 8 dígitos), ver el anillo de 30 s y copiar el código.
+4. Activar el factor en el Portal → mostrar los **10 códigos de recuperación de un solo uso** (solo visibles una vez).
+5. Iniciar sesión con segundo factor y abrir **«Lo que ocurre por dentro»**: mostrar las llamadas del **SDK (`sdk/`)**, firma **JWT Ed25519** validada localmente con JWKS en caché, consumo único de `jti` y **step-up MFA** en un trámite sensible.
 
 ---
 
-## Minuto 2:45 – 4:30 · Consola Administrativa RBAC, Rotación de Llaves y Bitácora Inmutable
+## Minuto 2:45 – 4:15 · Consola Administrativa RBAC, Rotación de Llaves y Bitácora Inmutable
 
-1. En **Pestaña 3 (Consola Admin)**: iniciar sesión con perfil `Administrador` + código TOTP propio.
-2. **Métricas & IA Local:** mostrar disponibilidad (`100%`), latencia p95 (`< 15 ms`), desfase de reloj, alertas del detector local de anomalías y la salida real de `/metrics` (Prometheus local).
-3. **Aplicaciones y Políticas:** mostrar `portal-tramites` (`SHA256/6d`) y `reto1-evaluador` (`SHA512/8d`) — explicando cómo el **Reto 1** se integra en 4 llamadas usando `sdk/INTEGRACION_RETO1.md`.
-4. **Llaves Ed25519 (JWKS):** pulsar **"🔄 Rotar llave Ed25519 (1 clic)"** → aparece un nuevo `kid` activo mientras la llave previa queda en ventana de gracia sin tumbar sesiones.
-5. **Bitácora Encadenada (`audit_log`):**
-   - Pulsar **"✔ Verificar integridad de la cadena"** → verde (`CADENA ÍNTEGRA`).
-   - Pulsar **"⚠ Simular alteración (demo)"** y volver a verificar → **rojo inmediato** señalando exactamente el `broken_at_id` donde se rompió el encadenamiento `prev_hash → hash`.
+1. En **Consola Admin (`https://localhost:8443/consola/`)**: iniciar sesión como Administrador con **TOTP propio** (cookies `HttpOnly; Secure; SameSite=Strict` + CSRF).
+2. Mostrar **Panel / Métricas** (disponibilidad, latencia p50/p95, desfase de reloj, sin telemetría externa) y **Aplicaciones** (`Portal de Trámites` y `Reto 1`, explicando la guía [`sdk/INTEGRACION_RETO1.md`](../sdk/INTEGRACION_RETO1.md)).
+3. En **Llaves Ed25519**: rotar la clave activa en **1 clic** → aparece el nuevo `kid` mientras el previo queda en `solo_verificacion` en `/.well-known/jwks.json`.
+4. En **Auditoría (`audit_log`)**: pulsar **Verificar integridad de la cadena** → comprueba criptográficamente `prev_hash → hash` en todos los registros.
 
 ---
 
-## Minuto 4:30 – 6:15 · Attack Lab y Pruebas de Caos en Vivo
+## Minuto 4:15 – 6:30 · Attack Lab, IA Local y Pruebas de Caos en Vivo
 
-En la terminal, ejecutar:
-```bash
-node attack-lab/run-all.js
-```
-Mostrar la tabla de salida con **7/7 escenarios superados y 0 accesos indebidos**:
-1. **Replay** bloqueado (anti-replay atómico).
-2. **Fuerza bruta distribuida (8 IPs → 1 cuenta)** bloqueada con HTTP `429`.
-3. **TOTP Spraying (1 IP → 10 cuentas)** bloqueado con HTTP `429`.
-4. **Deriva de reloj (+150 s / +5 pasos)** rechazada y recuperada con **Resync de 2 códigos consecutivos**.
-5. **Caos — Caída de SQLite:** `/health/ready` y `/verify` responden `503` (*fail-closed*, 0 accesos) y recuperación medida en milisegundos.
-6. **Caos — Corte de red:** SDK aplica **1 reintento con la misma `Idempotency-Key`** y valida JWT previos **offline con caché JWKS**.
-7. **Caos — Latencia artificial:** SDK aborta *fail-closed* por timeout estricto.
+En Terminal 3 ejecutar los 4 momentos de mayor impacto ante el jurado:
+1. **Replay + carrera paralela:** `node attack-lab/escenarios/replay.js --detallado` → reenvío rechazado (`REPLAY_DETECTED`) y de 10 envíos simultáneos del mismo código solo 1 pasa (anti-replay atómico en SQLite).
+2. **JWT alterados:** `node attack-lab/escenarios/jwt.js` → `alg: none`, HS256, firma rota, otra audiencia y `jti` repetido: todos rechazados.
+3. **Spraying + Isolation Forest local:** `node attack-lab/escenarios/spraying.js` → el detector local bloquea el origen con riesgo `CRITICAL` y **razones explicables** (visible al instante en la pestaña *Anomalías* de la Consola Admin).
+4. **Caos de red (*fail-closed*):** `node attack-lab/caos/escenario-caos.js --detallado` → inyecta latencia (800 ms) y corte total (10 s) mediante el proxy TCP propio: **0 accesos indebidos concedidos** y recuperación inmediata al restaurar.
 
 ---
 
-## Minuto 6:15 – 7:00 · Cierre y Plan B de Contingencia
+## Minuto 6:30 – 7:00 · Cierre y Plan B
 
-- **Cierre:** Resumir impacto institucional: \$0 en licencias/APIs, 0 dependencias externas, auditable línea por línea, integrable en cualquier sistema público mediante `sdk/`.
-- **Plan B si falla cámara o HTTPS móvil en sala:** usar el pegado de URI `otpauth://` o clave manual Base32 en la PWA y ejecutar `demo-portal-tramites/server.js` en `127.0.0.1:3000` (100 % independiente de red local o Wi-Fi del evento).
+- **Cierre:** mostrar el informe autocontenido generado por `node attack-lab/ejecutar-todo.js` (`attack-lab/resultados/informe-*.html`) y el despliegue institucional `systemd` sin contenedores en [`deploy/servicio-totp.service`](../deploy/servicio-totp.service).
+- **Plan B (si hubiera fallo de red o certificados en sala):**
+  - El Portal Demo arranca en 2 segundos contra `node sdk/testing/servicio-falso.js --puerto 8099`.
+  - Todas las pruebas automatizadas corren offline con `node --test` en menos de 10 segundos.

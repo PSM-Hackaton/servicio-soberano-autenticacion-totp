@@ -1,34 +1,35 @@
 # Guía de Integración para el Sub-Equipo del Reto 1 (Agente Evaluador de Propuestas)
 
-El **Servicio Soberano de Autenticación TOTP** se integra con el **Reto 1** como una aplicación cliente más en la tabla `apps` (cero acoplamiento de bases de datos, cero dependencias npm, 100% Node.js 22 nativo).
+El **Servicio Soberano de Autenticación TOTP** se integra con el **Reto 1** como una aplicación cliente más en la tabla `apps` (cero acoplamiento de bases de datos, cero dependencias npm, 100 % Node.js 22 nativo).
 
 ---
 
-## 1. Requisitos previos
+## 1. Requisitos previos y credenciales
 
-- Node.js **22+** (no requiere `npm install`: el SDK usa exclusivamente `fetch` y `node:crypto`).
-- Credenciales de aplicación emitidas desde la consola administrativa o script `seed`:
-  - `TOTP_API_URL=https://localhost:8443`
-  - `TOTP_CLIENT_ID=reto1-evaluador`
-  - `TOTP_CLIENT_SECRET=<secreto_entregado_una_sola_vez>`
-
-> Si el backend usa certificado HTTPS local autofirmado en pruebas de red LAN, exportar `NODE_EXTRA_CA_CERTS=./backend/certs/localhost.crt` (nunca desactivar TLS en producción).
+- **Node.js 22.5+** (sin `npm install`: `sdk/src/index.js` usa solo `node:https`, `node:http` y `node:crypto`).
+- Al ejecutar `cd backend && npm run seed`, el servicio crea automáticamente la aplicación **`Reto 1`** e imprime **una sola vez** su `client_id` y `client_secret`.
+- Variables recomendadas en el proyecto del Reto 1:
+  - `TOTP_BASE_URL=https://localhost:8443`
+  - `TOTP_CLIENT_ID=<client_id impreso por npm run seed>`
+  - `TOTP_CLIENT_SECRET=<client_secret impreso por npm run seed>`
+  - `TOTP_CA_PATH=../backend/certs/ca.crt` (CA local generada por `npm run certs` o CA institucional en producción)
 
 ---
 
-## 2. Inicializar el SDK (3 líneas)
+## 2. Inicializar el SDK (sin dependencias)
 
 ```js
-import { createTotpClient } from '../sdk/index.js';
+import { readFileSync } from 'node:fs';
+import { crearClienteTotp, ErrorTotp } from './sdk/src/index.js';
 
-export const totpSdk = createTotpClient({
-  baseUrl: process.env.TOTP_API_URL || 'https://localhost:8443',
-  clientId: process.env.TOTP_CLIENT_ID || 'reto1-evaluador',
+export const totp = crearClienteTotp({
+  baseUrl: process.env.TOTP_BASE_URL || 'https://localhost:8443',
+  clientId: process.env.TOTP_CLIENT_ID,
   clientSecret: process.env.TOTP_CLIENT_SECRET,
-  issuer: 'https://totp.soberano.local',
-  audience: 'reto1-evaluador',
-  timeoutMs: 3000,   // Fail-closed rápido (3 s)
-  maxRetries: 1,     // 1 reintento automático con la misma Idempotency-Key
+  ca: readFileSync(process.env.TOTP_CA_PATH || 'backend/certs/ca.crt'),
+  issuer: 'https://totp.soberano.local', // claim iss esperado (aud = clientId por defecto)
+  timeoutMs: 3000,                       // fallo cerrado rápido (3 s)
+  reintentos: 1,                         // 1 reintento automático con la misma Idempotency-Key
 });
 ```
 
@@ -38,55 +39,57 @@ export const totpSdk = createTotpClient({
 
 ### Paso A — Enrolar evaluador (`POST /api/v1/enrollments`)
 ```js
-const enrollment = await totpSdk.enroll({
-  userRef: evaluador.id,              // Se anonimiza con HMAC-SHA256 + pepper en servidor
-  accountLabel: evaluador.alias,      // Solo visible en QR/PWA
-  algorithm: 'SHA512',                // Política recomendada de alta seguridad
-  digits: 8,
-  period: 30,
+const enr = await totp.enrolar(evaluador.idOpaco, {
+  etiquetaCuenta: evaluador.alias, // visible solo en QR / PWA
+  algoritmo: 'SHA512',             // política de alta seguridad
+  digitos: 8,
+  periodo: 30,
 });
-// Mostrar al usuario: enrollment.qr_svg y enrollment.otpauth_uri (Plan B manual)
+// Mostrar al usuario:
+// - enr.qrSvg (renderizar como <img src="data:image/svg+xml;base64,...">, nunca SVG inline sin sanitizar)
+// - enr.claveManual y enr.otpauthUri (Plan B / enlace directo al Autenticador Soberano)
 ```
 
-### Paso B — Activar factor y entregar códigos de recuperación (`POST /api/v1/enrollments/{id}/activate`)
+### Paso B — Activar factor y entregar 10 códigos de recuperación (`POST /api/v1/enrollments/{id}/activate`)
 ```js
-const activated = await totpSdk.activate(enrollment.enrollment_id, codigoIngresado);
-// Mostrar UNA SOLA VEZ: activated.recovery_codes (10 códigos de un solo uso)
+const act = await totp.activar(enr.enrollmentId, codigoIngresado);
+// act.estado === 'activo'
+// Mostrar UNA SOLA VEZ: act.codigosRecuperacion (10 códigos de un solo uso)
 ```
 
-### Paso C — Verificar código TOTP al iniciar sesión o aprobar propuesta (`POST /api/v1/verify`)
+### Paso C — Verificar código TOTP al iniciar sesión o aprobar propuestas (`POST /api/v1/verify`)
 ```js
-import { TotpServiceError } from '../sdk/index.js';
-
 try {
-  const result = await totpSdk.verify({
-    userRef: evaluador.id,
-    code: codigoTotp,
-  });
-  // result.verified === true
-  // result.token -> JWT Ed25519 (TTL 5 min, amr: ['otp'], jti único)
+  const { token, jti, kid, riesgo } = await totp.verificar(evaluador.idOpaco, codigoTotp);
+
+  // Paso D1: Validación local Ed25519 sin red (caché JWKS con soporte de rotación de kid)
+  const local = await totp.verificarTokenLocal(token);
+  if (!local.valido) throw new Error(`JWT rechazado localmente: ${local.motivo}`);
+
+  // Paso D2: Validación en línea con consumo atómico de jti (un solo uso)
+  const remoto = await totp.validarToken(token, { consumirJti: true });
+  if (!remoto.valido) throw new Error(`JWT rechazado por el servidor: ${remoto.motivo}`);
+
+  return { ok: true, sub: local.claims.sub, amr: local.claims.amr, riesgo };
 } catch (err) {
-  if (err instanceof TotpServiceError && err.status === 503) {
-    // Regla fail-closed: jamás conceder acceso si MFA no responde
+  if (err instanceof ErrorTotp && err.bloqueado) {
+    return { status: 429, retryAfter: err.reintentarEn, message: 'Demasiados intentos. Intente más tarde.' };
+  }
+  if (err instanceof ErrorTotp && err.servicioNoDisponible) {
+    // Regla fail-closed: jamás conceder acceso si el servicio MFA no responde
     return { status: 503, message: 'Servicio MFA temporalmente no disponible. Intente de nuevo.' };
   }
   return { status: 401, message: 'No se pudo completar la verificación.' };
 }
 ```
 
-### Paso D — Validar el comprobante JWT (en línea o **sin red con caché JWKS**)
-```js
-// Opción 1: Validación en línea con consumo atómico de jti (un solo uso)
-const online = await totpSdk.validateToken(token, { consumeJti: true });
-
-// Opción 2: Validación offline rápida (<1 ms) con caché JWKS Ed25519 (resiste cortes de red)
-const offline = await totpSdk.verifyJwtOffline(token);
-if (!offline.valid) throw new Error(`JWT inválido: ${offline.reason}`);
-```
-
 ---
 
-## 4. Política Fail-Closed y Resiliencia
+## 4. Pruebas locales sin levantar el backend completo
 
-1. **Si `/api/v1/verify` responde `503` o excede `3000 ms`**, el SDK reintenta **una sola vez** con la misma cabecera `Idempotency-Key`. Si persiste el fallo, lanza `TotpServiceError` y el Reto 1 **debe denegar el acceso**.
-2. **Los JWT ya emitidos** se siguen validando localmente con `verifyJwtOffline(token)` usando el caché de `/.well-known/jwks.json`, incluso si se corta momentáneamente la conexión con el servicio TOTP.
+El SDK incluye un servicio falso con TOTP y JWT Ed25519 reales para que el equipo del Reto 1 pruebe su integración de inmediato:
+
+```bash
+node sdk/testing/servicio-falso.js --puerto 8099
+# Apuntar TOTP_BASE_URL=http://127.0.0.1:8099 y ejecutar las pruebas del Reto 1
+```

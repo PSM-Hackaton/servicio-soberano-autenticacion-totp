@@ -13,53 +13,52 @@
 
 ## 2. Participantes
 
-| Integrante | Rol Principal | Área de Responsabilidad |
+| Integrante | Rol Principal | Responsabilidades |
 | :--- | :--- | :--- |
-| **J Laya** | Analista, Arquitecto, Tech Lead & Área B | Contratos (`contracts/`), PWA Autenticadora (`authenticator-app/`), Consola Admin RBAC (`admin-console/`), SDK + Portal Demo (`sdk/`, `demo-portal-tramites/`), Attack Lab & Caos (`attack-lab/`), SBOM y Documentación |
-| **Diego Landaeta** | Arquitecto de Criptografía, Seguridad & Área A | Análisis Técnico (`docs/analisis/`), Motor TOTP RFC 6238, Vault AES-256-GCM, Tokens JWT Ed25519/JWKS, QR ISO/IEC 18004, Persistencia SQLite nativa, Seguridad, Auditoría encadenada, Heurística IA local y API HTTPS (`backend/`) |
-| **Equipo Integrador Reto 1** | Consumidor externo vía `sdk/` | Integración del *Agente Evaluador de Propuestas de Servicios* como aplicación cliente (`reto1-evaluador`) |
+| **J Laya** | Analista, Arquitecto y Tech Lead | Arquitectura hexagonal, contratos congelados (`contracts/`), coordinación de ramas/integración, guía Reto 1 (`sdk/INTEGRACION_RETO1.md`), SBOM CycloneDX (`docs/sbom/`), guion de demo y documentación oficial |
+| **Diego Landaeta** | Arquitecto de Criptografía, Backend y Seguridad | Análisis técnico (`docs/analisis/`), motor TOTP RFC 6238, vault AES-256-GCM, JWT Ed25519/JWKS, QR ISO/IEC 18004, persistencia SQLite nativa, seguridad, auditoría encadenada, Isolation Forest local, API HTTPS TLS 1.3, clientes integrados y `attack-lab/` |
+| **Equipo Integrador Reto 1** | Consumidor externo vía `sdk/` | Integración del *Agente Evaluador de Propuestas de Servicios* como aplicación cliente (`Reto 1`) |
 
 ---
 
 ## 3. Descripción del proyecto
 
-Las instituciones públicas dependen con frecuencia de autenticadores y servicios MFA controlados por proveedores extranjeros (Google Authenticator, Microsoft Authenticator, Authy o nubes comerciales), lo que implica pérdida de custodia sobre semillas criptográficas, telemetría externa, dependencia de tiendas de aplicaciones y vulnerabilidad ante bloqueos o caídas de Internet.
+Las instituciones públicas suelen depender de autenticadores comerciales y servicios MFA en nubes extranjeras (Google Authenticator, Microsoft Authenticator, Authy o proveedores SaaS), cediendo la custodia de las semillas, limitándose a SHA-1 y dependiendo de tiendas de aplicaciones y conectividad a Internet.
 
-Este proyecto entrega una **plataforma completa de autenticación de segundo factor (MFA/TOTP) 100 % soberana, auditable y autoejecutable sin dependencias npm externas**:
+Este proyecto entrega un **sistema completo de autenticación de segundo factor (TOTP, RFC 6238) 100 % soberano, auditable y autoejecutable con cero dependencias npm externas**:
 
-- **Criptografía estándar propia (`node:crypto`):** Motor RFC 6238 / RFC 4226 con **HMAC-SHA256 y HMAC-SHA512** (6 u 8 dígitos), semillas CSPRNG cifradas con **AES-256-GCM + AAD**, JWT firmados con **Ed25519 (EdDSA)** + `/.well-known/jwks.json` con rotación por `kid`, anti-replay atómico y `jti` de un solo uso.
-- **App Autenticadora PWA propia (`authenticator-app/`):** Funciona **100 % sin conexión** (Service Worker + Web Crypto), soporta SHA-256 y SHA-512 (6/8 dígitos), protege las semillas en IndexedDB cifradas con **PBKDF2-SHA256 + AES-256-GCM** bajo PIN del usuario, alta por clave manual Base32, URI `otpauth://` y cámara QR.
-- **Consola Administrativa con RBAC (`admin-console/`):** Login con roles (`Administrador`, `Operador`, `Auditor`) + TOTP propio, gestión de aplicaciones y políticas, revocación de enrolamientos, rotación de llaves Ed25519 en 1 clic, métricas Prometheus locales, alertas del detector local de anomalías (IA sin telemetría) y **verificador criptográfico de la bitácora encadenada (`audit_log`)**.
-- **Integración institucional (`sdk/` y `demo-portal-tramites/`):** SDK JavaScript ESM sin dependencias con timeout de 3 s, 1 reintento idempotente (`Idempotency-Key`), política estricta *fail-closed* y validación **offline de JWT vía caché JWKS**; incluye Portal de Trámites demo y guía directa para el **Reto 1**.
-- **Verificación de seguridad y resiliencia (`attack-lab/`):** Laboratorio reproducible de ataques simulados (replay, fuerza bruta distribuida, spraying, deriva de reloj) y pruebas de caos (caída de SQLite, corte de red, latencia artificial) verificando **0 accesos indebidos**.
+- **Motor criptográfico y backend propio (`backend/`):** implementado únicamente con módulos nativos de Node.js 22 (`node:https`, `node:crypto`, `node:sqlite`, `node:test`). Incluye RFC 6238 / RFC 4226 con **HMAC-SHA256 y HMAC-SHA512** (6 u 8 dígitos), semillas CSPRNG cifradas en reposo con **AES-256-GCM + AAD**, tokens **JWT Ed25519 (`EdDSA`)** con `/.well-known/jwks.json` y rotación de `kid`, generador de **QR SVG propio (ISO/IEC 18004 + Reed-Solomon)**, anti-replay atómico, `jti` de un solo uso, bitácora encadenada por hashes SHA-256 (`audit_log`), métricas Prometheus locales y un **detector local de anomalías (Isolation Forest propio)** con inferencia en milisegundos y 0 telemetría externa.
+- **App Autenticadora PWA propia (`authenticator-app/`):** servida directamente por la institución (`/app/`), funciona **100 % sin conexión** (Service Worker + Web Crypto), cifra las semillas en IndexedDB con **PIN (PBKDF2 + AES-GCM)** y soporta SHA-256/512 (6/8 dígitos) con alta por enlace directo, URI `otpauth://`, clave manual Base32 o cámara QR.
+- **Consola Administrativa con RBAC (`admin-console/`):** servida en `/consola/`, protegida con cookies `HttpOnly; Secure; SameSite=Strict` + CSRF + **TOTP propio** y roles `Administrador`, `Operador` y `Auditor`. Permite gestionar apps/políticas, revocar enrolamientos, rotar llaves Ed25519 en 1 clic, inspeccionar alertas de IA y verificar criptográficamente la cadena `audit_log`.
+- **SDK institucional y Portal Demo (`sdk/`, `demo-portal-tramites/`):** SDK ESM sin dependencias con timeout de 3 s, 1 reintento idempotente (`Idempotency-Key`), política estricta *fail-closed* y **validación offline de JWT con caché JWKS**. Incluye un Portal Institucional de Trámites con step-up MFA y guía directa para integrar el **Reto 1**.
+- **Laboratorio de ataques y caos (`attack-lab/`):** 9 escenarios automatizados (replay + carrera paralela, JWT alterados, entradas malformadas, fuerza bruta local y distribuida, spraying, inundación, proxy TCP de caos con latencia/cortes y reinicio del backend) con generación de informes autocontenidos.
 
 ---
 
 ## 4. Alcance
 
 ### Funcionalidades cubiertas en esta versión
-- **Contratos congelados (`contracts/`):** OpenAPI 3.1 (`openapi.yaml`) con endpoints MFA v1, Admin, `/health`, `/health/ready`, `/metrics`, cabecera `Idempotency-Key` y respuestas `503` (*fail-closed*); esquema único SQLite WAL (`schema.sqlite.sql`, 8 tablas); mocks completos (`contracts/mocks/`).
-- **Núcleo backend (`backend/`):** Motor TOTP RFC 6238 (vectores Apéndice B en verde), Vault AES-256-GCM con AAD, Tokens Ed25519 + JWKS, QR SVG propio (ISO/IEC 18004 + Reed-Solomon), persistencia `node:sqlite` (8 tablas + anti-replay atómico), seguridad (scrypt, rate limit, bloqueos progresivos), auditoría encadenada SHA-256, métricas Prometheus, IA local y API `node:https`.
-- **Clientes 100 % propios (HTML + CSS + JS sin React/Vite/CDNs):** PWA Autenticadora offline (`authenticator-app/`), Consola Administrativa RBAC (`admin-console/`) y Portal Institucional de Trámites demo (`demo-portal-tramites/`).
-- **SDK y puente Reto 1 (`sdk/`):** Cliente JS nativo con caché JWKS offline + guía `sdk/INTEGRACION_RETO1.md`.
-- **Attack Lab, Caos y Trazabilidad (`attack-lab/`, `docs/`):** Suite automatizada de 7 escenarios con informe en JSON/Markdown, inventario **SBOM CycloneDX 1.5** (`docs/sbom/sbom.cdx.json`) y guion de demostración (`docs/GUION_DEMO.md`).
+- **Backend soberano (`backend/`):** API HTTPS TLS 1.3 completa (`contracts/openapi.yaml`), 8 tablas en SQLite WAL (`contracts/schema.sqlite.sql`), scripts operativos (`generar-env.js`, `certificados.js`, `semilla.js`, `rotar-llave-maestra.js`) y suite completa de pruebas unitarias e integración.
+- **Clientes propios (HTML + CSS + JS sin React, Vite ni CDNs):** PWA Autenticadora (`/app/`), Consola Administrativa RBAC (`/consola/`) y Portal Institucional de Trámites (`demo-portal-tramites/`).
+- **SDK e integración Reto 1 (`sdk/`):** cliente Node 22 nativo, verificador JWKS offline, servicio falso para pruebas y guía [`sdk/INTEGRACION_RETO1.md`](./sdk/INTEGRACION_RETO1.md).
+- **Seguridad, Caos, Despliegue y Trazabilidad (`attack-lab/`, `deploy/`, `docs/`):** 9 escenarios de ataque y caos, unidad `systemd` endurecida ([`deploy/servicio-totp.service`](./deploy/servicio-totp.service)), inventario **SBOM CycloneDX 1.5** ([`docs/sbom/sbom.cdx.json`](./docs/sbom/sbom.cdx.json)) y guion de demo ([`docs/GUION_DEMO.md`](./docs/GUION_DEMO.md)).
 
 ### Límites de la entrega (fuera del alcance de 48 h)
-- Despliegue en clúster multi-nodo, PostgreSQL externo y contenedores Docker (reemplazados por **ADR-002**: Node.js 22 + `node:sqlite` WAL + TLS nativo de Node por restricción de estaciones del hackatón sin Docker).
-- Integración física con HSM/TPM hardware (el diseño ya aísla el vault con llave maestra versionada para conectarlo en producción).
-- Envío de notificaciones por SMS/correo (excluido deliberadamente por soberanía y costo operativo \$0).
+- Contenedores Docker y clúster PostgreSQL externo (descartados por **ADR-002** para garantizar ejecución nativa en las estaciones del hackatón y despliegue institucional ligero con `systemd` + SQLite WAL).
+- Integración física con HSM/TPM hardware (el módulo `core/vault` ya aísla la llave maestra versionada para facilitar su conexión futura).
+- Canales externos de SMS/correo (excluidos intencionalmente por soberanía y costo operativo \$0).
 
 ---
 
 ## 5. Requerimientos del sistema
 
-- **Sistema operativo:** Linux (probado en Ubuntu), macOS o Windows.
-- **Runtime:** **Node.js 22+** (probado en `v22.22.1`) con soporte nativo para ESM, `node:crypto`, `node:https`, `node:sqlite` y `node:test`.
-- **Dependencias npm externas:** **0 (cero)** en ejecución y en pruebas (ver `docs/sbom/sbom.cdx.json`).
-- **Base de datos:** SQLite integrada en Node.js 22 (`node:sqlite`, modo WAL, esquema `contracts/schema.sqlite.sql`).
-- **TLS local:** `openssl` del sistema para certificados locales en desarrollo (`TLS_MODE=node`).
-- **Navegador web:** Cualquier navegador moderno con Web Crypto API e IndexedDB (Chromium, Firefox, Safari) para la PWA, Consola Admin y Portal Demo.
-- **Variables de entorno:** Documentadas sin secretos en `.env.example` (`PORT`, `TLS_MODE`, `SQLITE_DB_PATH`, `MASTER_KEY_V1_HEX`, `USER_REF_PEPPER`, `DAILY_IP_PEPPER_SEED`, `TOTP_ISSUER`, `JWT_ISSUER`).
+- **Sistema operativo:** Linux (probado en Ubuntu, con unidad `systemd` lista en `deploy/`), macOS o Windows.
+- **Runtime:** **Node.js 22.5+** (probado en `v22.22.1`) con módulos nativos `node:https`, `node:crypto`, `node:sqlite` y `node:test`.
+- **Dependencias npm externas:** **0 (cero)** en ejecución, construcción y pruebas (certificado en [`docs/sbom/sbom.cdx.json`](./docs/sbom/sbom.cdx.json)).
+- **Base de datos:** SQLite integrada en Node.js (`node:sqlite`, modo WAL, esquema oficial [`contracts/schema.sqlite.sql`](./contracts/schema.sqlite.sql)).
+- **Herramientas del sistema:** `openssl` (para generar certificados TLS 1.3 locales de prueba con `npm run certs`); `chrony` recomendado en servidores de producción para sincronización NTP institucional.
+- **Navegador web:** cualquier navegador moderno con Web Crypto API e IndexedDB para la PWA, la Consola Admin y el Portal Demo.
+- **Variables de entorno:** documentadas sin secretos en [`.env.example`](./.env.example) y generables automáticamente con `cd backend && npm run env`.
 
 ---
 
@@ -71,50 +70,46 @@ git clone https://github.com/PSM-Hackaton/servicio-soberano-autenticacion-totp.g
 cd servicio-soberano-autenticacion-totp
 ```
 
-### Paso 2 — Configurar variables de entorno (sin instalar paquetes)
+### Paso 2 — Configurar, generar certificados TLS 1.3 y datos semilla (sin `npm install`)
 ```bash
-cp .env.example backend/.env
-# Editar backend/.env y asignar valores aleatorios (CSPRNG) para MASTER_KEY_V1_HEX y peppers:
-# node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+cd backend
+npm run env      # crea backend/.env con llave maestra AES-256 y peppers CSPRNG
+npm run certs    # crea CA local y certificado TLS 1.3 en backend/certs/
+npm run seed     # crea apps "Portal de Trámites" y "Reto 1" + admin inicial (anotar credenciales)
 ```
 
-### Paso 3 — Ejecutar las suites de pruebas automatizadas (0 dependencias npm)
+### Paso 3 — Ejecutar todas las suites de pruebas automatizadas
 ```bash
-# Pruebas de la PWA Autenticadora (vectores RFC 6238 SHA-1/256/512 + bóveda PBKDF2/AES-GCM)
-node --test authenticator-app/totp-core.test.js
+# Backend completo (TOTP RFC 6238, Vault, Tokens, QR, SQLite, Seguridad, Auditoría, IA, Casos de Uso y API HTTPS)
+cd backend && npm test && cd ..
 
-# Pruebas de la Consola Administrativa (RBAC, parser Prometheus y verificador de cadena audit_log)
-node --test admin-console/admin-api.test.js
+# PWA Autenticadora (Web Crypto, Base32, otpauth://, cifrado PBKDF2/AES-GCM)
+node --test authenticator-app/tests/*.test.mjs
 
-# Pruebas del SDK (timeout, reintento idempotente, rotación kid y JWKS offline)
-node --test sdk/sdk.test.js
+# SDK e integración del Portal de Trámites Demo
+node --test sdk/tests/sdk.test.js demo-portal-tramites/tests/portal.test.js
 
-# Pruebas del Portal Institucional de Trámites demo (flujo ciudadano completo)
-node --test demo-portal-tramites/portal.test.js
-
-# Suite completa de Attack Lab y Pruebas de Caos (genera attack-lab/REPORTE_DEMO.md)
-node attack-lab/run-all.js
+# Pruebas unitarias del Attack Lab y proxy de caos
+cd attack-lab && npm test && cd ..
 ```
 
-### Paso 4 — Levantar la demo interactiva en local
+### Paso 4 — Arrancar los servicios en local (100 % sin Internet)
 ```bash
-# Levanta en 1 comando el Portal de Trámites, la PWA Autenticadora y la Consola Admin:
-node demo-portal-tramites/server.js
+# Terminal 1 — Backend Soberano HTTPS (API v1 + /app/ PWA + /consola/ Admin)
+cd backend && npm start
+# → API: https://localhost:8443/health/ready
+# → PWA Autenticadora: https://localhost:8443/app/
+# → Consola Admin RBAC: https://localhost:8443/consola/
 
-# URLs locales (100 % sin Internet):
-#   · Portal de Trámites Demo:  http://127.0.0.1:3000/
-#   · PWA Autenticadora Offline: http://127.0.0.1:3000/authenticator/
-#   · Consola Administrativa:    http://127.0.0.1:3000/admin/
+# Terminal 2 — Portal Institucional de Trámites Demo
+cd demo-portal-tramites
+cp .env.example .env   # colocar TOTP_CLIENT_ID y TOTP_CLIENT_SECRET impresos en Paso 2
+node scripts/crear-usuarios.js
+node server.js         # → https://localhost:8444
+
+# Terminal 3 — Attack Lab y Pruebas de Caos contra el backend real
+export ATTACK_CLIENT_ID=<client_id> ATTACK_CLIENT_SECRET=<client_secret>
+node attack-lab/ejecutar-todo.js
 ```
 
-> Para conectar el Portal de Trámites al servidor HTTPS del backend una vez integrado en `staging`:
-> ```bash
-> TOTP_API_URL=https://localhost:8443 TOTP_CLIENT_ID=portal-tramites TOTP_CLIENT_SECRET=<secreto> node demo-portal-tramites/server.js
-> ```
-
-### Documentación complementaria
-- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — ADRs, stack ADR-002 cero dependencias y áreas de trabajo.
-- [`contracts/openapi.yaml`](./contracts/openapi.yaml) — Contrato OpenAPI 3.1 oficial.
-- [`sdk/INTEGRACION_RETO1.md`](./sdk/INTEGRACION_RETO1.md) — Guía de integración en 4 llamadas para el Reto 1.
-- [`docs/GUION_DEMO.md`](./docs/GUION_DEMO.md) — Guion paso a paso de la presentación y demo en vivo ante el jurado.
-- [`docs/sbom/sbom.cdx.json`](./docs/sbom/sbom.cdx.json) — Inventario CycloneDX 1.5 (0 dependencias npm de terceros).
+> Para despliegue institucional en producción Linux con `systemd` (sin contenedores), consultar [`deploy/README.md`](./deploy/README.md).

@@ -1,42 +1,68 @@
-// Service Worker propio — Cache-first 100% offline, cero llamadas externas.
-const CACHE_NAME = 'totp-soberano-pwa-v1';
-const ASSETS = [
+// Service Worker del Autenticador Soberano: caché versionada y estrategia cache-first
+// para los archivos de la app. Así funciona completamente sin conexión.
+// No intercepta nada fuera de su alcance (/app/) ni peticiones que no sean GET,
+// por lo que /health siempre va a la red.
+
+const VERSION = 'autenticador-v1.0.0';
+const ARCHIVOS = [
   './',
   './index.html',
-  './styles.css',
-  './app.js',
-  './totp-core.js',
-  './vault-idb.js',
   './manifest.json',
-  './icons/icon.svg',
+  './css/app.css',
+  './js/app.js',
+  './js/almacen.js',
+  './js/boveda.js',
+  './js/cripto.js',
+  './js/escaner.js',
+  './js/otpauth.js',
+  './js/totp.js',
+  './icons/icono.svg',
+  './icons/icono-mascara.svg',
+  './icons/icono-192.png',
+  './icons/icono-512.png',
 ];
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting()),
+self.addEventListener('install', (evento) => {
+  evento.waitUntil(
+    caches.open(VERSION)
+      .then((cache) => cache.addAll(ARCHIVOS.map((ruta) => new Request(ruta, { cache: 'reload' }))))
+      .then(() => self.skipWaiting()),
   );
 });
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
+self.addEventListener('activate', (evento) => {
+  evento.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
+      .then((claves) => Promise.all(claves.filter((c) => c.startsWith('autenticador-') && c !== VERSION).map((c) => caches.delete(c))))
       .then(() => self.clients.claim()),
   );
 });
 
-self.addEventListener('fetch', (event) => {
-  const req = event.request;
-  if (req.method !== 'GET') return;
-  const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return;
-  event.respondWith(
-    caches.match(req).then((cached) => cached || fetch(req).then((res) => {
-      if (res && res.status === 200 && res.type === 'basic') {
-        const clone = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
-      }
-      return res;
-    }).catch(() => caches.match('./index.html'))),
+self.addEventListener('fetch', (evento) => {
+  const peticion = evento.request;
+  if (peticion.method !== 'GET') return;
+  const url = new URL(peticion.url);
+  const alcance = new URL(self.registration.scope);
+  if (url.origin !== alcance.origin || !url.pathname.startsWith(alcance.pathname)) return;
+
+  // Navegaciones: siempre la página principal en caché (la URL puede llevar ?… o variantes).
+  if (peticion.mode === 'navigate') {
+    evento.respondWith(
+      caches.match('./index.html', { ignoreSearch: true }).then((r) => r || fetch(peticion)),
+    );
+    return;
+  }
+
+  evento.respondWith(
+    caches.match(peticion, { ignoreSearch: true }).then((enCache) => {
+      if (enCache) return enCache;
+      return fetch(peticion).then((respuesta) => {
+        if (respuesta.ok && respuesta.type === 'basic') {
+          const copia = respuesta.clone();
+          caches.open(VERSION).then((cache) => cache.put(peticion, copia));
+        }
+        return respuesta;
+      });
+    }),
   );
 });

@@ -1,5 +1,18 @@
 {
-  "error": "TOO_MANY_REQUESTS",
-  "message": "Demasiados intentos. Intente más tarde.",
-  "retry_after_seconds": 300
+  "error": "ANOMALY_BLOCKED",
+  "message": "Intento bloqueado preventivamente por el motor local de detección de anomalías.",
+  "retry_after_seconds": 300,
+  "errorCode": "ANOMALY_BLOCKED",
+  "retryAfterSeconds": 300,
+  "riskAssessment": {
+    "riskScore": 84.2,
+    "level": "HIGH",
+    "action": "BLOCK",
+    "inferenceMs": 0.113,
+    "reasons": [
+      "Una misma IP probó 6 cuentas distintas en 15 minutos (patrón de password spraying)",
+      "Ritmo automatizado: 0 s de media entre intentos de la misma IP",
+      "Isolation Forest: comportamiento atípico frente al patrón aprendido (anomalía 0,72, normal ≤ 0,66)"
+    ]
+  }
 }

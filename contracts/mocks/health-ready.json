@@ -1,10 +1,5 @@
 {
-  "status": "ready",
-  "ready": true,
-  "timestamp": "2026-11-26T16:15:00.000Z",
-  "checks": {
-    "sqlite": true,
-    "signing_key": true,
-    "clock_skew_ms": 14
-  }
+  "status": "ok",
+  "timestamp": "2026-11-26T16:52:43.779Z",
+  "database": "ok"
 }

@@ -1,5 +1,0 @@
-{
-  "error": "SERVICE_UNAVAILABLE",
-  "message": "Servicio no disponible temporalmente.",
-  "retry_after_seconds": 15
-}
