@@ -1,6 +1,6 @@
 {
-  "generado": "2026-11-26T18:56:28.066Z",
-  "destino": "https://localhost:28743",
+  "generado": "2026-11-26T21:03:53.078Z",
+  "destino": "https://localhost:18961",
   "entorno": {
     "node": "v22.22.1",
     "plataforma": "linux"
@@ -13,7 +13,7 @@
     "verificaciones": 12,
     "verificacionesOk": 12,
     "hallazgos": 0,
-    "duracionMs": 87
+    "duracionMs": 95
   },
   "resultados": [
     {
@@ -37,7 +37,7 @@
         {
           "descripcion": "Certificado TLS vigente",
           "esperado": "no expirado",
-          "obtenido": "Feb 28 18:54:55 2029 GMT",
+          "obtenido": "Feb 28 20:54:51 2029 GMT",
           "ok": true
         },
         {
@@ -107,8 +107,8 @@
       },
       "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T18:56:27.978Z",
-      "duracionMs": 87
+      "inicio": "2026-11-26T21:03:52.982Z",
+      "duracionMs": 95
     }
   ]
 }
