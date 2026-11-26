@@ -72,10 +72,13 @@ authenticator-app/      App autenticadora PWA (servida en /app/)
 admin-console/          Consola administrativa (servida en /consola/)
 sdk/                    SDK para integradores + servicio falso de pruebas + guía Reto 3
 demo-portal-tramites/   Portal de Trámites de demostración (puerto 8444)
-attack-lab/             Ataques simulados y pruebas de caos
-contracts/              OpenAPI 3.1, esquema SQLite y respuestas reales de ejemplo
-deploy/                 Unidad systemd y guía de despliegue institucional
-docs/                   Reto, análisis, API, SBOM, cumplimiento, manual, presentación, escalabilidad, evidencias
+attack-lab/             Ataques simulados, escaneo dinámico (DAST) y pruebas de caos
+contracts/              OpenAPI 3.1 (las 31 rutas del servidor), esquema SQLite y respuestas reales de ejemplo
+deploy/                 Instalador, operación, unidades systemd y guía de despliegue institucional
+sitio-publico/          Páginas ciudadanas: inicio, guía del certificado de la CA y estado del servicio
+mobile-android/         Base de la app Android nativa (ADR-004, Kotlin sin dependencias)
+scripts/                Verificación completa sin dependencias (verificar-todo.js) y capturas
+docs/                   Reto, análisis, API, SBOM, cumplimiento, manual, presentación, escalabilidad, evidencias, entrega
 ```
 
 ### Documentación
@@ -92,6 +95,7 @@ docs/                   Reto, análisis, API, SBOM, cumplimiento, manual, presen
 | [`docs/sbom/`](docs/sbom/) | SBOM CycloneDX 1.5, hashes SHA-256 de todos los archivos propios y su generador. |
 | [`docs/evidencias/attack-lab-informe-2026-11-26.pdf`](docs/evidencias/attack-lab-informe-2026-11-26.pdf) | Informe del laboratorio de ataques de la verificación de la entrega (también en HTML y JSON). |
 | [`docs/reto/`](docs/reto/) | Enunciado y Términos de Referencia oficiales. |
+| [`docs/entrega/lista-entrega.md`](docs/entrega/lista-entrega.md) | Lista de comprobación de la entrega según el instructivo de GitLab y los Términos del reto, con su evidencia. |
 | [`contracts/openapi.yaml`](contracts/openapi.yaml) · [`deploy/README.md`](deploy/README.md) | Contrato de la API y guía de despliegue en producción. |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`SECURITY.md`](SECURITY.md) · [`CONTRIBUTING.md`](CONTRIBUTING.md) · [`TASKS.md`](TASKS.md) | Arquitectura, política de seguridad, flujo de ramas y estado del trabajo. |
 

@@ -120,3 +120,4 @@ ruta     /LICENSE
 ruta     docs/cumplimiento/
 ruta     docs/escalabilidad/
 ruta     docs/presentacion/
+ruta     docs/entrega/
