@@ -91,11 +91,17 @@ export function layout({ titulo, sesion, usuario, contenido, ancho = 'estrecho',
 </head>
 <body>
 <a class="saltar" href="#contenido">Saltar al contenido</a>
-<div class="franja-demo"><div class="contenedor">Sitio de demostración. Institución, personas y datos son ficticios.</div></div>
+<div class="franja-tricolor" aria-hidden="true"></div>
+<div class="cintillo">
+  <div class="contenedor cintillo-fila">
+    <span class="cintillo-pais">República Bolivariana de Venezuela</span>
+    <span class="cintillo-servicio">Servicio Soberano de Autenticación</span>
+  </div>
+</div>
 <header class="cabecera">
   <div class="contenedor cabecera-fila">
     <a class="marca" href="/" aria-label="Portal de Trámites del Estado, inicio">
-      <img class="marca-emblema" src="/publico/emblema.svg" alt="" width="40" height="40">
+      <img class="marca-emblema" src="/publico/emblema.svg" alt="" width="44" height="44">
       <span class="marca-texto"><strong>Portal de Trámites</strong><span>del Estado</span></span>
     </a>
     <div class="cabecera-acciones">
@@ -113,6 +119,7 @@ export function layout({ titulo, sesion, usuario, contenido, ancho = 'estrecho',
     </div>
   </div>
 </header>
+<div class="franja-demo" role="note"><div class="contenedor franja-demo-fila">${icono('alerta', 'icono icono-chico')}<span><strong>Sitio de demostración.</strong> Institución, personas y datos son ficticios.</span></div></div>
 <div class="contenedor disposicion ${conTrazas ? 'con-trazas' : ''}">
   <main id="contenido" class="principal principal-${ancho}" tabindex="-1">
     ${contenido}
@@ -120,9 +127,22 @@ export function layout({ titulo, sesion, usuario, contenido, ancho = 'estrecho',
   ${conTrazas ? panelTrazas(sesion) : ''}
 </div>
 <footer class="pie">
-  <div class="contenedor pie-fila">
-    <p>Portal de Trámites del Estado · Demostración de integración con el Servicio Soberano de Autenticación TOTP.</p>
-    <p>Sin rastreadores ni recursos externos. El segundo factor se verifica en un servicio propio, en infraestructura local.</p>
+  <div class="franja-tricolor" aria-hidden="true"></div>
+  <div class="contenedor pie-rejilla">
+    <div class="pie-marca">
+      <p class="pie-titulo">Servicio Soberano de Autenticación</p>
+      <p>Portal de Trámites del Estado · Demostración de integración con el segundo factor TOTP.</p>
+    </div>
+    <ul class="pie-sellos">
+      <li>${icono('documento', 'icono icono-chico')}<span>Software libre · AGPL-3.0</span></li>
+      <li>${icono('escudo', 'icono icono-chico')}<span>Infraestructura nacional · Sin dependencias extranjeras</span></li>
+      <li>${icono('candado', 'icono icono-chico')}<span>Sin rastreadores ni recursos externos</span></li>
+    </ul>
+  </div>
+  <div class="pie-legal">
+    <div class="contenedor">
+      <p>Sitio de demostración. Institución, personas y datos son ficticios. El segundo factor se verifica en un servicio propio, en infraestructura local.</p>
+    </div>
   </div>
 </footer>
 </body>
