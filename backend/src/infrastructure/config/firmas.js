@@ -77,10 +77,10 @@ export function crearFirmas({ repos, vault, generar = generarParFirma }) {
 
   /**
    * Rota la clave: crea una nueva activa y deja la anterior en solo_verificacion (ventana de gracia).
+   * @param {string} [rotadaEn] fecha ISO de la rotación (inyectable para pruebas)
    * @returns {{ new_kid: string, previous_kid: string | null, rotated_at: string }}
    */
-  function rotar() {
-    const rotadaEn = new Date().toISOString();
+  function rotar(rotadaEn = new Date().toISOString()) {
     const resultado = enTransaccion(() => {
       const previa = claves.activa();
       if (previa) claves.cambiarEstado(previa.kid, 'solo_verificacion', rotadaEn);

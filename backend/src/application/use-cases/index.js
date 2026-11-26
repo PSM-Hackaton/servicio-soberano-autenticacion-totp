@@ -34,7 +34,6 @@ import { crearCasosMfa } from './mfa.js';
 import { crearCasosAdmin } from './admin.js';
 
 export { puede, MATRIZ_RBAC, ACCIONES } from './rbac.js';
-export { crearFirmas, generarYGuardarClave, contextoFirma } from './firmas.js';
 
 /**
  * @typedef {object} ConfigCasos
@@ -52,7 +51,7 @@ export { crearFirmas, generarYGuardarClave, contextoFirma } from './firmas.js';
  * @typedef {object} DependenciasCasos
  * @property {ReturnType<typeof import('../../infrastructure/persistence/repositorios.js').crearRepositorios>} repos
  * @property {ReturnType<typeof import('../../core/vault/vault.js').crearVault>} vault
- * @property {{ activa(): { kid: string, privateKey: any }, jwks(): { keys: any[] }, buscarClave(kid: string): any, recargar?(): void }} firmas
+ * @property {{ activa(): { kid: string, privateKey: any }, jwks(): { keys: any[] }, buscarClave(kid: string): any, recargar(): any, rotar(rotadaEn?: string): { new_kid: string, previous_kid: string | null, rotated_at: string } }} firmas
  * @property {{ evaluar(intento: any, historial: any[], ahora: number): any }} detector
  * @property {{ registrar(e: { actor: string, accion: string, objetivo?: string | null, detalle?: unknown }): any }} bitacora
  * @property {ReturnType<typeof import('../../audit/metricas.js').crearMetricas>} metricas

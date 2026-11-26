@@ -15,7 +15,6 @@ import {
   ESQUEMA_ADMIN_LOGIN, ESQUEMA_VACIO,
 } from './esquemas.js';
 import { puede } from './rbac.js';
-import { generarYGuardarClave } from './firmas.js';
 
 /** @typedef {import('./comun.js').Respuesta} Respuesta */
 
@@ -223,14 +222,7 @@ export function crearCasosAdmin(d) {
     if (negado) return negado;
     const { cuerpo } = separarEntrada(entrada ?? {});
     if (cuerpo !== undefined && cuerpo !== null && !validar(cuerpo, ESQUEMA_VACIO)) return errorEntrada();
-    const rotadoEn = iso(reloj());
-    const { nuevo, previo } = repos.transaccion(() => {
-      const anterior = repos.signingKeys.activa();
-      const clave = generarYGuardarClave({ repos, vault });
-      if (anterior) repos.signingKeys.cambiarEstado(anterior.kid, 'solo_verificacion', rotadoEn);
-      return { nuevo: clave.kid, previo: anterior?.kid ?? null };
-    });
-    if (typeof firmas.recargar === 'function') firmas.recargar();
+    const { new_kid: nuevo, previous_kid: previo, rotated_at: rotadoEn } = firmas.rotar(iso(reloj()));
     auditar(actorAdmin(ctx.admin), 'llaves.rotadas', nuevo, { previous_kid: previo });
     return { status: 200, cuerpo: { new_kid: nuevo, previous_kid: previo, rotated_at: rotadoEn }, cabeceras: {} };
   }

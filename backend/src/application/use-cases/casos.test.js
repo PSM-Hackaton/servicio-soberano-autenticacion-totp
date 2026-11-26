@@ -11,7 +11,8 @@ import { generateTotp } from '../../core/totp/totp.js';
 import { base32Decode } from '../../core/totp/base32.js';
 import { hashSecreto } from '../../security/index.js';
 import { crearBitacora, crearMetricas } from '../../audit/index.js';
-import { crearCasosDeUso, crearFirmas, puede } from './index.js';
+import { crearCasosDeUso, puede } from './index.js';
+import { crearFirmas } from '../../infrastructure/config/firmas.js';
 
 const NEUTRA = { riskScore: 5, level: 'bajo', action: 'permitir', reasons: ['Comportamiento dentro del patrón habitual'], inferenceMs: 0.4 };
 const PERIODO = 30_000;
@@ -23,7 +24,7 @@ function montar() {
   const estado = { t: Date.parse('2026-11-26T12:00:05.000Z') };
   const reloj = () => estado.t;
   const firmas = crearFirmas({ repos, vault });
-  firmas.asegurarActiva();
+  firmas.recargar();
   const detector = {
     respuesta: NEUTRA,
     llamadas: 0,
