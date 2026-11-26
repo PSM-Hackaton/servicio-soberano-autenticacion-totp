@@ -146,9 +146,15 @@ export function crearCasosMfa(d) {
     return { ...e, action: 'alerta' };
   }
 
-  /** Bloqueo adaptativo: el detector pide bloqueo temporal o el riesgo alcanza el umbral de la app. */
+  /**
+   * Bloqueo adaptativo: el detector pide bloqueo temporal o el riesgo alcanza el umbral de la app.
+   * Si el detector cedió al bloqueo progresivo (una cuenta, un origen, menos fallos que el primer
+   * escalón), tampoco bloquea el umbral propio de la app: el ciudadano que se equivoca rápido no
+   * queda 5 min fuera; a partir del 5.º fallo manda el bloqueo progresivo (30 s → 2 min → …).
+   */
   function debeBloquear(app, e) {
     if (!bloqueoActivo(app)) return false;
+    if (e.cedidoAlProgresivo === true) return false;
     return e.action === 'bloqueo_temporal' || e.riskScore >= (app.umbral_riesgo_bloqueo ?? 101);
   }
 

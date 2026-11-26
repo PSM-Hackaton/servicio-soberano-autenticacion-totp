@@ -703,6 +703,49 @@ describe('origen del usuario final (client_ip)', () => {
   });
 });
 
+describe('detector real y bloqueo progresivo (#65)', () => {
+  // Horas UTC: 12:00 (cerca del patrón por defecto) y 21:00 (≈ hora del laboratorio en Caracas,
+  // activa la regla de hora inusual). En ambas, pocos errores rápidos no deben dejar fuera al usuario.
+  for (const hora of ['12:00:05', '21:00:05']) {
+    test(`3 fallos rápidos de una cuenta y un origen y luego el código correcto → 200 (${hora} UTC)`, async () => {
+      const m = montar({ detectorReal: entrenarDetectorPorDefecto(42) });
+      m.estado.t = Date.parse(`2026-11-26T${hora}.000Z`);
+      const u = await enrolarYActivar(m, 'ciudadano-apurado');
+      for (let i = 0; i < 3; i++) {
+        const r = await m.casos.verificar({ user_ref: 'ciudadano-apurado', code: '000000', client_ip: '198.51.100.20' }, m.ctx);
+        assert.equal(r.status, 401, `fallo ${i + 1}: ${JSON.stringify(r.cuerpo)}`);
+        m.avanzar(300); // sin pausa: ritmo de máquina
+      }
+      const ok = await m.casos.verificar({ user_ref: 'ciudadano-apurado', code: codigo(u.semilla, m.estado.t), client_ip: '198.51.100.20' }, m.ctx);
+      assert.equal(ok.status, 200, JSON.stringify(ok.cuerpo));
+      assert.equal(contarIntentos(m, 'anomaly_blocked'), 0);
+    });
+  }
+
+  test('fuerza bruta de una cuenta y un origen: 401×5 → 429 de 30 s del bloqueo progresivo, no 300 s del detector', async () => {
+    const m = montar({ detectorReal: entrenarDetectorPorDefecto(42) });
+    m.estado.t = Date.parse('2026-11-26T21:00:05.000Z');
+    await enrolarYActivar(m, 'victima-secuencial');
+    const estados = [];
+    let ultimo;
+    for (let i = 0; i < 6; i++) {
+      ultimo = await m.casos.verificar({ user_ref: 'victima-secuencial', code: '000000', client_ip: '192.0.2.77' }, m.ctx);
+      estados.push(ultimo.status);
+      m.avanzar(200);
+    }
+    assert.deepEqual(estados, [401, 401, 401, 401, 401, 429]);
+    assert.equal(ultimo.cuerpo.error, 'TOO_MANY_REQUESTS');
+    assert.ok(ultimo.cuerpo.retry_after_seconds <= 30 && ultimo.cuerpo.retry_after_seconds >= 29, JSON.stringify(ultimo.cuerpo));
+    assert.equal(contarIntentos(m, 'anomaly_blocked'), 0);
+    // Vencido el escalón, la cuenta ya superó el umbral: en ≤ 2 intentos vuelve a bloquearse.
+    m.avanzar(31_000);
+    const tras = await m.casos.verificar({ user_ref: 'victima-secuencial', code: '000000', client_ip: '192.0.2.77' }, m.ctx);
+    const otro = tras.status === 429 ? tras : await m.casos.verificar({ user_ref: 'victima-secuencial', code: '000000', client_ip: '192.0.2.77' }, m.ctx);
+    assert.equal(otro.status, 429);
+    assert.ok(otro.cuerpo.retry_after_seconds >= 30);
+  });
+});
+
 describe('bloqueo persistente de usuarios sin enrolamiento', () => {
   test('el bloqueo se calcula desde attempts y sobrevive a un reinicio, idéntico al de una cuenta real', async () => {
     const m = montar();
