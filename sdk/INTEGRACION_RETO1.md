@@ -52,7 +52,7 @@ const enr = await totp.enrolar(evaluador.idOpaco, {
 
 ### Paso B — Activar factor y entregar 10 códigos de recuperación (`POST /api/v1/enrollments/{id}/activate`)
 ```js
-const act = await totp.activar(enr.enrollmentId, codigoIngresado);
+const act = await totp.activar(enr.enrollmentId, codigoIngresado, { clientIp: req.ip });
 // act.estado === 'activo'
 // Mostrar UNA SOLA VEZ: act.codigosRecuperacion (10 códigos de un solo uso)
 ```
@@ -60,7 +60,9 @@ const act = await totp.activar(enr.enrollmentId, codigoIngresado);
 ### Paso C — Verificar código TOTP al iniciar sesión o aprobar propuestas (`POST /api/v1/verify`)
 ```js
 try {
-  const { token, jti, kid, riesgo } = await totp.verificar(evaluador.idOpaco, codigoTotp);
+  const { token, jti, kid, riesgo } = await totp.verificar(evaluador.idOpaco, codigoTotp, {
+    clientIp: req.ip, // IP del ciudadano/evaluador (se anonimiza con HMAC + pepper diario)
+  });
 
   // Paso D1: Validación local Ed25519 sin red (caché JWKS con soporte de rotación de kid)
   const local = await totp.verificarTokenLocal(token);

@@ -1,0 +1,20 @@
+name: Verificación completa (0 dependencias)
+
+on:
+  push:
+    branches: [main, staging, diego, laya]
+  pull_request:
+    branches: [main, staging]
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener repositorio
+        uses: actions/checkout@v4
+      - name: Configurar Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Ejecutar verificación integral (sin npm install)
+        run: node scripts/verificar-todo.js --cobertura

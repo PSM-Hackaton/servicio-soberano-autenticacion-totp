@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 180" role="img" aria-label="Flujo de instalación del certificado institucional en 3 pasos">
+  <rect width="640" height="180" rx="14" fill="#f1f5f9"/>
+  <rect x="20" y="24" width="180" height="132" rx="10" fill="#ffffff" stroke="#00247D" stroke-width="2"/>
+  <circle cx="52" cy="54" r="14" fill="#00247D"/>
+  <text x="52" y="59" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#ffffff">1</text>
+  <text x="76" y="59" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#0f172a">Descargar</text>
+  <text x="34" y="92" font-family="system-ui, sans-serif" font-size="12" fill="#334155">Bajar archivo /ca.crt</text>
+  <text x="34" y="112" font-family="system-ui, sans-serif" font-size="12" fill="#334155">desde este servidor</text>
+
+  <path d="M208 90 L226 90" stroke="#00247D" stroke-width="3" stroke-linecap="round"/>
+
+  <rect x="230" y="24" width="180" height="132" rx="10" fill="#ffffff" stroke="#00247D" stroke-width="2"/>
+  <circle cx="262" cy="54" r="14" fill="#00247D"/>
+  <text x="262" y="59" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#ffffff">2</text>
+  <text x="286" y="59" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#0f172a">Comparar huella</text>
+  <text x="244" y="92" font-family="system-ui, sans-serif" font-size="12" fill="#334155">Verificar SHA-256</text>
+  <text x="244" y="112" font-family="system-ui, sans-serif" font-size="12" fill="#334155">antes de confiar</text>
+
+  <path d="M418 90 L436 90" stroke="#00247D" stroke-width="3" stroke-linecap="round"/>
+
+  <rect x="440" y="24" width="180" height="132" rx="10" fill="#ffffff" stroke="#00247D" stroke-width="2"/>
+  <circle cx="472" cy="54" r="14" fill="#00247D"/>
+  <text x="472" y="59" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#ffffff">3</text>
+  <text x="496" y="59" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#0f172a">Instalar CA</text>
+  <text x="454" y="92" font-family="system-ui, sans-serif" font-size="12" fill="#334155">Agregar como entidad</text>
+  <text x="454" y="112" font-family="system-ui, sans-serif" font-size="12" fill="#334155">certificadora local</text>
+</svg>

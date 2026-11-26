@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Estado del servicio — Autenticación Soberana TOTP</title>
+  <link rel="stylesheet" href="./css/sitio.css" />
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido principal</a>
+  <div class="cintillo">
+    <div class="cintillo-inner">
+      <div class="cintillo-marca">
+        <img src="./img/bandera.svg" alt="Bandera nacional de Venezuela" width="28" height="19" />
+        <span>República Bolivariana de Venezuela</span>
+      </div>
+      <span>Disponibilidad pública · Actualización cada 30 s</span>
+    </div>
+  </div>
+  <div class="tricolor" aria-hidden="true"></div>
+
+  <header class="cabecera">
+    <div class="cabecera-inner">
+      <h1 class="titulo-sitio">Estado del Servicio Soberano TOTP</h1>
+      <nav class="nav" aria-label="Navegación principal">
+        <a href="./index.html">Inicio</a>
+        <a href="/app/">Mi autenticador</a>
+        <a href="./instalar-certificado.html">Instalar certificado</a>
+        <a href="./estado.html" aria-current="page">Estado del servicio</a>
+        <a href="/consola/">Administración</a>
+        <button type="button" id="btn-tema" class="btn-tema">Modo oscuro</button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" class="contenedor">
+    <section class="hero" aria-labelledby="estado-titulo">
+      <h2 id="estado-titulo">Disponibilidad en tiempo real</h2>
+      <p>Esta página consulta <code>/health/ready</code> cada 30 segundos sin mostrar datos personales ni métricas internas. Si el servicio no puede validar códigos, aplica política de <strong>falla cerrada</strong>.</p>
+      <div id="estado-banner" class="estado-caja estado-aviso" role="status" aria-live="polite">Consultando estado del servicio…</div>
+
+      <div class="grid grid-3">
+        <article class="tarjeta">
+          <h3>Salud del servicio</h3>
+          <p id="valor-salud">—</p>
+        </article>
+        <article class="tarjeta">
+          <h3>Hora del servidor (UTC)</h3>
+          <p id="valor-hora">—</p>
+        </article>
+        <article class="tarjeta">
+          <h3>Desfase estimado del reloj</h3>
+          <p id="valor-desfase">—</p>
+        </article>
+      </div>
+
+      <p>Última comprobación: <strong id="valor-actualizado">—</strong></p>
+      <div class="acciones">
+        <button type="button" id="btn-refrescar" class="btn btn-primario">Actualizar ahora</button>
+        <a class="btn btn-secundario" href="./index.html">Volver al inicio</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="pie">
+    Servicio Soberano de Autenticación Multifactorial (TOTP) · Monitoreo público sin datos sensibles
+  </footer>
+
+  <script type="module" src="./js/estado.js"></script>
+</body>
+</html>

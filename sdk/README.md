@@ -69,3 +69,8 @@ node sdk/testing/servicio-falso.js --puerto 8099   # servicio TOTP falso para in
 ```
 
 `sdk/testing/servicio-falso.js` simula el contrato con TOTP y JWT EdDSA reales, anti-replay, bloqueo, idempotencia y fallos inyectables (503, lentitud, cortes, token alterado). Solo para pruebas.
+
+## Guías relacionadas
+
+- **Integración HTTP paso a paso:** [`docs/api/README.md`](../docs/api/README.md) ([PDF](../docs/api/guia-integracion.pdf))
+- **Integración rápida con el SDK para el Reto 1:** [`sdk/INTEGRACION_RETO1.md`](./INTEGRACION_RETO1.md)
