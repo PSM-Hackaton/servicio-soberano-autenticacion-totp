@@ -173,4 +173,35 @@ describe('consola: rutas de gestión contra el servicio real', () => {
     assert.equal((await como('Auditor', { ruta: q })).status, 403);
     assert.equal((await como('Operador', { ruta: `/admin/api/enrollments?cedula=V12345678` })).status, 400);
   });
+
+  test('administradores: alta (una vez), login con lo entregado, deshabilitar cierra sus sesiones', async () => {
+    const sinCsrf = await pedir(svc.puerto, { metodo: 'POST', ruta: '/admin/api/admins', cabeceras: { cookie: sesiones.Administrador.cookie }, cuerpo: { usuario: 'nuevo', rol: 'Auditor' } });
+    assert.equal(sinCsrf.status, 403);
+    assert.equal((await como('Operador', { metodo: 'POST', ruta: '/admin/api/admins', cuerpo: { usuario: 'nuevo', rol: 'Auditor' } })).status, 403);
+    const alta = await como('Administrador', { metodo: 'POST', ruta: '/admin/api/admins', cuerpo: { usuario: 'nuevo', rol: 'Auditor' } });
+    assert.equal(alta.status, 201, alta.texto);
+    assert.equal(alta.cabeceras['cache-control'], 'no-store');
+    assert.equal((await como('Administrador', { metodo: 'POST', ruta: '/admin/api/admins', cuerpo: { usuario: 'nuevo', rol: 'Auditor' } })).status, 409);
+
+    const semilla = base32Decode(new URL(alta.json.otpauth_uri).searchParams.get('secret'));
+    const nueva = await entrar(svc.puerto, 'nuevo', semilla, new Set([Math.floor(Date.now() / 30_000)]), alta.json.password);
+    assert.equal(nueva.json.rol, 'Auditor');
+    const sesionNueva = () => pedir(svc.puerto, { ruta: '/admin/api/session', cabeceras: { cookie: nueva.cookie } });
+    assert.equal((await sesionNueva()).status, 200);
+
+    const lista = await como('Administrador', { ruta: '/admin/api/admins' });
+    assert.equal(lista.status, 200);
+    assert.ok(lista.json.admins.some((a) => a.usuario === 'nuevo' && a.activo && a.totp_estado === 'activo'));
+    assert.doesNotMatch(lista.texto, /password|scrypt/);
+    assert.equal((await como('Auditor', { ruta: '/admin/api/admins' })).status, 403);
+
+    const id = alta.json.admin.id;
+    const d = await como('Administrador', { metodo: 'POST', ruta: `/admin/api/admins/${id}/disable`, cuerpo: {} });
+    assert.equal(d.status, 200, d.texto);
+    assert.equal(d.json.admin.activo, false);
+    assert.equal((await sesionNueva()).status, 401, 'sus sesiones abiertas se cierran');
+    assert.equal((await como('Administrador', { ruta: '/admin/api/session' })).status, 200, 'las demás siguen');
+    const yo = lista.json.admins.find((a) => a.usuario === 'jefa');
+    assert.equal((await como('Administrador', { metodo: 'POST', ruta: `/admin/api/admins/${yo.id}/disable`, cuerpo: {} })).status, 409);
+  });
 });

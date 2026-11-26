@@ -459,6 +459,10 @@ export function crearServidor({
   admin('POST', '/admin/api/enrollments/:id/revoke', 'adminRevocarEnrolamiento', 'enrolamientos.gestionar', conId, { cuerpo: true });
   // El secreto anterior deja de valer al instante: se vacía la caché de autenticación de apps.
   admin('POST', '/admin/api/apps/:id/secret', 'adminRegenerarSecretoApp', 'apps.secreto', conId, { cuerpo: true, invalidaApps: true });
+  admin('GET', '/admin/api/admins', 'adminListarAdministradores', 'admins.leer', (p) => p.query);
+  admin('POST', '/admin/api/admins', 'adminCrearAdministrador', 'admins.escribir', (p) => p.cuerpo, { cuerpo: true });
+  // Deshabilitar una cuenta cierra también sus sesiones abiertas en este proceso.
+  admin('POST', '/admin/api/admins/:id/disable', 'adminDeshabilitarAdministrador', 'admins.escribir', conId, { cuerpo: true, cierraSesionesDe: true });
 
   // ---------------------------------------------------------------- estáticos
 
@@ -743,6 +747,10 @@ export function crearServidor({
         resultado = errorGenerico('no_disponible');
       }
       if (op.invalidaApps && resultado.status < 300) cacheApps.clear();
+      if (op.cierraSesionesDe && resultado.status < 300) {
+        const idCerrado = resultado.cuerpo?.admin?.id;
+        for (const [idSesion, s] of sesiones) if (idCerrado && s.admin.id === idCerrado) sesiones.delete(idSesion);
+      }
       if (!resultado.cookie && peticion.renovarCookie && sesiones.has(peticion.sesionId)) {
         resultado = { ...resultado, cookie: peticion.renovarCookie };
       }

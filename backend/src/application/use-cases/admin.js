@@ -16,9 +16,10 @@ import {
 } from './comun.js';
 import {
   ESQUEMA_ADMIN_ANOMALIAS, ESQUEMA_ADMIN_APP, ESQUEMA_ADMIN_AUDITORIA, ESQUEMA_ADMIN_ENROLAMIENTOS,
-  ESQUEMA_ADMIN_LOGIN, ESQUEMA_VACIO,
+  ESQUEMA_ADMIN_CREAR_ADMIN, ESQUEMA_ADMIN_LOGIN, ESQUEMA_VACIO,
 } from './esquemas.js';
 import { puede } from './rbac.js';
+import { provisionarAdministrador } from './administradores.js';
 
 /** @typedef {import('./comun.js').Respuesta} Respuesta */
 
@@ -70,6 +71,14 @@ const TRANSICIONES = Object.freeze({
   revocar: { desde: ['activo', 'suspendido'], hacia: 'revocado', evento: 'enrolamiento.revocado' },
 });
 
+/** Cuenta de la consola para la API: sin hash de contraseña; con el estado de su factor TOTP. */
+function adminPublico(a, enrol) {
+  return {
+    id: a.id, usuario: a.usuario, rol: a.rol, activo: a.activo === true, created_at: a.created_at,
+    totp_estado: enrol?.estado ?? 'sin_totp',
+  };
+}
+
 /** Entero de un parámetro de consulta ya validado, acotado a [1, maximo]. */
 const entero = (texto, porDefecto, maximo) => Math.min(maximo, Math.max(1, texto === undefined ? porDefecto : Number(texto)));
 
@@ -78,7 +87,9 @@ const entero = (texto, porDefecto, maximo) => Math.min(maximo, Math.max(1, texto
  *   reloj: () => number, consultas: any, bloqueos: any }} d
  */
 export function crearCasosAdmin(d) {
-  const { repos, vault, firmas, bitacora, metricas, config, reloj, consultas, bloqueos } = d;
+  const { repos, vault, firmas, bitacora, metricas, config, reloj, consultas, bloqueos, mfa } = d;
+  /** Usuarios en alta ahora mismo: evita que dos altas simultáneas del mismo nombre se pisen el factor. */
+  const altasEnCurso = new Set();
   const auditar = (actor, accion, objetivo, detalle) => bitacora.registrar({ actor, accion, objetivo, detalle });
   const actorAdmin = (admin) => `admin:${admin.usuario}`;
 
@@ -410,6 +421,84 @@ export function crearCasosAdmin(d) {
     };
   }
 
+  // ------------------------------------------------------------------ administradores
+  /**
+   * GET /admin/api/admins — permiso admins.leer (solo Administrador). Sin parámetros.
+   * 200 { admins: [{ id, usuario, rol, activo, created_at, totp_estado }] } (nunca hashes).
+   * @param {unknown} entrada @param {{ admin: any }} ctx @returns {Promise<Respuesta>}
+   */
+  async function adminListarAdministradores(entrada, ctx) {
+    const negado = exigir(ctx, 'admins.leer');
+    if (negado) return negado;
+    if (!consulta(entrada, ESQUEMA_VACIO)) return errorEntrada();
+    const admins = repos.admins.listar().map((a) => adminPublico(a, a.totp_enrollment_id ? repos.enrollments.buscarPorId(a.totp_enrollment_id) : null));
+    return { status: 200, cuerpo: { admins }, cabeceras: {} };
+  }
+
+  /**
+   * POST /admin/api/admins { usuario, rol } — permiso admins.escribir (solo Administrador).
+   * Crea la cuenta con contraseña aleatoria (144 bits) y TOTP propio ya activo en la app interna
+   * "Consola Administrativa" (ver administradores.js). 201 { admin, password, otpauth_uri, qr_svg }
+   * con Cache-Control no-store: se muestran UNA sola vez. 409 si el usuario ya existe.
+   * @param {unknown} entrada @param {{ admin: any }} ctx @returns {Promise<Respuesta>}
+   */
+  async function adminCrearAdministrador(entrada, ctx) {
+    const negado = exigir(ctx, 'admins.escribir');
+    if (negado) return negado;
+    const v = validar(separarEntrada(entrada).cuerpo, ESQUEMA_ADMIN_CREAR_ADMIN);
+    if (!v) return errorEntrada();
+    if (!mfa) throw new Error('Gestión de administradores no disponible');
+    if (altasEnCurso.has(v.usuario) || repos.admins.buscarPorUsuario(v.usuario)) return conflicto('El usuario ya existe.');
+    altasEnCurso.add(v.usuario);
+    try {
+      const r = await provisionarAdministrador({
+        repos, reloj, usuario: v.usuario, rol: v.rol, ctxAdmin: ctx,
+        casos: { enrolar: mfa.enrolar, activar: mfa.activar, adminActualizarApp },
+      });
+      auditar(actorAdmin(ctx.admin), 'admin.creado', r.admin.id, { usuario: v.usuario, rol: v.rol });
+      return {
+        status: 201,
+        cuerpo: {
+          admin: adminPublico(r.admin, repos.enrollments.buscarPorId(r.admin.totp_enrollment_id)),
+          password: r.password, otpauth_uri: r.otpauthUri, qr_svg: r.qrSvg,
+        },
+        cabeceras: { 'Cache-Control': 'no-store' },
+      };
+    } finally {
+      altasEnCurso.delete(v.usuario);
+    }
+  }
+
+  /**
+   * POST /admin/api/admins/:id/disable — permiso admins.escribir (solo Administrador). Sin cuerpo.
+   * 200 { admin } | 404 | 409 si es la propia cuenta, ya está deshabilitada o es el último
+   * Administrador activo. El servidor cierra además las sesiones abiertas de esa cuenta.
+   * @param {unknown} entrada @param {{ admin: any }} ctx @returns {Promise<Respuesta>}
+   */
+  async function adminDeshabilitarAdministrador(entrada, ctx) {
+    const negado = exigir(ctx, 'admins.escribir');
+    if (negado) return negado;
+    const { id, cuerpo } = separarEntrada(entrada ?? {});
+    if (cuerpo !== undefined && cuerpo !== null && !validar(cuerpo, ESQUEMA_VACIO)) return errorEntrada();
+    if (typeof id !== 'string' || id.length === 0 || id.length > 64) return noEncontrado();
+    const r = repos.transaccion(() => {
+      const a = repos.admins.buscarPorId(id);
+      if (!a) return { status: 404 };
+      if (a.id === ctx.admin.id) return { status: 409, mensaje: 'No puede deshabilitar su propia cuenta.' };
+      if (!a.activo) return { status: 409, mensaje: 'La cuenta ya está deshabilitada.' };
+      if (a.rol === 'Administrador' && repos.admins.contarActivosPorRol('Administrador') <= 1) {
+        return { status: 409, mensaje: 'No se puede deshabilitar al último Administrador activo.' };
+      }
+      if (!repos.admins.deshabilitar(a.id)) return { status: 409, mensaje: 'La cuenta ya está deshabilitada.' };
+      return { status: 200, admin: repos.admins.buscarPorId(a.id) };
+    });
+    if (r.status === 404) return noEncontrado();
+    if (r.status === 409) return conflicto(r.mensaje);
+    auditar(actorAdmin(ctx.admin), 'admin.deshabilitado', r.admin.id, { usuario: r.admin.usuario, rol: r.admin.rol });
+    const enrol = r.admin.totp_enrollment_id ? repos.enrollments.buscarPorId(r.admin.totp_enrollment_id) : null;
+    return { status: 200, cuerpo: { admin: adminPublico(r.admin, enrol) }, cabeceras: {} };
+  }
+
   // ------------------------------------------------------------------ llaves
   /**
    * GET /admin/api/keys — permiso llaves.leer (Administrador, Operador, Auditor). Sin parámetros.
@@ -531,6 +620,7 @@ export function crearCasosAdmin(d) {
     adminSuspenderEnrolamiento: cambiarEstadoEnrolamiento('suspender'),
     adminReactivarEnrolamiento: cambiarEstadoEnrolamiento('reactivar'),
     adminRevocarEnrolamiento: cambiarEstadoEnrolamiento('revocar'),
+    adminListarAdministradores, adminCrearAdministrador, adminDeshabilitarAdministrador,
     adminListarLlaves, adminRotarLlaves, adminAuditoria, adminVerificarCadena, adminAnomalias, adminMetricas,
   };
 }

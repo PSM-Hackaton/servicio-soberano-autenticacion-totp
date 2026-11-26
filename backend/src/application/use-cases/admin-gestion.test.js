@@ -167,6 +167,92 @@ describe('ciclo de vida de enrolamientos desde la consola', () => {
   });
 });
 
+describe('administradores de la consola (GET/POST /admin/api/admins, /disable)', () => {
+  test('alta con contraseña aleatoria y TOTP activo; se entrega una vez; el primer login usa el paso siguiente', async () => {
+    const m = montar();
+    const r = await m.casos.adminCrearAdministrador({ usuario: 'operadora.1', rol: 'Operador' }, ADMIN);
+    assert.equal(r.status, 201);
+    assert.equal(r.cabeceras['Cache-Control'], 'no-store');
+    assert.deepEqual(Object.keys(r.cuerpo).sort(), ['admin', 'otpauth_uri', 'password', 'qr_svg']);
+    assert.match(r.cuerpo.password, /^[A-Za-z0-9_-]{24}$/);
+    assert.match(r.cuerpo.otpauth_uri, /^otpauth:\/\/totp\//);
+    assert.match(r.cuerpo.qr_svg, /^<svg[\s\S]*<\/svg>\s*$/);
+    assert.deepEqual(r.cuerpo.admin, {
+      id: r.cuerpo.admin.id, usuario: 'operadora.1', rol: 'Operador', activo: true, created_at: r.cuerpo.admin.created_at, totp_estado: 'activo',
+    });
+    const consola = m.repos.apps.listar().find((a) => a.nombre === 'Consola Administrativa');
+    assert.ok(consola, 'crea la app interna si no existía');
+
+    const semilla = semillaDeUri(r.cuerpo.otpauth_uri);
+    const mismoPaso = await m.casos.adminLogin({ usuario: 'operadora.1', password: r.cuerpo.password, totp_code: codigo(semilla, m.estado.t) });
+    assert.equal(mismoPaso.status, 401, 'el código del paso de alta ya se consumió');
+    m.avanzar(PERIODO);
+    const login = await m.casos.adminLogin({ usuario: 'operadora.1', password: r.cuerpo.password, totp_code: codigo(semilla, m.estado.t) });
+    assert.equal(login.status, 200);
+    assert.equal(login.cuerpo.rol, 'Operador');
+
+    const lista = await m.casos.adminListarAdministradores({}, ADMIN);
+    assert.equal(lista.status, 200);
+    assert.deepEqual(lista.cuerpo.admins.map((a) => a.usuario), ['operadora.1']);
+    assert.doesNotMatch(JSON.stringify(lista.cuerpo), /password|scrypt|hash/);
+    const auditoria = JSON.stringify(m.db.prepare('SELECT * FROM audit_log').all());
+    assert.ok(acciones(m).includes('admin.creado'));
+    assert.doesNotMatch(auditoria, new RegExp(r.cuerpo.password));
+    assert.doesNotMatch(auditoria, /secret=/);
+
+    assert.equal((await m.casos.adminCrearAdministrador({ usuario: 'operadora.1', rol: 'Auditor' }, ADMIN)).status, 409);
+    // Una segunda cuenta reutiliza la misma app interna.
+    assert.equal((await m.casos.adminCrearAdministrador({ usuario: 'auditor', rol: 'Auditor' }, ADMIN)).status, 201);
+    assert.equal(m.repos.apps.listar().filter((a) => a.nombre === 'Consola Administrativa').length, 1);
+  });
+
+  test('validación cerrada y RBAC: solo Administrador', async () => {
+    const m = montar();
+    for (const cuerpo of [{ usuario: 'ab', rol: 'Operador' }, { usuario: 'Mayus', rol: 'Operador' }, { usuario: 'con espacio', rol: 'Operador' },
+      { usuario: 'valido', rol: 'Root' }, { usuario: 'valido' }, { usuario: 'valido', rol: 'Operador', password: 'x' }]) {
+      assert.equal((await m.casos.adminCrearAdministrador(cuerpo, ADMIN)).status, 400, JSON.stringify(cuerpo));
+    }
+    assert.equal((await m.casos.adminCrearAdministrador({ usuario: 'valido', rol: 'Operador' }, OPERADOR)).status, 403);
+    assert.equal((await m.casos.adminListarAdministradores({}, OPERADOR)).status, 403);
+    assert.equal((await m.casos.adminListarAdministradores({}, AUDITOR)).status, 403);
+    assert.equal((await m.casos.adminListarAdministradores({ x: '1' }, ADMIN)).status, 400);
+    assert.equal((await m.casos.adminDeshabilitarAdministrador({ id: 'x' }, OPERADOR)).status, 403);
+    for (const rol of ['Operador', 'Auditor']) {
+      assert.equal(puede(rol, 'admins.leer'), false);
+      assert.equal(puede(rol, 'admins.escribir'), false);
+    }
+  });
+
+  test('deshabilitar: no a uno mismo ni al último Administrador activo; la cuenta deshabilitada no entra', async () => {
+    const m = montar();
+    const jefa = await m.casos.adminCrearAdministrador({ usuario: 'jefa', rol: 'Administrador' }, ADMIN);
+    const ope = await m.casos.adminCrearAdministrador({ usuario: 'ope', rol: 'Operador' }, ADMIN);
+    const ctxJefa = { admin: { id: jefa.cuerpo.admin.id, usuario: 'jefa', rol: 'Administrador' } };
+
+    const propia = await m.casos.adminDeshabilitarAdministrador({ id: jefa.cuerpo.admin.id }, ctxJefa);
+    assert.equal(propia.status, 409);
+    const ultima = await m.casos.adminDeshabilitarAdministrador({ id: jefa.cuerpo.admin.id }, ADMIN);
+    assert.equal(ultima.status, 409, 'jefa es la única Administradora activa');
+    assert.match(ultima.cuerpo.message, /último Administrador/);
+
+    const d = await m.casos.adminDeshabilitarAdministrador({ id: ope.cuerpo.admin.id, cuerpo: {} }, ctxJefa);
+    assert.equal(d.status, 200);
+    assert.equal(d.cuerpo.admin.activo, false);
+    assert.equal((await m.casos.adminDeshabilitarAdministrador({ id: ope.cuerpo.admin.id }, ctxJefa)).status, 409, 'ya deshabilitada');
+    m.avanzar(PERIODO);
+    const login = await m.casos.adminLogin({ usuario: 'ope', password: ope.cuerpo.password, totp_code: codigo(semillaDeUri(ope.cuerpo.otpauth_uri), m.estado.t) });
+    assert.equal(login.status, 401);
+
+    // Con dos Administradores activos sí se puede deshabilitar a uno.
+    const otra = await m.casos.adminCrearAdministrador({ usuario: 'subjefa', rol: 'Administrador' }, ctxJefa);
+    assert.equal((await m.casos.adminDeshabilitarAdministrador({ id: otra.cuerpo.admin.id }, ctxJefa)).status, 200);
+    assert.equal((await m.casos.adminDeshabilitarAdministrador({ id: '00000000-0000-4000-8000-000000000000' }, ctxJefa)).status, 404);
+    assert.equal((await m.casos.adminDeshabilitarAdministrador({ id: jefa.cuerpo.admin.id, cuerpo: { x: 1 } }, ADMIN)).status, 400);
+    assert.ok(acciones(m).includes('admin.deshabilitado'));
+    assert.equal(verificarCadena(m.db.prepare('SELECT * FROM audit_log ORDER BY id').all()).intact, true);
+  });
+});
+
 describe('POST /admin/api/apps/:id/secret (adminRegenerarSecretoApp)', () => {
   test('el secreto anterior deja de valer; solo Administrador; 404; una sola vez y sin hash', async () => {
     const m = montar();
