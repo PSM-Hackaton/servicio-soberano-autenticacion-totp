@@ -13,13 +13,14 @@ import { extname, join, resolve, sep } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
 import { cabecerasSeguridad, crearLimitador, errorGenerico, validarCuerpo } from '../security/index.js';
+import { ESQUEMA_ADMIN_LOGIN } from '../application/use-cases/esquemas.js';
 import { crearRouter } from './router.js';
 
 // ------------------------------------------------------------------ constantes
 
-export const LIMITE_CUERPO_BYTES = 16 * 1024;
+const LIMITE_CUERPO_BYTES = 16 * 1024;
 export const NOMBRE_COOKIE_SESION = 'sst_admin';
-export const DURACION_SESION_MS = 30 * 60 * 1000;
+const DURACION_SESION_MS = 30 * 60 * 1000;
 const DURACION_MAXIMA_SESION_MS = 8 * 60 * 60 * 1000;
 const MAX_SESIONES = 1000;
 const TTL_CACHE_APPS_MS = 30 * 1000;
@@ -210,18 +211,6 @@ function esObjetoPlano(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
 }
 
-// ------------------------------------------------------------------ esquemas propios del servidor
-
-const ESQUEMA_LOGIN = {
-  type: 'object',
-  required: ['usuario', 'password'],
-  properties: {
-    usuario: { type: 'string', minLength: 1, maxLength: 64 },
-    password: { type: 'string', minLength: 1, maxLength: 256 },
-    totp_code: { type: 'string', pattern: '^[0-9]{6,8}$' },
-  },
-};
-
 // ------------------------------------------------------------------ servidor
 
 /**
@@ -237,7 +226,8 @@ const ESQUEMA_LOGIN = {
  * Crea el servidor HTTP(S) con todas las rutas montadas. No llama a listen().
  * @param {{
  *   casos: Record<string, Function>,
- *   metricas: { registrarPeticion: Function, registrarErrorBaseDatos: Function, formatoTexto: () => string },
+ *   metricas: { registrarPeticion: Function, registrarErrorBaseDatos: Function, registrarChequeoSalud: Function,
+ *     registrarLimiteTasa: Function, formatoTexto: () => string },
  *   limitadores?: Limitadores,
  *   cors?: { origenes: string[] },
  *   salud?: () => unknown,
@@ -369,16 +359,20 @@ export function crearServidor({
         new Promise((_, rechazar) => setTimeout(() => rechazar(new Error('tiempo agotado')), 2000).unref()),
       ]);
       if (r === false) throw new Error('salud() devolvió false');
+      metricas.registrarChequeoSalud(true);
       return { status: 200, cuerpo: { status: 'ok', timestamp: new Date(ahora()).toISOString(), database: 'ok' } };
     } catch {
+      metricas.registrarChequeoSalud(false);
       metricas.registrarErrorBaseDatos();
       return errorGenerico('no_disponible');
     }
   }, { tipo: 'publica' });
 
+  // Exposición en texto para un recolector local (Prometheus en el mismo host): solo loopback.
+  // La cookie de sesión tiene Path=/admin, así que la consola usa GET /admin/api/metrics (RBAC).
   router.agregar('GET', '/metrics', async () => ({
     status: 200, texto: metricas.formatoTexto(), tipoContenido: 'text/plain; version=0.0.4; charset=utf-8',
-  }), { tipo: 'metricas' });
+  }), { tipo: 'loopback' });
 
   router.agregar('GET', '/.well-known/jwks.json', async () => caso('jwks')(), { tipo: 'publica', cacheJwks: true });
 
@@ -396,10 +390,10 @@ export function crearServidor({
 
   // --- consola admin (cookie de sesión + CSRF + RBAC)
   router.agregar('POST', '/admin/api/login', async (p) => {
-    const v = validarCuerpo(p.cuerpo, ESQUEMA_LOGIN);
+    // Esquema cerrado del contrato, validado en el borde antes de cualquier trabajo costoso.
+    const v = validarCuerpo(p.cuerpo, ESQUEMA_ADMIN_LOGIN);
     if (!v.ok) return errorGenerico('entrada');
-    const { usuario, password, totp_code: codigo } = v.valor;
-    const r = await caso('adminLogin')(codigo === undefined ? { usuario, password } : { usuario, password, codigo }, p.ctx);
+    const r = await caso('adminLogin')(v.valor, p.ctx);
     if (!r || r.status !== 200 || !r.admin) {
       // Nunca se emite sesión sin admin explícito; un 200 sin admin es un fallo.
       return r && r.status >= 400 ? r : errorGenerico('credenciales');
@@ -587,8 +581,13 @@ export function crearServidor({
     const ipHash = anonimizar(`ip:${ip}`);
 
     // 1. Límite global por IP antes de cualquier operación costosa.
+    const esVerificacion = req.method === 'POST' && pathname === '/api/v1/verify';
+    const rechazoPorLimite = () => {
+      try { metricas.registrarLimiteTasa({ verificacion: esVerificacion }); } catch { /* sin métricas */ }
+    };
     const rg = limGlobal.consumir(`g:${ipHash}`);
     if (!rg.permitido) {
+      rechazoPorLimite();
       enviar(req, res, estado, errorGenerico('limite', { reintentarEnSegundos: Math.max(1, rg.reintentarEnMs / 1000) }));
       return;
     }
@@ -682,22 +681,19 @@ export function crearServidor({
         const ra = limApp.consumir(`app:${String(app.id ?? app.client_id)}`);
         if (!ra.permitido) throw Object.assign(new ErrorHttp(429), { reintentarMs: ra.reintentarEnMs });
         ctx.app = app;
-      } else if (op.tipo === 'admin' || op.tipo === 'metricas') {
+      } else if (op.tipo === 'loopback') {
+        if (!esLocal(ip)) throw new ErrorHttp(403);
+      } else if (op.tipo === 'admin') {
         const s = sesionDe(req);
-        if (op.tipo === 'metricas') {
-          const permitido = esLocal(ip) || (s && autorizar(s.sesion.admin.rol, 'metricas.leer'));
-          if (!permitido) throw new ErrorHttp(s ? 403 : 401);
-        } else {
-          if (!s) throw new ErrorHttp(401);
-          if (METODOS_QUE_MODIFICAN.has(req.method) && !igualSeguro(cabecera(req, 'x-csrf-token'), s.sesion.csrf)) {
-            throw new ErrorHttp(403);
-          }
-          if (op.permiso && !autorizar(s.sesion.admin.rol, op.permiso)) throw new ErrorHttp(403);
-          ctx.admin = s.sesion.admin;
-          peticion.sesion = s.sesion;
-          peticion.sesionId = s.id;
-          peticion.renovarCookie = cookieSesion(s.id, DURACION_SESION_MS / 1000);
+        if (!s) throw new ErrorHttp(401);
+        if (METODOS_QUE_MODIFICAN.has(req.method) && !igualSeguro(cabecera(req, 'x-csrf-token'), s.sesion.csrf)) {
+          throw new ErrorHttp(403);
         }
+        if (op.permiso && !autorizar(s.sesion.admin.rol, op.permiso)) throw new ErrorHttp(403);
+        ctx.admin = s.sesion.admin;
+        peticion.sesion = s.sesion;
+        peticion.sesionId = s.id;
+        peticion.renovarCookie = cookieSesion(s.id, DURACION_SESION_MS / 1000);
       }
 
       // 9. Caso de uso (falla cerrado).
@@ -720,6 +716,7 @@ export function crearServidor({
     } catch (error) {
       if (error instanceof ErrorHttp) {
         if (error.status === 429) {
+          rechazoPorLimite();
           enviar(req, res, estado, errorGenerico('limite', { reintentarEnSegundos: Math.max(1, (error.reintentarMs ?? 1000) / 1000) }));
         } else {
           if (error.status === 413 || error.status === 408) res.setHeader('Connection', 'close');

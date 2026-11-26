@@ -24,7 +24,7 @@ const INTERVALO_RELOJ_MS = 10 * 60_000;
 const DIAS_RETENCION_INTENTOS = 30;
 
 /** Registro a consola con marca de tiempo. Quien llama es responsable de no pasar secretos. */
-export function crearRegistro(salida = console) {
+function crearRegistro(salida = console) {
   const linea = (nivel) => (mensaje) => salida[nivel === 'ERROR' ? 'error' : 'log'](`${new Date().toISOString()} ${nivel} ${mensaje}`);
   return { info: linea('INFO'), warn: linea('WARN'), error: linea('ERROR') };
 }
@@ -102,7 +102,7 @@ export async function iniciar({ config = cargarConfig(), registro = crearRegistr
     info: () => ({
       dbDriver: 'sqlite',
       activeKeyId: firmas.kidActivo ?? '',
-      heuristicsMode: config.heuristicas === 'mock' ? 'mock' : 'local',
+      heuristicsMode: config.heuristicas,
     }),
     tls,
     registro,

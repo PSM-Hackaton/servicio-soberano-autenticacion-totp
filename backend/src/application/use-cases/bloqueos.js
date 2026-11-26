@@ -4,7 +4,7 @@
 // pueda distinguir unas de otras por la aparición del 429 (sin enumeración).
 
 import { bloqueadoHasta, estaBloqueado } from '../../security/index.js';
-import { crearMapaAcotado, iso } from './comun.js';
+import { crearMapaAcotado } from './comun.js';
 
 const TTL_FANTASMA_MS = 60 * 60 * 1000;
 
@@ -56,8 +56,5 @@ export function crearControlBloqueos({ repos, reloj, maxEntradas = 10_000 }) {
 
     /** Éxito: reinicia el contador en memoria. @param {string} clave */
     exitoFantasma: (clave) => { fantasmas.borrar(clave); },
-
-    /** Instante ISO útil para pruebas y bitácora. */
-    ahoraIso: () => iso(reloj()),
   };
 }

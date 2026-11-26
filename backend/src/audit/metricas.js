@@ -66,7 +66,7 @@ export function crearMetricas({
   azar = Math.random,
 } = {}) {
   const inicio = ahora();
-  const totales = { peticiones: 0, errores5xx: 0, errores4xx: 0, erroresBaseDatos: 0, reconexiones: 0 };
+  const totales = { peticiones: 0, errores5xx: 0, errores4xx: 0, erroresBaseDatos: 0, reconexiones: 0, limitadas: 0 };
   const salud = { total: 0, ok: 0, ultimo: /** @type {boolean | null} */ (null) };
   /** @type {Record<string, number>} */
   const resultados = Object.fromEntries(RESULTADOS_VERIFICACION.map((r) => [r, 0]));
@@ -132,14 +132,27 @@ export function crearMetricas({
       if (!RESULTADOS_VERIFICACION.includes(resultado)) throw new Error(`Resultado desconocido: ${resultado}`);
       resultados[resultado]++;
     },
-    /** @param {boolean} ok */
+    /**
+     * Chequeo de salud (tarea periódica o /health/ready). Un chequeo correcto tras uno fallido
+     * cuenta como reconexión a la base de datos.
+     * @param {boolean} ok
+     */
     registrarChequeoSalud(ok) {
       salud.total++;
       if (ok) salud.ok++;
+      if (ok && salud.ultimo === false) totales.reconexiones++;
       salud.ultimo = Boolean(ok);
     },
     registrarErrorBaseDatos() { totales.erroresBaseDatos++; },
-    registrarReconexion() { totales.reconexiones++; },
+    /**
+     * Petición rechazada por un limitador de tasa (429). Si era una verificación, cuenta además
+     * como resultado `rate_limited`.
+     * @param {{ verificacion?: boolean }} [opciones]
+     */
+    registrarLimiteTasa({ verificacion = false } = {}) {
+      totales.limitadas++;
+      if (verificacion) resultados.rate_limited++;
+    },
     /** @param {number} ms */
     registrarInferencia(ms) {
       if (!Number.isFinite(ms) || ms < 0) return;
@@ -220,6 +233,7 @@ export function crearMetricas({
         Object.entries(s.resultadosVerificacion).map(([resultado, n]) => [{ resultado }, n]));
       metrica('totp_db_errors_total', 'counter', 'Errores de base de datos', [[{}, s.totales.erroresBaseDatos]]);
       metrica('totp_db_reconnections_total', 'counter', 'Reconexiones a la base de datos', [[{}, s.totales.reconexiones]]);
+      metrica('totp_rate_limited_total', 'counter', 'Peticiones rechazadas por límite de tasa', [[{}, s.totales.limitadas]]);
       metrica('totp_anomaly_inference_ms_avg', 'gauge', 'Latencia media de inferencia del detector', [[{}, s.inferencia.mediaMs]]);
       metrica('totp_clock_skew_ms', 'gauge', 'Desfase de reloj medido', [[{}, s.desfaseRelojMs]]);
       return `${lineas.join('\n')}\n`;

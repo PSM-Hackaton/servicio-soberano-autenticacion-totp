@@ -1,5 +1,5 @@
 // Crea backend/.env a partir de .env.example sustituyendo cada CHANGE_ME por valores aleatorios
-// fuertes del CSPRNG (node:crypto). Nunca sobrescribe un .env existente.
+// fuertes del CSPRNG (node:crypto) y fijando el emisor TOTP neutro. Nunca sobrescribe un .env existente.
 // Uso: node scripts/generar-env.js [--salida <ruta>]
 
 import { randomBytes } from 'node:crypto';
@@ -7,14 +7,21 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { EMISOR_TOTP_POR_DEFECTO } from '../src/infrastructure/config/config.js';
+
 const CARPETA_BACKEND = fileURLToPath(new URL('../', import.meta.url));
 const PLANTILLA = resolve(CARPETA_BACKEND, '..', '.env.example');
 
-/** Valor aleatorio adecuado para cada variable conocida. */
+/**
+ * Variables cuyo valor generado es siempre el neutro del backend, aunque la plantilla traiga otro
+ * (p. ej. un emisor con el nombre de un organismo real). Para personalizarlas, edite el .env creado.
+ */
+const VALORES_FIJOS = Object.freeze({ TOTP_ISSUER: EMISOR_TOTP_POR_DEFECTO });
+
+/** Valor aleatorio adecuado para cada variable: llaves maestras de 256 bits en hex; el resto, base64url. */
 function valorAleatorio(nombre) {
   if (/^MASTER_KEY_[A-Z0-9]+_HEX$/.test(nombre)) return randomBytes(32).toString('hex'); // 64 hex = 256 bits
-  if (nombre === 'ADMIN_SESSION_SECRET') return randomBytes(64).toString('base64url');
-  return randomBytes(32).toString('base64url'); // peppers y demás: 256 bits
+  return randomBytes(32).toString('base64url'); // peppers: 256 bits
 }
 
 /**
@@ -25,17 +32,11 @@ function valorAleatorio(nombre) {
 export function generarContenido(plantilla) {
   return plantilla.split(/\r?\n/).map((linea) => {
     const m = /^(\s*)([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(linea);
-    if (!m || !m[3].includes('CHANGE_ME')) return linea;
+    if (!m) return linea;
     const [, sangria, nombre, valor] = m;
-    if (nombre === 'ADMIN_SEED_PASS') {
-      // La semilla genera la contraseña del admin y la muestra una sola vez; no se guarda aquí.
-      return `${sangria}# ${nombre}: no se usa; "npm run seed" genera una contraseña aleatoria y la muestra una vez.`;
-    }
-    // Sustituye solo el marcador (p. ej. dentro de DATABASE_URL) o el valor completo.
-    const nuevo = /^CHANGE_ME[A-Z0-9_]*$/.test(valor.trim())
-      ? valorAleatorio(nombre)
-      : valor.replace(/CHANGE_ME[A-Z0-9_]*/g, () => randomBytes(24).toString('hex'));
-    return `${sangria}${nombre}=${nuevo}`;
+    if (Object.hasOwn(VALORES_FIJOS, nombre)) return `${sangria}${nombre}=${VALORES_FIJOS[nombre]}`;
+    if (!valor.includes('CHANGE_ME')) return linea;
+    return `${sangria}${nombre}=${valorAleatorio(nombre)}`;
   }).join('\n');
 }
 

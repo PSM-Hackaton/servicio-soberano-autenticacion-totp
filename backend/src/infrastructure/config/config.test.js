@@ -6,7 +6,10 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { parsearEnv, validarConfig, cargarConfig, ErrorConfiguracion, configCasosDeUso } from './config.js';
+import {
+  parsearEnv, validarConfig, cargarConfig, ErrorConfiguracion, configCasosDeUso, EMISOR_TOTP_POR_DEFECTO,
+} from './config.js';
+import { generarContenido } from '../../../scripts/generar-env.js';
 import { crearFirmas } from './firmas.js';
 import { abrirBaseDatos } from '../persistence/db.js';
 import { crearRepositorios } from '../persistence/repositorios.js';
@@ -87,8 +90,24 @@ describe('validarConfig', () => {
     assert.deepEqual([...c.corsOrigenes], ['https://localhost:5173', 'http://localhost:3000']);
     assert.deepEqual(configCasosDeUso(c), {
       userRefPepper: VALIDAS.USER_REF_PEPPER, ipPepperSemilla: VALIDAS.DAILY_IP_PEPPER_SEED, emisorTotp: 'Emisor',
-      emisorJwt: 'https://totp.soberano.local', ttlJwtSegundos: 300, minutosPendiente: 10,
+      emisorJwt: 'https://totp.soberano.local', ttlJwtSegundos: 300, minutosPendiente: 10, modoHeuristica: 'local',
     });
+    assert.equal(c.admin.rutaQr, '/srv/backend/data/admin-qr.svg', 'el QR va junto a la base de datos');
+  });
+
+  test('ruta del QR del admin: junto a SQLITE_DB_PATH o ADMIN_QR_PATH', () => {
+    const base = { base: '/srv/backend' };
+    assert.equal(validarConfig({ ...VALIDAS, SQLITE_DB_PATH: '/var/lib/totp/datos.db' }, base).admin.rutaQr, '/var/lib/totp/admin-qr.svg');
+    assert.equal(validarConfig({ ...VALIDAS, ADMIN_QR_PATH: './seguro/qr.svg' }, base).admin.rutaQr, '/srv/backend/seguro/qr.svg');
+    assert.equal(validarConfig({ ...VALIDAS, SQLITE_DB_PATH: ':memory:' }, base).admin.rutaQr, '/srv/backend/data/admin-qr.svg');
+  });
+
+  test('emisor TOTP por defecto neutro y modo de heurística propagado', () => {
+    const { TOTP_ISSUER: _e, ...sinEmisor } = VALIDAS;
+    const c = validarConfig({ ...sinEmisor, HEURISTICS_MODE: 'monitorizacion' });
+    assert.equal(c.emisorTotp, EMISOR_TOTP_POR_DEFECTO);
+    assert.equal(EMISOR_TOTP_POR_DEFECTO, 'ServicioSoberanoTOTP');
+    assert.equal(configCasosDeUso(c).modoHeuristica, 'monitorizacion');
   });
 
   test('rechaza valores CHANGE_ME (incluida la llave maestra)', () => {
@@ -182,5 +201,35 @@ describe('firmas (signing_keys)', () => {
     const otra = crearFirmas({ repos, vault: crearVault({ llaves: { v1: Buffer.alloc(32, 2) }, versionActiva: 'v1' }) });
     assert.throws(() => otra.activa(), /descifrar/);
     db.close();
+  });
+});
+
+describe('generar-env', () => {
+  const PLANTILLA = [
+    '# comentario CHANGE_ME que no se toca',
+    'MASTER_KEY_VERSION=v1',
+    'MASTER_KEY_V1_HEX=CHANGE_ME_GENERATE_64_HEX_CHARS_WITH_CSPRNG',
+    'USER_REF_PEPPER=CHANGE_ME_RANDOM_32_BYTES_USER_PEPPER',
+    'TOTP_ISSUER=OrganismoRealSoberanoTOTP',
+    'PORT=8443',
+  ].join('\n');
+
+  test('sustituye cada CHANGE_ME por aleatorio fuerte y fija el emisor neutro', () => {
+    const texto = generarContenido(PLANTILLA);
+    const v = parsearEnv(texto);
+    assert.match(v.MASTER_KEY_V1_HEX, /^[0-9a-f]{64}$/);
+    assert.match(v.USER_REF_PEPPER, /^[A-Za-z0-9_-]{43}$/);
+    assert.equal(v.TOTP_ISSUER, EMISOR_TOTP_POR_DEFECTO);
+    assert.equal(v.PORT, '8443');
+    assert.ok(texto.startsWith('# comentario CHANGE_ME que no se toca\n'));
+    assert.ok(!/=.*CHANGE_ME/.test(texto));
+    assert.notEqual(generarContenido(PLANTILLA), texto, 'cada ejecución genera secretos nuevos');
+  });
+
+  test('el .env generado desde el .env.example del repositorio es una configuración válida', async () => {
+    const { readFileSync } = await import('node:fs');
+    const v = parsearEnv(generarContenido(readFileSync(new URL('../../../../.env.example', import.meta.url), 'utf8')));
+    const c = validarConfig(v, { base: '/srv/backend' });
+    assert.equal(c.emisorTotp, 'ServicioSoberanoTOTP');
   });
 });

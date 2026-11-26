@@ -218,12 +218,20 @@ test('métricas: resultados de verificación, inferencia, base de datos y reloj'
   m.registrarInferencia(1);
   m.registrarInferencia(3);
   m.registrarErrorBaseDatos();
-  m.registrarReconexion();
+  m.registrarChequeoSalud(true);
+  m.registrarChequeoSalud(false);
+  m.registrarChequeoSalud(false);
+  m.registrarChequeoSalud(true); // vuelve a estar bien tras el fallo: una reconexión
+  m.registrarChequeoSalud(true);
+  m.registrarLimiteTasa();
+  m.registrarLimiteTasa({ verificacion: true });
   m.fijarDesfaseReloj(-120);
   const s = m.instantanea();
   assert.equal(s.resultadosVerificacion.ok, 2);
   assert.equal(s.resultadosVerificacion.anomaly_blocked, 1);
-  assert.equal(s.totales.verificaciones, 7);
+  assert.equal(s.resultadosVerificacion.rate_limited, 2);
+  assert.equal(s.totales.limitadas, 2);
+  assert.equal(s.totales.verificaciones, 8);
   assert.equal(s.inferencia.mediaMs, 2);
   assert.equal(s.totales.erroresBaseDatos, 1);
   assert.equal(s.totales.reconexiones, 1);
@@ -242,7 +250,7 @@ test('métricas: formatoTexto expone nombres esperados', () => {
     'totp_http_request_duration_ms{ruta="/v1/totp/verify",quantile="0.95"} 4',
     'totp_http_5xx_ratio', 'totp_availability_percent 100', 'totp_health_up 1',
     'totp_verifications_total{resultado="replay"} 1', 'totp_db_errors_total 0',
-    'totp_db_reconnections_total', 'totp_anomaly_inference_ms_avg', 'totp_clock_skew_ms',
+    'totp_db_reconnections_total', 'totp_rate_limited_total 0', 'totp_anomaly_inference_ms_avg', 'totp_clock_skew_ms',
   ]) assert.ok(texto.includes(nombre), `falta ${nombre}`);
   assert.ok(texto.endsWith('\n'));
   assert.match(texto, /# TYPE totp_verifications_total counter/);

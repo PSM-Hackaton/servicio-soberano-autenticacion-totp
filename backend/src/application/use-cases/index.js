@@ -45,6 +45,8 @@ export { puede, MATRIZ_RBAC, ACCIONES } from './rbac.js';
  * @property {number} minutosPendiente Caducidad del enrolamiento pendiente (10).
  * @property {number} [segundosBloqueoAnomalia] Retry-After del bloqueo adaptativo (300).
  * @property {number} [esperaExtraMs] Retardo ante 'espera_extra' en modo bloqueo (0 = sin retardo).
+ * @property {'local' | 'monitorizacion' | 'mock'} [modoHeuristica] HEURISTICS_MODE. 'monitorizacion'
+ *   prevalece sobre modo_heuristica de cada app: nunca se bloquea por anomalía, solo se alerta y audita.
  */
 
 /**

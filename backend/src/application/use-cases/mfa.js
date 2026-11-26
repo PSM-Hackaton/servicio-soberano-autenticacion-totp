@@ -82,7 +82,13 @@ export function crearCasosMfa(d) {
     });
   }
 
-  /** Historial reciente por IP y por cuenta, sin duplicados, para el detector. */
+  /**
+   * Historial reciente por IP y por cuenta, sin duplicados, para el detector.
+   * Decisión: el historial por IP es global, NO se filtra por app. Una misma IP que ataca a
+   * varias apps integradoras es una sola amenaza (relleno de credenciales o fuerza bruta
+   * repartida para eludir los límites por app) y debe sumar riesgo en todas. El historial por
+   * cuenta sí es por app de forma natural: user_ref_hash solo coincide dentro de la misma app.
+   */
   function historial(ipHash, urh) {
     const vistos = new Set();
     const filas = [];
@@ -108,11 +114,23 @@ export function crearCasosMfa(d) {
   }
 
   /**
-   * Bloqueo adaptativo: solo en apps con modo_heuristica 'bloqueo', cuando el detector pide
-   * bloqueo temporal o el riesgo alcanza el umbral propio de la app.
+   * ¿Puede el detector bloquear o retrasar intentos de esta app? HEURISTICS_MODE=monitorizacion
+   * (config.modoHeuristica) prevalece sobre la política de cada app: nunca se bloquea por anomalía.
    */
+  const bloqueoActivo = (app) => config.modoHeuristica !== 'monitorizacion' && app.modo_heuristica === 'bloqueo';
+
+  /**
+   * En monitorización (global o de la app) las acciones restrictivas se degradan a 'alerta':
+   * el intento sigue su curso, se audita, y `risk.action` refleja lo que realmente ocurrió.
+   */
+  function accionEfectiva(app, e) {
+    if (bloqueoActivo(app) || (e.action !== 'bloqueo_temporal' && e.action !== 'espera_extra')) return e;
+    return { ...e, action: 'alerta' };
+  }
+
+  /** Bloqueo adaptativo: el detector pide bloqueo temporal o el riesgo alcanza el umbral de la app. */
   function debeBloquear(app, e) {
-    if (app.modo_heuristica !== 'bloqueo') return false;
+    if (!bloqueoActivo(app)) return false;
     return e.action === 'bloqueo_temporal' || e.riskScore >= (app.umbral_riesgo_bloqueo ?? 101);
   }
 
@@ -247,7 +265,7 @@ export function crearCasosMfa(d) {
     }
 
     // 2. Detector local de anomalías (antes de verificar el código).
-    const evaluacion = await evaluarRiesgo(ipHash, urh, ahora);
+    const evaluacion = accionEfectiva(app, await evaluarRiesgo(ipHash, urh, ahora));
     const risk = riesgoContrato(evaluacion);
     if (debeBloquear(app, evaluacion)) {
       registrarIntento({ ...base, resultado: 'anomaly_blocked', evaluacion });
@@ -270,9 +288,11 @@ export function crearCasosMfa(d) {
       };
     }
     if (evaluacion.action === 'alerta') {
-      auditar('detector', 'verificacion.alerta', enrol?.id ?? null, { app_id: app.id, ip_hash: ipHash, risk_score: evaluacion.riskScore });
+      auditar('detector', 'verificacion.alerta', enrol?.id ?? null, {
+        app_id: app.id, ip_hash: ipHash, risk_score: evaluacion.riskScore, reasons: evaluacion.reasons,
+      });
     }
-    if (evaluacion.action === 'espera_extra' && app.modo_heuristica === 'bloqueo' && config.esperaExtraMs > 0) {
+    if (evaluacion.action === 'espera_extra' && config.esperaExtraMs > 0) {
       await esperar(config.esperaExtraMs);
     }
 
@@ -307,7 +327,9 @@ export function crearCasosMfa(d) {
 
     if (resultado === 'replay') {
       auditar(actorApp(app), 'verificacion.replay', enrol.id, { ip_hash: ipHash, locked_until: hasta });
-      const segundos = Math.max(1, enrol.periodo - (Math.floor(ahora / 1000) % enrol.periodo));
+      // Espera hasta el siguiente paso TOTP o, si este replay activó el bloqueo progresivo, hasta su fin.
+      const siguientePaso = Math.max(1, enrol.periodo - (Math.floor(ahora / 1000) % enrol.periodo));
+      const segundos = Math.max(siguientePaso, bloqueos.segundosRestantes(hasta, ahora));
       return {
         status: 401,
         cuerpo: {
@@ -316,9 +338,9 @@ export function crearCasosMfa(d) {
           retry_after_seconds: segundos,
           errorCode: 'REPLAY_DETECTED',
           retryAfterSeconds: segundos,
-          riskAssessment: evaluacionMock(risk, 'WARN'),
+          riskAssessment: evaluacionMock(risk),
         },
-        cabeceras: {},
+        cabeceras: { 'Retry-After': String(segundos) },
       };
     }
     if (resultado === 'invalid_code') {

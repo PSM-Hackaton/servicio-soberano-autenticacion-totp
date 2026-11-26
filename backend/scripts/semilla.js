@@ -1,12 +1,11 @@
 // Datos semilla: apps "Portal de Trámites" y "Reto 1" (client_id + client_secret mostrados UNA vez)
 // y administrador inicial con contraseña aleatoria y enrolamiento TOTP activo (URI otpauth + QR SVG
-// en backend/data/admin-qr.svg). Idempotente: lo que ya existe no se toca ni se vuelve a mostrar.
+// en ADMIN_QR_PATH o, por defecto, admin-qr.svg junto a SQLITE_DB_PATH). Idempotente: lo que ya existe no se toca ni se vuelve a mostrar.
 // Uso: node scripts/semilla.js   (lee backend/.env o ENV_FILE)
 
 import { randomBytes } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
 
 import { cargarConfig, configCasosDeUso } from '../src/infrastructure/config/config.js';
 import { crearFirmas } from '../src/infrastructure/config/firmas.js';
@@ -19,13 +18,12 @@ import { crearBitacora, crearMetricas } from '../src/audit/index.js';
 import { hashSecretoAsync } from '../src/security/index.js';
 import { crearCasosDeUso } from '../src/application/use-cases/index.js';
 
-const CARPETA_BACKEND = fileURLToPath(new URL('../', import.meta.url));
-const RUTA_QR = resolve(CARPETA_BACKEND, 'data', 'admin-qr.svg');
 const APPS_INTEGRADORAS = ['Portal de Trámites', 'Reto 1'];
 const APP_CONSOLA = 'Consola Administrativa';
 const ACTOR_SEMILLA = Object.freeze({ id: 'semilla', usuario: 'semilla', rol: 'Administrador' });
 
 const config = cargarConfig();
+const RUTA_QR = config.admin.rutaQr;
 if (config.baseDatos.ruta !== ':memory:') mkdirSync(dirname(config.baseDatos.ruta), { recursive: true });
 const db = abrirBaseDatos(config.baseDatos.ruta);
 const repos = crearRepositorios(db);

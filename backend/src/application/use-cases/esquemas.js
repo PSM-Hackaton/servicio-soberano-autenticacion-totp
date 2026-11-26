@@ -46,8 +46,8 @@ export const ESQUEMA_RECUPERAR = {
 export const ESQUEMA_VACIO = { type: 'object', properties: {} };
 
 /**
- * POST /admin/api/login. El contrato llama `totp_code` al código; se admite también `codigo`
- * (nombre usado en la interfaz interna). Se exige uno de los dos en el caso de uso.
+ * POST /admin/api/login { usuario, password, totp_code }. `totp_code` es opcional en el esquema
+ * (como en el contrato) pero el caso de uso lo exige: sin él responde 401 genérico.
  */
 export const ESQUEMA_ADMIN_LOGIN = {
   type: 'object',
@@ -56,7 +56,6 @@ export const ESQUEMA_ADMIN_LOGIN = {
     usuario: { type: 'string', minLength: 1, maxLength: 64 },
     password: { type: 'string', minLength: 1, maxLength: 256 },
     totp_code: CODIGO,
-    codigo: CODIGO,
   },
 };
 

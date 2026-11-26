@@ -36,6 +36,19 @@ function nivelDe(score) {
   return 'LOW';
 }
 
+/**
+ * Fila de audit_log para la API: `detalle` como objeto. La verificación de la cadena no usa esta
+ * forma, sino el texto almacenado (el hash se calculó sobre él).
+ */
+function eventoPublico(fila) {
+  if (typeof fila.detalle !== 'string') return { ...fila, detalle: null };
+  try {
+    return { ...fila, detalle: JSON.parse(fila.detalle) };
+  } catch {
+    return { ...fila }; // texto no JSON (no lo genera la bitácora): se entrega tal cual
+  }
+}
+
 /** Entero de un parámetro de consulta ya validado, acotado a [1, maximo]. */
 const entero = (texto, porDefecto, maximo) => Math.min(maximo, Math.max(1, texto === undefined ? porDefecto : Number(texto)));
 
@@ -76,9 +89,8 @@ export function crearCasosAdmin(d) {
 
   // ------------------------------------------------------------------ adminLogin
   /**
-   * POST /admin/api/login — ESQUEMA_ADMIN_LOGIN { usuario, password, totp_code } (se acepta
-   * `codigo` como alias de totp_code). Contraseña scrypt + TOTP del enrolamiento del admin con
-   * anti replay. Respuestas genéricas (401) y bloqueo progresivo (429).
+   * POST /admin/api/login — ESQUEMA_ADMIN_LOGIN { usuario, password, totp_code }. Contraseña
+   * scrypt + TOTP del enrolamiento del admin con anti replay. Respuestas genéricas (401) y bloqueo progresivo (429).
    * 200 → { status, cuerpo: { usuario, rol, csrf_token }, admin: { id, usuario, rol, csrf_token } }:
    * `admin` es para que el servidor cree la sesión (cookie HttpOnly; Secure; SameSite=Strict).
    * @param {unknown} entrada @param {{ ip?: string }} [ctx]
@@ -90,7 +102,7 @@ export function crearCasosAdmin(d) {
     const ahora = reloj();
     const ipHash = anonimizarIp(ctx?.ip, config.ipPepperSemilla, ahora);
     const claveF = `admin:${v.usuario}`;
-    const codigo = v.totp_code ?? v.codigo;
+    const codigo = v.totp_code;
 
     const restante = bloqueos.restanteFantasma(claveF, ahora);
     if (restante > 0) return errorGenerico('limite', { reintentarEnSegundos: restante });
@@ -195,8 +207,8 @@ export function crearCasosAdmin(d) {
 
   // ------------------------------------------------------------------ enrolamientos
   /**
-   * GET /admin/api/enrollments?app_id&estado&limite — permiso enrolamientos.leer (ruta no
-   * definida aún en openapi.yaml). 200 { enrollments: [...] } sin material cifrado.
+   * GET /admin/api/enrollments?app_id&estado&limite — permiso enrolamientos.leer.
+   * 200 { enrollments: [...] } sin material cifrado.
    * @param {unknown} entrada @param {{ admin: any }} ctx @returns {Promise<Respuesta>}
    */
   async function adminListarEnrolamientos(entrada, ctx) {
@@ -230,7 +242,7 @@ export function crearCasosAdmin(d) {
   // ------------------------------------------------------------------ auditoría
   /**
    * GET /admin/api/audit?desde&limite — permiso auditoria.leer. `desde` = id (cursor exclusivo)
-   * o fecha ISO (inclusive). 200 { eventos: [filas de audit_log], siguiente: id | null }.
+   * o fecha ISO (inclusive). 200 { eventos: [filas de audit_log con `detalle` objeto], siguiente: id | null }.
    * @param {unknown} entrada @param {{ admin: any }} ctx @returns {Promise<Respuesta>}
    */
   async function adminAuditoria(entrada, ctx) {
@@ -240,9 +252,9 @@ export function crearCasosAdmin(d) {
     if (!q) return errorEntrada();
     const desde = q.desde === undefined ? 0 : /^[0-9]+$/.test(q.desde) ? Number(q.desde) : q.desde;
     const limite = entero(q.limite, 100, 500);
-    const eventos = repos.auditLog.listar(desde, limite);
-    const siguiente = eventos.length === limite ? eventos[eventos.length - 1].id : null;
-    return { status: 200, cuerpo: { eventos, siguiente }, cabeceras: {} };
+    const filas = repos.auditLog.listar(desde, limite);
+    const siguiente = filas.length === limite ? filas[filas.length - 1].id : null;
+    return { status: 200, cuerpo: { eventos: filas.map(eventoPublico), siguiente }, cabeceras: {} };
   }
 
   /**
@@ -298,8 +310,8 @@ export function crearCasosAdmin(d) {
   }
 
   /**
-   * GET /admin/api/metrics — permiso metricas.leer (ruta no definida aún en openapi.yaml).
-   * 200 metricas.instantanea().
+   * GET /admin/api/metrics — permiso metricas.leer.
+   * 200 metricas.instantanea() (vía de acceso remoto a las métricas; /metrics es solo loopback).
    * @param {unknown} _entrada @param {{ admin: any }} ctx @returns {Promise<Respuesta>}
    */
   async function adminMetricas(_entrada, ctx) {

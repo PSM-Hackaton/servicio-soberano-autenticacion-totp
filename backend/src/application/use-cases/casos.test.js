@@ -17,7 +17,7 @@ import { crearFirmas } from '../../infrastructure/config/firmas.js';
 const NEUTRA = { riskScore: 5, level: 'bajo', action: 'permitir', reasons: ['Comportamiento dentro del patrón habitual'], inferenceMs: 0.4 };
 const PERIODO = 30_000;
 
-function montar() {
+function montar({ config: configExtra = {} } = {}) {
   const db = abrirBaseDatos(':memory:');
   const repos = crearRepositorios(db);
   const vault = crearVault({ llaves: { v1: randomBytes(32) }, versionActiva: 'v1' });
@@ -41,11 +41,11 @@ function montar() {
   const otra = repos.apps.crear({ nombre: 'Reto 1', client_id: 'reto1', secret_hash: hashSecreto('secreto-reto1'), ...politica });
   const config = {
     userRefPepper: 'pepper-usuarios', ipPepperSemilla: 'semilla-ip', emisorTotp: 'SoberanoTOTP',
-    emisorJwt: 'https://totp.soberano.local', ttlJwtSegundos: 300, minutosPendiente: 10,
+    emisorJwt: 'https://totp.soberano.local', ttlJwtSegundos: 300, minutosPendiente: 10, ...configExtra,
   };
   const casos = crearCasosDeUso({ repos, vault, firmas, detector, bitacora, metricas, config, reloj, db });
   return {
-    db, repos, casos, detector, estado, app, otra, firmas,
+    db, repos, casos, detector, estado, app, otra, firmas, vault,
     ctx: { app, ip: '10.0.0.7' },
     ctxOtra: { app: otra, ip: '10.0.0.8' },
     avanzar(ms) { estado.t += ms; },
@@ -164,6 +164,26 @@ describe('verificación', () => {
     assert.equal(r.cuerpo.error, 'REPLAY_DETECTED');
     assert.equal(r.cuerpo.errorCode, 'REPLAY_DETECTED');
     assert.equal(contarIntentos(m, 'replay'), 1);
+    // Espera hasta el siguiente paso (reloj en :05 de un periodo de 30 s → 25 s), también en cabecera.
+    assert.equal(r.cuerpo.retry_after_seconds, 25);
+    assert.equal(r.cabeceras['Retry-After'], '25');
+    assert.ok(['ALLOW', 'DELAY', 'BLOCK'].includes(r.cuerpo.riskAssessment.action), r.cuerpo.riskAssessment.action);
+    assert.equal(r.cuerpo.riskAssessment.action, 'ALLOW');
+  });
+
+  test('replay que activa el bloqueo progresivo: Retry-After cubre todo el bloqueo', async () => {
+    const m = montar();
+    m.repos.apps.actualizarPolitica(m.app.id, { max_intentos: 3 });
+    const ctx = { ...m.ctx, app: m.repos.apps.buscarPorId(m.app.id) };
+    const { semilla } = await enrolarYActivar(m, 'ciudadano-1', ctx);
+    const code = codigo(semilla, m.estado.t);
+    assert.equal((await m.casos.verificar({ user_ref: 'ciudadano-1', code }, ctx)).status, 200);
+    let r;
+    for (let i = 0; i < 3; i++) r = await m.casos.verificar({ user_ref: 'ciudadano-1', code }, ctx);
+    assert.equal(r.cuerpo.error, 'REPLAY_DETECTED');
+    // El siguiente paso llega en 25 s, pero el bloqueo recién fijado dura 30 s (primer escalón).
+    assert.equal(r.cuerpo.retry_after_seconds, 30);
+    assert.equal(r.cabeceras['Retry-After'], String(r.cuerpo.retry_after_seconds));
   });
 
   test('token validado dos veces: la segunda es inválida', async () => {
@@ -252,6 +272,32 @@ describe('verificación', () => {
     const pasa = await m.casos.verificar({ user_ref: 'ciudadano-1', code: codigo(semilla, m.estado.t) }, ctx);
     assert.equal(pasa.status, 200);
     assert.equal(pasa.cuerpo.risk.action, 'ALLOW');
+  });
+
+  test('HEURISTICS_MODE=monitorizacion prevalece sobre la app en modo bloqueo: alerta y audita, no bloquea', async () => {
+    const m = montar({ config: { modoHeuristica: 'monitorizacion' } });
+    const { semilla } = await enrolarYActivar(m);
+    assert.equal(m.app.modo_heuristica, 'bloqueo');
+    m.repos.apps.actualizarPolitica(m.app.id, { umbral_riesgo_bloqueo: 50 });
+    const ctx = { ...m.ctx, app: m.repos.apps.buscarPorId(m.app.id) };
+    m.detector.respuesta = {
+      riskScore: 95, level: 'alto', action: 'bloqueo_temporal', inferenceMs: 1.1, reasons: ['Ráfaga de intentos'],
+    };
+    const r = await m.casos.verificar({ user_ref: 'ciudadano-1', code: codigo(semilla, m.estado.t) }, ctx);
+    assert.equal(r.status, 200, JSON.stringify(r.cuerpo));
+    assert.equal(r.cuerpo.risk.action, 'ALLOW');
+    assert.equal(r.cuerpo.risk.level, 'CRITICAL');
+    assert.equal(contarIntentos(m, 'anomaly_blocked'), 0);
+    const alerta = m.db.prepare("SELECT * FROM audit_log WHERE accion = 'verificacion.alerta'").get();
+    assert.ok(alerta, 'la alerta queda auditada');
+    assert.equal(JSON.parse(alerta.detalle).risk_score, 95);
+
+    // Sin el modo global, la misma app y la misma evaluación sí bloquean.
+    const b = montar();
+    const e = await enrolarYActivar(b);
+    b.detector.respuesta = m.detector.respuesta;
+    const bloqueado = await b.casos.verificar({ user_ref: 'ciudadano-1', code: codigo(e.semilla, b.estado.t) }, b.ctx);
+    assert.equal(bloqueado.status, 429);
   });
 
   test('resincronización tras deriva de 6 pasos', async () => {
@@ -373,6 +419,9 @@ describe('administración', () => {
       assert.equal(r.admin, undefined);
     }
     assert.equal((await m.casos.adminLogin({ usuario, password: 'x', extra: 1 }, {})).status, 400);
+    // Un único nombre de campo: el alias `codigo` ya no existe.
+    const alias = await m.casos.adminLogin({ usuario, password: 'clave-larga-segura', codigo: codigo(semilla, m.estado.t, 1) }, {});
+    assert.equal(alias.status, 400);
   });
 
   test('puede() por rol y RBAC en los casos de uso', async () => {
@@ -458,6 +507,12 @@ describe('administración', () => {
     assert.ok(!texto.includes('10.0.0.7'));
     assert.ok(!texto.includes('eyJ')); // ningún JWT
     assert.ok(aud.cuerpo.eventos.some((e) => e.accion === 'verificacion.anomalia_bloqueada'));
+    // `detalle` se entrega como objeto, no como texto JSON.
+    const bloqueo = aud.cuerpo.eventos.find((e) => e.accion === 'verificacion.anomalia_bloqueada');
+    assert.equal(typeof bloqueo.detalle, 'object');
+    assert.equal(bloqueo.detalle.risk_score, 88);
+    assert.deepEqual(bloqueo.detalle.reasons, ['Prueba']);
+    assert.ok(aud.cuerpo.eventos.every((e) => e.detalle === null || typeof e.detalle === 'object'));
 
     const anom = await m.casos.adminAnomalias({}, auditor);
     assert.equal(anom.status, 200);

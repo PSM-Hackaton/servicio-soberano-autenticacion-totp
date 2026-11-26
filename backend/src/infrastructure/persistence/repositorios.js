@@ -161,7 +161,6 @@ export function crearRepositorios(db) {
     activar: db.prepare(`UPDATE enrollments SET estado = 'activo', activated_at = ?, pending_expires_at = NULL
       WHERE id = ? AND estado = 'pendiente' AND (pending_expires_at IS NULL OR pending_expires_at > ?)`),
     revocar: db.prepare(`UPDATE enrollments SET estado = 'revocado', revoked_at = ? WHERE id = ? AND estado <> 'revocado'`),
-    suspender: db.prepare(`UPDATE enrollments SET estado = 'suspendido' WHERE id = ? AND estado = 'activo'`),
     // ADR-003: anti replay atómico. Solo una petición puede avanzar last_step a T.
     pasoAceptado: db.prepare(`UPDATE enrollments SET last_step = ?, drift_steps = ?, failed_attempts = 0, locked_until = NULL
       WHERE id = ? AND last_step < ?`),
@@ -169,6 +168,8 @@ export function crearRepositorios(db) {
       WHERE id = ? RETURNING failed_attempts`),
     recifrar: db.prepare(`UPDATE enrollments SET seed_ct = ?, seed_nonce = ?, seed_auth_tag = ?, key_version = ?
       WHERE id = ? AND key_version = ?`),
+    fueraDeVersion: db.prepare(`SELECT id, seed_ct, seed_nonce, seed_auth_tag, key_version FROM enrollments
+      WHERE key_version <> ? ORDER BY id`),
   };
   const enrollments = {
     /**
@@ -202,8 +203,6 @@ export function crearRepositorios(db) {
     },
     /** @param {string} id @param {string} [ahora] @returns {boolean} */
     revocar: (id, ahora = ahoraIso()) => sEnrol.revocar.run(ahora, id).changes === 1,
-    /** @param {string} id @returns {boolean} */
-    suspender: (id) => sEnrol.suspender.run(id).changes === 1,
     /**
      * Registra el paso T aceptado. Devuelve true solo si last_step < T (anti replay atómico):
      * dos peticiones con el mismo código no pueden ganar las dos.
@@ -232,6 +231,11 @@ export function crearRepositorios(db) {
       return sEnrol.recifrar.run(aBase64(nueva.seed_ct), aBase64(nueva.seed_nonce), aBase64(nueva.seed_auth_tag),
         nueva.key_version, id, versionAnterior).changes === 1;
     },
+    /**
+     * Semillas cifradas con una versión de llave maestra distinta de la indicada (rotación).
+     * @param {string} version @returns {Fila[]} id, seed_* (Buffer) y key_version
+     */
+    listarFueraDeVersion: (version) => sEnrol.fueraDeVersion.all(version).map(mapearEnrolamiento),
   };
 
   // ---------------------------------------------------------------- recovery_codes
@@ -314,6 +318,9 @@ export function crearRepositorios(db) {
     verificables: db.prepare(`SELECT * FROM signing_keys WHERE estado IN ('activa', 'solo_verificacion') ORDER BY created_at DESC`),
     porKid: db.prepare('SELECT * FROM signing_keys WHERE kid = ?'),
     estado: db.prepare('UPDATE signing_keys SET estado = ?, rotated_at = ? WHERE kid = ?'),
+    fueraDeVersion: db.prepare('SELECT * FROM signing_keys WHERE key_version <> ? ORDER BY kid'),
+    recifrar: db.prepare(`UPDATE signing_keys SET private_ct = ?, private_nonce = ?, private_auth_tag = ?, key_version = ?
+      WHERE kid = ? AND key_version = ?`),
   };
   const signingKeys = {
     /** @param {Fila} c public_jwk objeto o JSON; private_* como Buffer. */
@@ -334,6 +341,20 @@ export function crearRepositorios(db) {
      */
     cambiarEstado(kid, estado, ahora = ahoraIso()) {
       return sClave.estado.run(estado, estado === 'activa' ? null : ahora, kid).changes === 1;
+    },
+    /** Claves cifradas con una versión de llave maestra distinta de la indicada. @param {string} version */
+    listarFueraDeVersion: (version) => sClave.fueraDeVersion.all(version).map(mapearClave),
+    /**
+     * Sustituye la clave privada cifrada (rotación de llave maestra). Control optimista:
+     * solo aplica si la fila sigue en versionAnterior.
+     * @param {string} kid
+     * @param {{ private_ct: Uint8Array, private_nonce: Uint8Array, private_auth_tag: Uint8Array, key_version: string }} nueva
+     * @param {string} versionAnterior
+     * @returns {boolean}
+     */
+    recifrarPrivada(kid, nueva, versionAnterior) {
+      return sClave.recifrar.run(aBase64(nueva.private_ct), aBase64(nueva.private_nonce), aBase64(nueva.private_auth_tag),
+        nueva.key_version, kid, versionAnterior).changes === 1;
     },
   };
 

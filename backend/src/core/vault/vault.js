@@ -82,6 +82,8 @@ export function crearVault({ llaves, versionActiva }) {
 
   return {
     versionActiva,
+    /** @param {string} version @returns {boolean} true si la versión está en el llavero */
+    tieneVersion: (version) => llavero.has(version),
     encryptBlob,
     decryptBlob,
     /** @param {Buffer} semilla @param {string} enrollmentId */

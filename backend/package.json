@@ -13,6 +13,7 @@
     "env": "node scripts/generar-env.js",
     "certs": "node scripts/certificados.js",
     "seed": "node scripts/semilla.js",
+    "rotar-llave-maestra": "node scripts/rotar-llave-maestra.js",
     "test": "node --test --test-reporter=spec \"src/**/*.test.js\""
   }
 }

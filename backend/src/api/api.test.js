@@ -44,7 +44,7 @@ function casosFalsos() {
     revocar: registrar('revocar', (e) => ({ status: 200, cuerpo: { enrollment_id: e.id, estado: 'revocado' } })),
     jwks: async () => ({ status: 200, cuerpo: { keys: [{ kty: 'OKP', crv: 'Ed25519', kid: 'k1', use: 'sig', alg: 'EdDSA', x: 'abc' }] } }),
     autenticarApp: async (id, secreto) => (id === APP.client_id && secreto === SECRETO ? APP : null),
-    adminLogin: registrar('adminLogin', ({ usuario, password, codigo }) => {
+    adminLogin: registrar('adminLogin', ({ usuario, password, totp_code: codigo }) => {
       const a = Object.values(ADMINS).find((x) => x.usuario === usuario);
       if (!a || password !== 'clave' || codigo !== '123456') return { status: 401, cuerpo: { error: 'UNAUTHORIZED', message: 'Credenciales inválidas.' } };
       return { status: 200, cuerpo: { usuario: a.usuario, rol: a.rol }, admin: a };
@@ -64,13 +64,13 @@ function casosFalsos() {
 // ---------------------------------------------------------------- utilidades
 
 /** @returns {Promise<{ status: number, cabeceras: import('node:http').IncomingHttpHeaders, texto: string, json: any }>} */
-function pedir(puerto, { metodo = 'GET', ruta = '/', cabeceras = {}, cuerpo } = {}) {
+function pedir(puerto, { metodo = 'GET', ruta = '/', cabeceras = {}, cuerpo, localAddress } = {}) {
   return new Promise((resolver, rechazar) => {
     const datos = cuerpo === undefined ? undefined : typeof cuerpo === 'string' || Buffer.isBuffer(cuerpo) ? cuerpo : JSON.stringify(cuerpo);
     const h = { ...cabeceras };
     if (datos !== undefined && !('content-type' in h)) h['content-type'] = 'application/json';
     if (datos !== undefined && !('content-length' in h) && !h['transfer-encoding']) h['content-length'] = Buffer.byteLength(datos);
-    const req = request({ host: '127.0.0.1', port: puerto, method: metodo, path: ruta, headers: h }, (res) => {
+    const req = request({ host: '127.0.0.1', port: puerto, method: metodo, path: ruta, headers: h, localAddress }, (res) => {
       const trozos = [];
       res.on('data', (t) => trozos.push(t));
       res.on('end', () => {
@@ -281,6 +281,25 @@ describe('servidor HTTP', () => {
     assert.match(r.texto, /totp_http_requests_total/);
   });
 
+  test('GET /metrics es solo loopback: otra IP recibe 403 aunque traiga sesión de admin', async () => {
+    const login = await pedir(s.puerto, { metodo: 'POST', ruta: '/admin/api/login', cuerpo: { usuario: 'jefa', password: 'clave', totp_code: '123456' } });
+    const cookie = login.cabeceras['set-cookie'][0].split(';')[0];
+    // 127.0.0.2 es otra dirección de origen: el servidor solo acepta 127.0.0.1 y ::1.
+    const ajena = await pedir(s.puerto, { ruta: '/metrics', localAddress: '127.0.0.2', cabeceras: { cookie } });
+    assert.equal(ajena.status, 403);
+    assert.doesNotMatch(ajena.texto, /totp_http_requests_total/);
+    const consola = await pedir(s.puerto, { ruta: '/admin/api/metrics', localAddress: '127.0.0.2', cabeceras: { cookie } });
+    assert.equal(consola.status, 200);
+  });
+
+  test('login admin: solo `totp_code`; el alias `codigo` se rechaza (esquema cerrado)', async () => {
+    const antes = s.casos.llamadas.filter((l) => l.nombre === 'adminLogin').length;
+    const r = await pedir(s.puerto, { metodo: 'POST', ruta: '/admin/api/login', cuerpo: { usuario: 'jefa', password: 'clave', codigo: '123456' } });
+    assert.equal(r.status, 400);
+    assert.equal(r.json.error, 'INVALID_REQUEST');
+    assert.equal(s.casos.llamadas.filter((l) => l.nombre === 'adminLogin').length, antes, 'no llega al caso de uso');
+  });
+
   test('CORS: origen permitido, preflight y origen rechazado', async () => {
     const ok = await pedir(s.puerto, { ruta: '/health', cabeceras: { origin: 'https://localhost:5173' } });
     assert.equal(ok.cabeceras['access-control-allow-origin'], 'https://localhost:5173');
@@ -318,7 +337,8 @@ describe('servidor HTTP', () => {
     for (const atributo of ['HttpOnly', 'Secure', 'SameSite=Strict', 'Path=/admin']) assert.ok(setCookie.includes(atributo), atributo);
     const cookie = setCookie.split(';')[0];
     assert.ok(cookie.startsWith(`${NOMBRE_COOKIE_SESION}=`));
-    assert.equal(s.casos.llamadas.findLast((l) => l.nombre === 'adminLogin').entrada.codigo, '123456');
+    const entradaLogin = s.casos.llamadas.findLast((l) => l.nombre === 'adminLogin').entrada;
+    assert.deepEqual(entradaLogin, { usuario: 'jefa', password: 'clave', totp_code: '123456' });
 
     const sesion = await pedir(s.puerto, { ruta: '/admin/api/session', cabeceras: { cookie } });
     assert.equal(sesion.status, 200);
@@ -423,6 +443,41 @@ describe('servidor HTTP: salud caída y límites de tasa', () => {
     }
   });
 
+  test('/health/ready: volver a estar bien tras un fallo cuenta una reconexión', async () => {
+    let caida = true;
+    const s = await levantar({ salud: () => { if (caida) throw new Error('SQLITE_BUSY'); return true; } });
+    try {
+      assert.equal((await pedir(s.puerto, { ruta: '/health/ready' })).status, 503);
+      caida = false;
+      assert.equal((await pedir(s.puerto, { ruta: '/health/ready' })).status, 200);
+      assert.equal((await pedir(s.puerto, { ruta: '/health/ready' })).status, 200);
+      const m = s.metricas.instantanea();
+      assert.equal(m.totales.reconexiones, 1);
+      assert.match(s.metricas.formatoTexto(), /totp_db_reconnections_total 1/);
+    } finally {
+      s.servidor.close();
+      s.servidor.closeAllConnections();
+    }
+  });
+
+  test('429 del limitador en verify cuenta como rate_limited', async () => {
+    const casos = casosFalsos();
+    casos.verificar = async () => ({ status: 401, cuerpo: { error: 'UNAUTHORIZED', message: 'x' } });
+    const s = await levantar({ casos, limitadores: { porApp: crearLimitador({ capacidad: 1, ventanaMs: 60_000 }) } });
+    try {
+      const verificar = () => pedir(s.puerto, { metodo: 'POST', ruta: '/api/v1/verify', cuerpo: { user_ref: 'u1', code: '123456' }, cabeceras: credenciales });
+      assert.equal((await verificar()).status, 401);
+      assert.equal((await verificar()).status, 429);
+      assert.equal((await pedir(s.puerto, { metodo: 'POST', ruta: '/api/v1/enrollments', cuerpo: { user_ref: 'u1' }, cabeceras: credenciales })).status, 429);
+      const m = s.metricas.instantanea();
+      assert.equal(m.resultadosVerificacion.rate_limited, 1, 'solo el 429 de verify es un resultado de verificación');
+      assert.equal(m.totales.limitadas, 2, 'todos los 429 por límite se cuentan');
+    } finally {
+      s.servidor.close();
+      s.servidor.closeAllConnections();
+    }
+  });
+
   test('límite por app → 429', async () => {
     const s = await levantar({ limitadores: { porApp: crearLimitador({ capacidad: 2, ventanaMs: 60_000 }) } });
     try {
@@ -435,6 +490,29 @@ describe('servidor HTTP: salud caída y límites de tasa', () => {
     } finally {
       s.servidor.close();
       s.servidor.closeAllConnections();
+    }
+  });
+});
+
+describe('arranque real (main.js)', () => {
+  test('/health informa el modo de heurística configurado (local | monitorizacion | mock)', async () => {
+    const { iniciar } = await import('../main.js');
+    const { validarConfig } = await import('../infrastructure/config/config.js');
+    const silencio = { info() {}, warn() {}, error() {} };
+    for (const modo of ['monitorizacion', 'mock', 'local']) {
+      const config = validarConfig({
+        HOST: '127.0.0.1', PORT: '0', TLS_MODE: 'off', SQLITE_DB_PATH: ':memory:', HEURISTICS_MODE: modo,
+        MASTER_KEY_VERSION: 'v1', MASTER_KEY_V1_HEX: 'ab'.repeat(32),
+        USER_REF_PEPPER: 'p'.repeat(43), DAILY_IP_PEPPER_SEED: 'q'.repeat(43),
+      });
+      const svc = await iniciar({ config, registro: silencio, senales: false });
+      try {
+        const r = await pedir(svc.puerto, { ruta: '/health' });
+        assert.equal(r.status, 200);
+        assert.equal(r.json.heuristicsMode, modo);
+      } finally {
+        await svc.detener('prueba');
+      }
     }
   });
 });

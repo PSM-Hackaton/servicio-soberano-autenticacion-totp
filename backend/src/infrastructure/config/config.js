@@ -2,19 +2,21 @@
 // Las variables del proceso tienen prioridad sobre el archivo. Falla al arrancar con mensajes claros.
 
 import { existsSync, readFileSync } from 'node:fs';
-import { isAbsolute, resolve } from 'node:path';
+import { dirname, isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { llavesDesdeEntorno } from '../../core/vault/vault.js';
 
 /** Carpeta backend/ (las rutas relativas del .env se resuelven respecto a ella). */
 export const CARPETA_BACKEND = fileURLToPath(new URL('../../../', import.meta.url));
-export const RUTA_ENV_POR_DEFECTO = resolve(CARPETA_BACKEND, '.env');
+const RUTA_ENV_POR_DEFECTO = resolve(CARPETA_BACKEND, '.env');
 
 const MARCADOR_SIN_CAMBIAR = 'CHANGE_ME';
 const MODOS_TLS = ['node', 'off'];
 const MODOS_HEURISTICA = ['local', 'monitorizacion', 'mock'];
 const LONGITUD_MINIMA_PEPPER = 32;
+/** Emisor neutro del URI otpauth:// (ningún valor por defecto nombra organismos reales). */
+export const EMISOR_TOTP_POR_DEFECTO = 'ServicioSoberanoTOTP';
 
 /** Error de configuración: agrupa todos los problemas encontrados. */
 export class ErrorConfiguracion extends Error {
@@ -180,7 +182,7 @@ export function validarConfig(vars, { base = CARPETA_BACKEND } = {}) {
 
   const userRefPepper = pepper('USER_REF_PEPPER');
   const ipPepperSemilla = pepper('DAILY_IP_PEPPER_SEED');
-  const emisorTotp = texto('TOTP_ISSUER', { defecto: 'MincytSoberanoTOTP' });
+  const emisorTotp = texto('TOTP_ISSUER', { defecto: EMISOR_TOTP_POR_DEFECTO });
   const emisorJwt = texto('JWT_ISSUER', { defecto: 'https://totp.soberano.local' });
   const ttlJwtSegundos = entero('JWT_TTL_SECONDS', { defecto: 300, min: 30, max: 3600 });
   const heuristicas = opcion('HEURISTICS_MODE', MODOS_HEURISTICA, 'local');
@@ -194,6 +196,11 @@ export function validarConfig(vars, { base = CARPETA_BACKEND } = {}) {
 
   const adminUsuario = texto('ADMIN_SEED_USER', { defecto: 'admin_seguridad' });
   if (adminUsuario && !/^[A-Za-z0-9_.-]{3,64}$/.test(adminUsuario)) problemas.push('ADMIN_SEED_USER debe tener 3 a 64 caracteres [A-Za-z0-9_.-]');
+
+  // QR del TOTP del admin inicial (npm run seed): ADMIN_QR_PATH o, por defecto, junto a la base de datos.
+  const qrTexto = texto('ADMIN_QR_PATH', { obligatoria: false });
+  const carpetaDatos = rutaDb === ':memory:' ? resolve(base, 'data') : dirname(ruta(rutaDb ?? './data/totp_soberano.db'));
+  const adminRutaQr = qrTexto ? ruta(qrTexto) : resolve(carpetaDatos, 'admin-qr.svg');
 
   const referenciaReloj = texto('CLOCK_REFERENCE_URL', { obligatoria: false });
   if (referenciaReloj && !/^https?:\/\//.test(referenciaReloj)) problemas.push('CLOCK_REFERENCE_URL debe ser una URL http(s)');
@@ -214,7 +221,7 @@ export function validarConfig(vars, { base = CARPETA_BACKEND } = {}) {
     ttlJwtSegundos,
     heuristicas,
     corsOrigenes: Object.freeze(corsOrigenes),
-    admin: Object.freeze({ usuarioSemilla: adminUsuario }),
+    admin: Object.freeze({ usuarioSemilla: adminUsuario, rutaQr: adminRutaQr }),
     referenciaReloj: referenciaReloj ?? null,
   });
 }
@@ -239,5 +246,6 @@ export function configCasosDeUso(config) {
     emisorJwt: config.emisorJwt,
     ttlJwtSegundos: config.ttlJwtSegundos,
     minutosPendiente: 10,
+    modoHeuristica: config.heuristicas,
   };
 }
