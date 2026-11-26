@@ -72,7 +72,6 @@ export function configuracion(env = cargarEnv()) {
     secretoSeudonimos: (env.PORTAL_SECRETO_SEUDONIMOS ?? '').trim(),
     trazasPorDefecto: (env.PORTAL_TRAZAS ?? '1') !== '0',
     sesionMinutos: Number(env.PORTAL_SESION_MINUTOS ?? 15),
-    stepUpMinutos: Number(env.PORTAL_STEPUP_MINUTOS ?? 0),
     // Solo si hay un proxy inverso PROPIO delante del portal: entonces la IP del ciudadano llega en
     // X-Forwarded-For (última entrada). Por defecto se usa la dirección del socket.
     confiarXForwardedFor: env.PORTAL_CONFIAR_X_FORWARDED_FOR === '1',

@@ -185,7 +185,6 @@ impide arrancar. Las rutas relativas se resuelven respecto a `backend/`.
 | `PORTAL_ETIQUETA_CUENTA` | `Portal de Trámites` | Etiqueta de la cuenta en la app. |
 | `PORTAL_TRAZAS` | `1` | Muestra el panel «Lo que ocurre por dentro». |
 | `PORTAL_SESION_MINUTOS` | `15` | Inactividad máxima de la sesión. |
-| `PORTAL_STEPUP_MINUTOS` | `0` | Reservada: se lee pero no tiene efecto; el *step-up* se pide siempre. |
 | `PORTAL_USUARIOS` | `datos/usuarios.json` | Archivo de ciudadanos ficticios. |
 | `PORTAL_CONFIAR_X_FORWARDED_FOR` | `0` | `1` solo si hay un proxy inverso propio delante del portal: la IP del ciudadano (que se envía al servicio como `client_ip`) se toma de `X-Forwarded-For`. |
 
