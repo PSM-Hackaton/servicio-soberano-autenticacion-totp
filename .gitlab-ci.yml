@@ -1,0 +1,12 @@
+# Integración continua sin dependencias externas (ADR-002: solo Node.js 22 nativo).
+# Issue #31 (D5): ejecuta pruebas, validación estricta OpenAPI, SBOM e higiene sin npm install.
+
+stages:
+  - verificar
+
+verificar-todo:
+  stage: verificar
+  image: node:22-bookworm-slim
+  script:
+    - node --version
+    - node scripts/verificar-todo.js --cobertura
