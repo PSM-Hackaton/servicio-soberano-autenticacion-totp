@@ -61,7 +61,15 @@
 - [ ] `npm run certs` solo emite para `localhost`; el README §6 (Paso 6) documenta el certificado con la IP de la red local para el teléfono.
 - [x] `[C6 · #24]` Escaneo dinámico OWASP propio (`attack-lab/escenarios/dast.js` + `dast.test.js`): 9/9 verificaciones OK en vivo contra producción TLS 1.3 (`docs/evidencias/dast-informe-2026-11-26.{html,json}`).
 - [x] `[C7 · #25]` Prueba de despliegue institucional `systemd` (`deploy/verificar-despliegue.js` + `docs/evidencias/prueba-despliegue-systemd.md`): 10/10 controles OK (`systemd-analyze verify`, `security: 3.0 OK`, TLS 1.3, `VACUUM INTO`, `SIGTERM` 4 ms).
-- [x] `[C8 · #26]` Limpieza final: `SYSTEM_GRAPH.md` sin rastros de herramientas/modelos, `AGENTS.md` actualizado, SBOM CycloneDX 1.5 regenerado (128 archivos JS, 0 deps npm) y 258/258 pruebas en verde.
+- [x] `[C8 · #26]` Limpieza final: `SYSTEM_GRAPH.md` sin rastros de herramientas/modelos, `AGENTS.md` actualizado, SBOM CycloneDX 1.5 regenerado y todas las pruebas en verde.
+- [x] `[D1 · #27]` `contracts/openapi.yaml` sin claves duplicadas ni `$ref` rotas; documentos raíz sin `USER_PEPPER`/`DAILY_IP_PEPPER`/`Hexagonal`; `sdk/INTEGRACION_RETO1.md` con `clientIp`.
+- [x] `[D3 · #29]` Prueba automatizada de formato Key URI en `authenticator-app/tests/otpauth.test.mjs` + matriz `docs/evidencias/compatibilidad-clientes-totp.md`.
+- [x] `[D4 · #30]` `README.md` conforme a los 6 apartados del instructivo sin cédulas y con cifras/cobertura verificadas.
+- [x] `[D5 · #31]` CI sin dependencias (`scripts/verificar-todo.js`, `.gitlab-ci.yml`, `.github/workflows/pruebas.yml`) + cobertura real en `docs/evidencias/cobertura-2026-11-26.txt` (287/287 pruebas, backend 98,24 %).
+- [x] `[D7/F3 · #33/#50]` Auditoría WCAG 2.1 AA en `docs/evidencias/accesibilidad.md`.
+- [x] `[M0/M1/M2 · #39/#40/#41]` ADR-004 en `ARCHITECTURE.md` + `mobile-android/` (README con diagrama de secuencia, `AndroidManifest.xml`, `TotpEngine.kt` y `TotpEngineTest.kt`).
+- [x] `[F1/F2/F4/F5 · #48/#49/#51/#52]` `sitio-publico/` (`index.html`, `instalar-certificado.html`, `estado.html`, SVG propio, CSP estricta, tema claro/oscuro) + `scripts/capturas.js` (Chromium headless).
+- [x] `[F7 · #54 (base)]` Guion y plantilla de observación de usabilidad en `docs/evidencias/guion-usabilidad.md` (pendiente sesión presencial con 3 personas).
 
 ---
 

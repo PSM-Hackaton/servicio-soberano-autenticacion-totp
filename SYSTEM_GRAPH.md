@@ -77,11 +77,15 @@ flowchart TD
 | `demo-portal-tramites/` | `server.js`, `src/{portal,sesiones,tramites,usuarios,vistas}.js`, `scripts/crear-usuarios.js` | Portal institucional demo con enrolamiento, verificación, step-up MFA y panel de traza | `sdk/`, `authenticator-app/` |
 | `attack-lab/` | `ejecutar-todo.js`, `escenarios/*.js` (incl. `dast.js`), `caos/{proxy-caos,escenario-caos,reinicio}.js` | Ataques reales, escáner DAST propio y proxy TCP de caos -> informes JSON/HTML autocontenidos | `backend/src/api`, `backend/src/core/` |
 | `deploy/` & `docs/` | `deploy/servicio-totp.service`, `deploy/verificar-despliegue.js`, `docs/sbom/`, `docs/cumplimiento/`, `docs/evidencias/` | Unidad `systemd` verificada, inventario CycloneDX 1.5 (0 deps npm), matriz de cumplimiento y evidencias | Entrega / Producción |
+| `sitio-publico/` | `index.html`, `instalar-certificado.html`, `estado.html`, `css/sitio.css`, `js/{sitio,certificado,estado}.js`, `img/*.svg` | Inicio ciudadano, guía de certificado `/ca.crt` con huella SHA-256 y página `/estado` (cada 30 s) con CSP estricta | `backend/src/api` (`/health/ready`, `/ca.crt`, `/app/`, `/consola/`) |
+| `mobile-android/` | `README.md`, `AndroidManifest.xml`, `TotpEngine.kt`, `TotpEngineTest.kt` | ADR-004 Android nativo Kotlin sin librerías de terceros (RFC 6238/4226, Android Keystore, `allowBackup="false"`) | Portal institucional y `backend/src/api` |
+| `scripts/` & CI | `scripts/verificar-todo.js`, `scripts/capturas.js`, `.gitlab-ci.yml`, `.github/workflows/pruebas.yml` | CI sin dependencias (OpenAPI estricto, 5 suites con cobertura, SBOM, higiene) y capturas headless Chromium | Todo el repositorio |
 
 ## 3. Bitácora de Evolución Arquitectónica
 
 | Fecha | Acción (Alta / Poda / Refactor) | Módulos Afectados |
 | :--- | :--- | :--- |
-| 2026-11-26 | Alta inicial de estructura hexagonal y contratos | `contracts/`, estructura base y documentos raíz |
+| 2026-11-26 | Alta inicial de estructura modular y contratos | `contracts/`, estructura base y documentos raíz |
 | 2026-11-26 | Adopción de ADR-002 (Node.js 22 nativo, 0 dependencias npm, SQLite WAL) | Poda de PostgreSQL/Docker/Fastify/React; alta completa de `backend/`, `authenticator-app/`, `admin-console/`, `sdk/`, `demo-portal-tramites/`, `attack-lab/`, `deploy/` |
 | 2026-11-26 | Alta de DAST propio (`#24`), verificación `systemd` (`#25`) y limpieza final (`#26`) | `attack-lab/escenarios/dast.js`, `attack-lab/tests/dast.test.js`, `deploy/verificar-despliegue.js`, `docs/evidencias/`, `docs/sbom/` |
+| 2026-11-26 | Alta de CI sin dependencias (`#31`), compatibilidad Key URI (`#29`), limpieza README (`#30`), ADR-004 + `mobile-android/` (`#39`–`#41`), `sitio-publico/` (`#48`, `#49`, `#52`), capturas (`#51`) y accesibilidad (`#33`, `#50`) | `scripts/verificar-todo.js`, `.gitlab-ci.yml`, `.github/workflows/pruebas.yml`, `mobile-android/`, `sitio-publico/`, `scripts/capturas.js`, `docs/evidencias/` |
