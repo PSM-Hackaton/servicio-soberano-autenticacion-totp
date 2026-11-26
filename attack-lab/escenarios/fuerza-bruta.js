@@ -40,8 +40,11 @@ export async function ejecutar(ctx, res) {
   res.metrica('secuencia de respuestas', traza.join(' → '));
   res.verificar(`Bloqueo tras ${maxIntentos} fallos`, `429 en el intento ${maxIntentos + 1}`,
     primer429 ? `429 en el intento ${primer429.intento}` : 'sin 429', primer429 !== null && primer429.intento <= maxIntentos + 1);
-  res.verificar('Primer escalón de bloqueo', '≈30 s (Retry-After)', primer429?.segundos ?? '—',
-    primer429?.segundos !== null && primer429?.segundos !== undefined && primer429.segundos >= 20 && primer429.segundos <= 31);
+  const seg = primer429?.segundos;
+  const esEscalonProgresivo = seg !== null && seg !== undefined && seg >= 20 && seg <= 31;
+  const esBloqueoDetector = seg !== null && seg !== undefined && seg >= 290 && seg <= 305;
+  res.verificar('Primer escalón de bloqueo', '≈30 s (progresivo) o 300 s (detector)', seg ?? '—',
+    esEscalonProgresivo || esBloqueoDetector);
   if (!primer429) res.hallazgo(`Sin bloqueo tras ${maxIntentos + 3} códigos incorrectos consecutivos contra una cuenta.`);
 
   // 2. Durante el bloqueo: el atacante insiste y además prueba el código CORRECTO.
