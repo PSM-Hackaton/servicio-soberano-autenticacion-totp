@@ -1,0 +1,364 @@
+{
+  "inicio": "2026-11-26T17:30:46.909Z",
+  "banco": {
+    "K": 100,
+    "heuristicas": "local",
+    "sincrono": "FULL"
+  },
+  "N_USUARIOS": 1000,
+  "DURACION_S": 8,
+  "baseInicial": {
+    "bytesLogicos": 118784,
+    "archivoDb": 4096,
+    "archivoWal": 164832,
+    "filas": {
+      "enrollments": 0,
+      "recovery_codes": 0,
+      "attempts": 0,
+      "audit_log": 1,
+      "consumed_jti": 0
+    },
+    "porTabla": {
+      "admins": 4096,
+      "apps": 4096,
+      "attempts": 4096,
+      "audit_log": 4096,
+      "consumed_jti": 4096,
+      "enrollments": 4096,
+      "idx_attempts_ip_ts": 4096,
+      "idx_attempts_ts": 4096,
+      "idx_attempts_user_ts": 4096,
+      "idx_audit_ts": 4096,
+      "idx_consumed_jti_exp": 4096,
+      "idx_enrollments_app_user": 4096,
+      "idx_recovery_enrollment": 4096,
+      "recovery_codes": 4096,
+      "schema_migrations": 4096,
+      "signing_keys": 4096,
+      "sqlite_autoindex_admins_1": 4096,
+      "sqlite_autoindex_admins_2": 4096,
+      "sqlite_autoindex_apps_1": 4096,
+      "sqlite_autoindex_apps_2": 4096,
+      "sqlite_autoindex_consumed_jti_1": 4096,
+      "sqlite_autoindex_enrollments_1": 4096,
+      "sqlite_autoindex_recovery_codes_1": 4096,
+      "sqlite_autoindex_schema_migrations_1": 4096,
+      "sqlite_autoindex_signing_keys_1": 4096,
+      "sqlite_schema": 12288,
+      "sqlite_sequence": 4096
+    }
+  },
+  "procesoInicial": {
+    "cpuS": 0.31,
+    "rssMB": 94.4765625,
+    "hwmMB": 106.36328125,
+    "hilos": 11
+  },
+  "enrolamiento": {
+    "concurrencia": 16,
+    "usuariosPorSegundo": 12.5,
+    "enrolar": {
+      "peticiones": 1000,
+      "segundos": 79.76,
+      "rps": 13,
+      "p50": 7.35,
+      "p95": 12.02,
+      "p99": 879.08,
+      "max": 1286.59,
+      "estados": {},
+      "cpuNucleos": 4.11,
+      "rssMB": 196,
+      "picoRssMB": 196
+    },
+    "activar": {
+      "peticiones": 1000,
+      "segundos": 79.76,
+      "rps": 13,
+      "p50": 1230.24,
+      "p95": 1381.04,
+      "p99": 1439.92,
+      "max": 1480.77,
+      "estados": {},
+      "cpuNucleos": 4.11,
+      "rssMB": 196,
+      "picoRssMB": 196
+    }
+  },
+  "baseTrasEnrolar": {
+    "bytesLogicos": 4157440,
+    "archivoDb": 4100096,
+    "archivoWal": 4190072,
+    "filas": {
+      "enrollments": 1000,
+      "recovery_codes": 10000,
+      "attempts": 0,
+      "audit_log": 2001,
+      "consumed_jti": 0
+    },
+    "porTabla": {
+      "admins": 4096,
+      "apps": 4096,
+      "attempts": 4096,
+      "audit_log": 688128,
+      "consumed_jti": 4096,
+      "enrollments": 344064,
+      "idx_attempts_ip_ts": 4096,
+      "idx_attempts_ts": 4096,
+      "idx_attempts_user_ts": 4096,
+      "idx_audit_ts": 122880,
+      "idx_consumed_jti_exp": 4096,
+      "idx_enrollments_app_user": 122880,
+      "idx_recovery_enrollment": 524288,
+      "recovery_codes": 1712128,
+      "schema_migrations": 4096,
+      "signing_keys": 4096,
+      "sqlite_autoindex_admins_1": 4096,
+      "sqlite_autoindex_admins_2": 4096,
+      "sqlite_autoindex_apps_1": 4096,
+      "sqlite_autoindex_apps_2": 4096,
+      "sqlite_autoindex_consumed_jti_1": 4096,
+      "sqlite_autoindex_enrollments_1": 53248,
+      "sqlite_autoindex_recovery_codes_1": 503808,
+      "sqlite_autoindex_schema_migrations_1": 4096,
+      "sqlite_autoindex_signing_keys_1": 4096,
+      "sqlite_schema": 12288,
+      "sqlite_sequence": 4096
+    }
+  },
+  "jwks": {
+    "1": {
+      "peticiones": 88210,
+      "segundos": 8,
+      "rps": 11026,
+      "p50": 0.06,
+      "p95": 0.13,
+      "p99": 0.22,
+      "max": 4.67,
+      "estados": {
+        "200": 88210
+      },
+      "cpuNucleos": 0.47,
+      "rssMB": 197,
+      "picoRssMB": 197
+    },
+    "10": {
+      "peticiones": 150244,
+      "segundos": 8,
+      "rps": 18778,
+      "p50": 0.4,
+      "p95": 0.95,
+      "p99": 1.46,
+      "max": 10.63,
+      "estados": {
+        "200": 150244
+      },
+      "cpuNucleos": 0.74,
+      "rssMB": 207,
+      "picoRssMB": 207
+    },
+    "50": {
+      "peticiones": 106460,
+      "segundos": 8,
+      "rps": 13302,
+      "p50": 3.05,
+      "p95": 6.98,
+      "p99": 15.28,
+      "max": 47.22,
+      "estados": {
+        "200": 106460
+      },
+      "cpuNucleos": 0.79,
+      "rssMB": 211,
+      "picoRssMB": 211
+    },
+    "100": {
+      "peticiones": 148558,
+      "segundos": 8,
+      "rps": 18564,
+      "p50": 4.85,
+      "p95": 7.61,
+      "p99": 12.73,
+      "max": 56.22,
+      "estados": {
+        "200": 148558
+      },
+      "cpuNucleos": 0.76,
+      "rssMB": 220,
+      "picoRssMB": 220
+    }
+  },
+  "verify": {
+    "1": {
+      "peticiones": 2786,
+      "segundos": 8,
+      "rps": 348,
+      "p50": 2.57,
+      "p95": 3.64,
+      "p99": 5.97,
+      "max": 31.45,
+      "estados": {
+        "200": 2786
+      },
+      "cpuNucleos": 0.41,
+      "rssMB": 206,
+      "picoRssMB": 206
+    },
+    "10": {
+      "peticiones": 2974,
+      "segundos": 8.03,
+      "rps": 371,
+      "p50": 23.57,
+      "p95": 47.42,
+      "p99": 56.1,
+      "max": 134.47,
+      "estados": {
+        "200": 2974
+      },
+      "cpuNucleos": 0.47,
+      "rssMB": 208,
+      "picoRssMB": 208
+    },
+    "50": {
+      "peticiones": 2982,
+      "segundos": 8.14,
+      "rps": 366,
+      "p50": 131.36,
+      "p95": 152.98,
+      "p99": 333.35,
+      "max": 576.79,
+      "estados": {
+        "200": 2965,
+        "401": 17
+      },
+      "cpuNucleos": 0.67,
+      "rssMB": 214,
+      "picoRssMB": 214
+    },
+    "100": {
+      "peticiones": 2933,
+      "segundos": 8.26,
+      "rps": 355,
+      "p50": 279.86,
+      "p95": 306.91,
+      "p99": 318.71,
+      "max": 1162.76,
+      "estados": {
+        "200": 2906,
+        "401": 27
+      },
+      "cpuNucleos": 0.48,
+      "rssMB": 223,
+      "picoRssMB": 223
+    }
+  },
+  "validate": {
+    "1": {
+      "peticiones": 1549,
+      "segundos": 2.29,
+      "rps": 677,
+      "p50": 1.36,
+      "p95": 1.81,
+      "p99": 2.98,
+      "max": 6.61,
+      "estados": {
+        "200": 1549
+      },
+      "cpuNucleos": 0.47,
+      "rssMB": 207,
+      "picoRssMB": 207
+    },
+    "10": {
+      "peticiones": 6049,
+      "segundos": 7.4,
+      "rps": 817,
+      "p50": 10.58,
+      "p95": 21.35,
+      "p99": 27.66,
+      "max": 85.91,
+      "estados": {
+        "200": 6049
+      },
+      "cpuNucleos": 0.44,
+      "rssMB": 209,
+      "picoRssMB": 209
+    },
+    "50": {
+      "peticiones": 6049,
+      "segundos": 7.27,
+      "rps": 832,
+      "p50": 57.71,
+      "p95": 68.89,
+      "p99": 211.03,
+      "max": 581.43,
+      "estados": {
+        "200": 6049
+      },
+      "cpuNucleos": 0.67,
+      "rssMB": 217,
+      "picoRssMB": 217
+    },
+    "100": {
+      "peticiones": 6049,
+      "segundos": 7.51,
+      "rps": 806,
+      "p50": 104.22,
+      "p95": 150.05,
+      "p99": 368.77,
+      "max": 4765.2,
+      "estados": {
+        "200": 6049
+      },
+      "cpuNucleos": 0.42,
+      "rssMB": 224,
+      "picoRssMB": 224
+    }
+  },
+  "baseFinal": {
+    "bytesLogicos": 41140224,
+    "archivoDb": 41078784,
+    "archivoWal": 4190072,
+    "filas": {
+      "enrollments": 1000,
+      "recovery_codes": 10000,
+      "attempts": 31455,
+      "audit_log": 33328,
+      "consumed_jti": 19696
+    },
+    "porTabla": {
+      "admins": 4096,
+      "apps": 4096,
+      "attempts": 10018816,
+      "audit_log": 13553664,
+      "consumed_jti": 1355776,
+      "enrollments": 352256,
+      "idx_attempts_ip_ts": 3497984,
+      "idx_attempts_ts": 2031616,
+      "idx_attempts_user_ts": 3489792,
+      "idx_audit_ts": 2154496,
+      "idx_consumed_jti_exp": 724992,
+      "idx_enrollments_app_user": 122880,
+      "idx_recovery_enrollment": 524288,
+      "recovery_codes": 1712128,
+      "schema_migrations": 4096,
+      "signing_keys": 4096,
+      "sqlite_autoindex_admins_1": 4096,
+      "sqlite_autoindex_admins_2": 4096,
+      "sqlite_autoindex_apps_1": 4096,
+      "sqlite_autoindex_apps_2": 4096,
+      "sqlite_autoindex_consumed_jti_1": 987136,
+      "sqlite_autoindex_enrollments_1": 53248,
+      "sqlite_autoindex_recovery_codes_1": 503808,
+      "sqlite_autoindex_schema_migrations_1": 4096,
+      "sqlite_autoindex_signing_keys_1": 4096,
+      "sqlite_schema": 12288,
+      "sqlite_sequence": 4096
+    }
+  },
+  "procesoFinal": {
+    "cpuS": 406.69,
+    "rssMB": 224.4921875,
+    "hwmMB": 224.4921875,
+    "hilos": 11
+  },
+  "fin": "2026-11-26T17:34:32.039Z"
+}
