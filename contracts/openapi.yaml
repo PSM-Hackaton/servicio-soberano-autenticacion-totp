@@ -1,13 +1,14 @@
 openapi: 3.1.0
 info:
   title: Servicio Soberano de Autenticación TOTP API (v1)
-  version: 1.0.0
+  version: 1.1.0
   description: >
-    Contrato oficial congelado alineado 100% con docs/analisis/analisis-tecnico.html (Secciones 6 y 7).
-    Consumido por authenticator-app, admin-console, demo-portal-tramites, sdk y el sub-equipo del Reto 1.
+    Contrato oficial congelado alineado 100% con docs/analisis/analisis-tecnico.html (v1.2, Secciones 5.6, 5.7, 6 y 7)
+    y ADR-002 (stack 100% propio en Node.js 22 sin dependencias npm, persistencia oficial SQLite WAL nativa).
+    Consumido por authenticator-app, admin-console, demo-portal-tramites, sdk, attack-lab y el sub-equipo del Reto 1.
 servers:
   - url: https://localhost:8443
-    description: API Soberana HTTPS (TLS 1.3 vía Caddy o Node HTTPS)
+    description: API Soberana HTTPS (TLS 1.3 nativo de Node.js 22)
 
 tags:
   - name: System
@@ -18,10 +19,10 @@ paths:
   /health:
     get:
       tags: [System]
-      summary: Estado operativo del servicio
+      summary: Estado de vida (liveness) del proceso del servidor
       responses:
         '200':
-          description: OK
+          description: Proceso activo
           content:
             application/json:
               schema:
@@ -30,9 +31,51 @@ paths:
                 properties:
                   status: { type: string, enum: [ok] }
                   timestamp: { type: string, format: date-time }
-                  dbDriver: { type: string, enum: [postgres, sqlite] }
+                  dbDriver: { type: string, enum: [sqlite] }
                   activeKeyId: { type: string }
                   heuristicsMode: { type: string, enum: [local, mock] }
+
+  /health/ready:
+    get:
+      tags: [System]
+      summary: Estado de disponibilidad (readiness) verificando SQLite y llave activa Ed25519
+      responses:
+        '200':
+          description: Servicio listo para recibir tráfico
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthReadyResponse'
+        '503':
+          description: Servicio no listo (base de datos no disponible o clave de firma ausente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericError'
+
+  /metrics:
+    get:
+      tags: [System]
+      summary: Métricas operativas locales en formato de exposición Prometheus (sin telemetría externa)
+      description: >
+        Expone disponibilidad, latencia p50/p95 por ruta, tasa 5xx, resultados de verificación,
+        errores/reconexiones SQLite, latencia de inferencia IA y desfase de reloj.
+      responses:
+        '200':
+          description: Métricas en texto plano compatibles con Prometheus
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: |
+                # HELP totp_availability_percent Disponibilidad estimada en porcentaje
+                # TYPE totp_availability_percent gauge
+                totp_availability_percent 99.95
+        '503':
+          description: Servicio no disponible temporalmente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
 
   /.well-known/jwks.json:
     get:
@@ -59,6 +102,11 @@ paths:
                         use: { type: string, example: sig }
                         alg: { type: string, example: EdDSA }
                         x: { type: string }
+        '503':
+          description: Base de datos de llaves no disponible
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
 
   /api/v1/enrollments:
     post:
@@ -91,6 +139,21 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/GenericError' }
+        '401':
+          description: Credenciales de aplicación inválidas
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
+        '429':
+          description: Límite de tasa excedido
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
+        '503':
+          description: Servicio no disponible temporalmente (fail-closed)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
 
   /api/v1/enrollments/{id}/activate:
     post:
@@ -119,8 +182,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ActivateResponse'
+        '400':
+          description: Error de validación genérico
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
         '401':
           description: Código inválido o enrolamiento expirado (error genérico)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
+        '503':
+          description: Servicio no disponible temporalmente (fail-closed)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/GenericError' }
@@ -130,6 +203,12 @@ paths:
       tags: [MFA v1]
       security: [{ appClientId: [], appClientSecret: [] }]
       summary: Verifica código TOTP aplicando ventana, deriva, anti-replay, rate limit, bloqueo progresivo y detector local de anomalías
+      description: >
+        Admite la cabecera opcional `Idempotency-Key` para garantizar que un reintento de red tras un corte
+        a mitad de petición devuelva exactamente el mismo resultado sin violar anti-replay ni doble emisión.
+        Opera siempre en modo fail-closed: ante caída de SQLite responde 503 y nunca concede acceso.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -144,10 +223,19 @@ paths:
       responses:
         '200':
           description: Desafío TOTP superado; JWT Ed25519 (5 min, jti único) emitido
+          headers:
+            Idempotency-Key:
+              description: Eco de la clave de idempotencia cuando fue enviada por el cliente
+              schema: { type: string }
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/VerifySuccessResponse'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
         '401':
           description: Verificación rechazada (error genérico sin enumeración de usuario)
           content:
@@ -155,6 +243,15 @@ paths:
               schema: { $ref: '#/components/schemas/GenericError' }
         '429':
           description: Límite de tasa o bloqueo progresivo / adaptativo activo
+          headers:
+            Retry-After:
+              description: Segundos sugeridos antes del siguiente intento
+              schema: { type: integer }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
+        '503':
+          description: Servicio no disponible temporalmente (fail-closed, jamás concede acceso)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/GenericError' }
@@ -194,6 +291,16 @@ paths:
                     items: { type: string }
                   exp: { type: integer }
                   reason: { type: string }
+        '401':
+          description: Credenciales de aplicación inválidas
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
+        '503':
+          description: Servicio no disponible temporalmente (fail-closed)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
 
   /api/v1/enrollments/{id}/resync:
     post:
@@ -227,6 +334,16 @@ paths:
                 properties:
                   resynced: { type: boolean, enum: [true] }
                   drift_steps: { type: integer }
+        '401':
+          description: Códigos consecutivos inválidos o fuera de ventana
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
+        '503':
+          description: Servicio no disponible temporalmente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
 
   /api/v1/recovery:
     post:
@@ -256,6 +373,16 @@ paths:
                   recovered: { type: boolean, enum: [true] }
                   must_reenroll: { type: boolean, enum: [true] }
                   remaining_codes: { type: integer }
+        '401':
+          description: Código de recuperación inválido o ya utilizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
+        '503':
+          description: Servicio no disponible temporalmente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
 
   /api/v1/enrollments/{id}:
     delete:
@@ -279,6 +406,16 @@ paths:
                   enrollment_id: { type: string, format: uuid }
                   estado: { type: string, enum: [revocado] }
                   revoked_at: { type: string, format: date-time }
+        '401':
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
+        '503':
+          description: Servicio no disponible temporalmente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
 
   /admin/api/login:
     post:
@@ -308,6 +445,16 @@ paths:
                   usuario: { type: string }
                   rol: { type: string, enum: [Administrador, Operador, Auditor] }
                   csrf_token: { type: string }
+        '401':
+          description: Credenciales o código TOTP inválidos
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
+        '503':
+          description: Servicio no disponible temporalmente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
 
   /admin/api/apps:
     get:
@@ -316,12 +463,35 @@ paths:
       responses:
         '200':
           description: Listado de apps registradas
+        '503':
+          description: Servicio no disponible temporalmente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
     post:
       tags: [Admin]
       summary: Registra o actualiza una app integradora y su política (algoritmo, dígitos, ventana, umbrales IA)
       responses:
         '201':
           description: App registrada con client_id y client_secret (mostrado una sola vez)
+        '503':
+          description: Servicio no disponible temporalmente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
+
+  /admin/api/enrollments:
+    get:
+      tags: [Admin]
+      summary: Lista enrolamientos anonimizados con estado, deriva y bloqueos activos
+      responses:
+        '200':
+          description: Listado de enrolamientos anonimizados
+        '503':
+          description: Servicio no disponible temporalmente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
 
   /admin/api/keys/rotate:
     post:
@@ -339,6 +509,11 @@ paths:
                   new_kid: { type: string }
                   previous_kid: { type: string, nullable: true }
                   rotated_at: { type: string, format: date-time }
+        '503':
+          description: Servicio no disponible temporalmente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
 
   /admin/api/audit:
     get:
@@ -347,6 +522,11 @@ paths:
       responses:
         '200':
           description: Eventos de auditoría encadenados
+        '503':
+          description: Servicio no disponible temporalmente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
 
   /admin/api/audit/verify-chain:
     get:
@@ -365,6 +545,11 @@ paths:
                   checked_records: { type: integer }
                   broken_at_id: { type: integer, nullable: true }
                   last_hash: { type: string, nullable: true }
+        '503':
+          description: Servicio no disponible temporalmente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
 
   /admin/api/anomalies:
     get:
@@ -373,8 +558,24 @@ paths:
       responses:
         '200':
           description: Resumen de detecciones y latencia de inferencia
+        '503':
+          description: Servicio no disponible temporalmente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericError' }
 
 components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: Clave opaca única por intento de verificación (UUID v4 recomendado) para reintentos seguros ante cortes de red.
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+
   securitySchemes:
     appClientId:
       type: apiKey
@@ -386,6 +587,21 @@ components:
       name: X-Client-Secret
 
   schemas:
+    HealthReadyResponse:
+      type: object
+      required: [status, ready, timestamp, checks]
+      properties:
+        status: { type: string, enum: [ready, not_ready] }
+        ready: { type: boolean }
+        timestamp: { type: string, format: date-time }
+        checks:
+          type: object
+          required: [sqlite, signing_key, clock_skew_ms]
+          properties:
+            sqlite: { type: boolean }
+            signing_key: { type: boolean }
+            clock_skew_ms: { type: number }
+
     EnrollmentCreatedResponse:
       type: object
       required: [enrollment_id, estado, algoritmo, digitos, periodo, otpauth_uri, qr_svg, expires_at]

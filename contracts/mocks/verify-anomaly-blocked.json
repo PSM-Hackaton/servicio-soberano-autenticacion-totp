@@ -1,16 +1,5 @@
 {
-  "errorCode": "ANOMALY_BLOCKED",
-  "message": "Intento bloqueado preventivamente por el motor local de detección de anomalías (patrón de fuerza bruta distribuida).",
-  "retryAfterSeconds": 300,
-  "riskAssessment": {
-    "riskScore": 91.5,
-    "level": "CRITICAL",
-    "action": "BLOCK",
-    "inferenceMs": 2.3,
-    "reasons": [
-      "Ráfaga de 14 intentos fallidos en 18 segundos",
-      "Dispersión anómala de 6 hashes de IP sobre la misma cuenta",
-      "Z-Score de velocidad superior a 3.8 desviaciones estándar"
-    ]
-  }
+  "error": "TOO_MANY_REQUESTS",
+  "message": "Demasiados intentos. Intente más tarde.",
+  "retry_after_seconds": 300
 }

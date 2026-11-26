@@ -1,0 +1,46 @@
+{
+  "enrollments": [
+    {
+      "id": "9f3b8c2a-6e11-4d8a-9c52-2a1d84e901ab",
+      "app_id": "app-portal-tramites",
+      "app_nombre": "Portal Institucional de Trámites",
+      "user_ref_hash": "hmac_842b9c1e0f77a3c2",
+      "estado": "activo",
+      "algoritmo": "SHA256",
+      "digitos": 6,
+      "periodo": 30,
+      "drift_steps": 0,
+      "failed_attempts": 0,
+      "locked_until": null,
+      "activated_at": "2026-11-26T16:01:12.000Z"
+    },
+    {
+      "id": "4c81e0b3-1f22-4a90-b411-7e55d0c812ff",
+      "app_id": "app-reto1-evaluador",
+      "app_nombre": "Reto 1 — Agente Evaluador de Propuestas",
+      "user_ref_hash": "hmac_29d1e7a4c6105b8f",
+      "estado": "activo",
+      "algoritmo": "SHA512",
+      "digitos": 8,
+      "periodo": 30,
+      "drift_steps": 1,
+      "failed_attempts": 2,
+      "locked_until": null,
+      "activated_at": "2026-11-26T15:40:00.000Z"
+    },
+    {
+      "id": "e177a90c-9b04-4d12-8e09-1a2b3c4d5e6f",
+      "app_id": "app-portal-tramites",
+      "app_nombre": "Portal Institucional de Trámites",
+      "user_ref_hash": "hmac_f012a9881c4b77d2",
+      "estado": "pendiente",
+      "algoritmo": "SHA256",
+      "digitos": 6,
+      "periodo": 30,
+      "drift_steps": 0,
+      "failed_attempts": 0,
+      "locked_until": null,
+      "activated_at": null
+    }
+  ]
+}

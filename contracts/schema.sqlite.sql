@@ -1,6 +1,7 @@
 -- ==============================================================================
--- Esquema Fallback SQLite WAL (Mismas 8 tablas exactas de PostgreSQL 16)
--- Permite desarrollar y ejecutar tests 100% locales en estaciones SIN Docker.
+-- ESQUEMA OFICIAL ÚNICO — SQLite WAL Nativo (`node:sqlite`, Node.js 22)
+-- Decisión ADR-002 (26-11-2026): 0 dependencias npm, PostgreSQL y Docker fuera.
+-- 8 tablas oficiales con anti-replay atómico y jti de un solo uso.
 -- ==============================================================================
 
 PRAGMA journal_mode = WAL;

@@ -1,0 +1,44 @@
+{
+  "events": [
+    {
+      "id": 1,
+      "ts": "2026-11-26T15:00:00.000Z",
+      "actor": "system",
+      "accion": "SIGNING_KEY_GENERATED",
+      "objetivo": "key-20261126-01",
+      "detalle": "{\"alg\":\"EdDSA\",\"crv\":\"Ed25519\"}",
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "hash": "a1c4f9b2e7d8013456789abcdef0123456789abcdef0123456789abcdef01234"
+    },
+    {
+      "id": 2,
+      "ts": "2026-11-26T15:05:12.000Z",
+      "actor": "admin_seguridad",
+      "accion": "APP_REGISTERED",
+      "objetivo": "portal-tramites",
+      "detalle": "{\"algoritmo\":\"SHA256\",\"digitos\":6}",
+      "prev_hash": "a1c4f9b2e7d8013456789abcdef0123456789abcdef0123456789abcdef01234",
+      "hash": "b9d2e4f1a8c3056789abcdef0123456789abcdef0123456789abcdef01234567"
+    },
+    {
+      "id": 3,
+      "ts": "2026-11-26T16:01:12.000Z",
+      "actor": "portal-tramites",
+      "accion": "ENROLLMENT_ACTIVATED",
+      "objetivo": "9f3b8c2a-6e11-4d8a-9c52-2a1d84e901ab",
+      "detalle": "{\"algoritmo\":\"SHA256\",\"digitos\":6,\"recovery_codes_issued\":10}",
+      "prev_hash": "b9d2e4f1a8c3056789abcdef0123456789abcdef0123456789abcdef01234567",
+      "hash": "c3e8a1d7f2b940123456789abcdef0123456789abcdef0123456789abcdef012"
+    },
+    {
+      "id": 4,
+      "ts": "2026-11-26T16:12:04.000Z",
+      "actor": "heuristics",
+      "accion": "ANOMALY_BLOCKED",
+      "objetivo": "hmac_9b34f1e2c8a7",
+      "detalle": "{\"risk_score\":91.5,\"level\":\"CRITICAL\",\"action\":\"BLOCK\"}",
+      "prev_hash": "c3e8a1d7f2b940123456789abcdef0123456789abcdef0123456789abcdef012",
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

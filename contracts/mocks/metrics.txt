@@ -1,0 +1,44 @@
+# HELP totp_uptime_seconds Segundos desde el arranque
+# TYPE totp_uptime_seconds gauge
+totp_uptime_seconds 4820
+# HELP totp_http_requests_total Peticiones HTTP por ruta
+# TYPE totp_http_requests_total counter
+totp_http_requests_total{ruta="/api/v1/verify"} 142
+totp_http_requests_total{ruta="/api/v1/enrollments"} 28
+totp_http_requests_total{ruta="/api/v1/tokens/validate"} 131
+# HELP totp_http_errors_5xx_total Respuestas 5xx por ruta
+# TYPE totp_http_errors_5xx_total counter
+totp_http_errors_5xx_total{ruta="/api/v1/verify"} 0
+# HELP totp_http_request_duration_ms Latencia por ruta (reservorio acotado)
+# TYPE totp_http_request_duration_ms summary
+totp_http_request_duration_ms{ruta="/api/v1/verify",quantile="0.5"} 4.2
+totp_http_request_duration_ms{ruta="/api/v1/verify",quantile="0.95"} 11.8
+# HELP totp_http_5xx_ratio Proporción de 5xx en la ventana deslizante
+# TYPE totp_http_5xx_ratio gauge
+totp_http_5xx_ratio 0
+# HELP totp_availability_percent Disponibilidad estimada en porcentaje
+# TYPE totp_availability_percent gauge
+totp_availability_percent 100
+# HELP totp_health_up Último chequeo de salud (1 ok, 0 fallo)
+# TYPE totp_health_up gauge
+totp_health_up 1
+# HELP totp_verifications_total Verificaciones por resultado
+# TYPE totp_verifications_total counter
+totp_verifications_total{resultado="ok"} 129
+totp_verifications_total{resultado="invalid_code"} 6
+totp_verifications_total{resultado="replay"} 4
+totp_verifications_total{resultado="locked"} 1
+totp_verifications_total{resultado="anomaly_blocked"} 2
+totp_verifications_total{resultado="rate_limited"} 0
+# HELP totp_db_errors_total Errores de base de datos
+# TYPE totp_db_errors_total counter
+totp_db_errors_total 0
+# HELP totp_db_reconnections_total Reconexiones a la base de datos
+# TYPE totp_db_reconnections_total counter
+totp_db_reconnections_total 0
+# HELP totp_anomaly_inference_ms_avg Latencia media de inferencia del detector
+# TYPE totp_anomaly_inference_ms_avg gauge
+totp_anomaly_inference_ms_avg 1.8
+# HELP totp_clock_skew_ms Desfase de reloj medido
+# TYPE totp_clock_skew_ms gauge
+totp_clock_skew_ms 14
