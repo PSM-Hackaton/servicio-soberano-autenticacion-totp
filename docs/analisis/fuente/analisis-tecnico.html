@@ -35,7 +35,7 @@
 
 <h1>Servicio Soberano de Autenticación TOTP</h1>
 <div class="sub">Análisis técnico, arquitectura y plan de trabajo · Reto Grupal 3 · Hackatón 2026</div>
-<div class="meta">Equipo PSM-Hackaton · Autor: Diego Landaeta · 26 de noviembre de 2026 · Versión 1.1 · Repositorio: PSM-Hackaton/servicio-soberano-autenticacion-totp</div>
+<div class="meta">Equipo PSM-Hackaton · Autor: Diego Landaeta · 26 de noviembre de 2026 · Versión 1.2 · Repositorio: PSM-Hackaton/servicio-soberano-autenticacion-totp</div>
 
 <h2>1. Qué pide el reto, en una frase</h2>
 <p>Un <b>segundo factor de autenticación (MFA) basado en códigos de 6–8 dígitos que cambian cada 30 segundos (TOTP)</b>, funcionando entero en infraestructura propia: nosotros generamos y guardamos las semillas, nosotros validamos los códigos, nosotros emitimos el comprobante firmado de que el usuario pasó el desafío y nosotros damos la app donde el usuario ve sus códigos. Ningún paso depende de Google, Microsoft, Authy, Twilio ni de ninguna nube externa.</p>
@@ -203,6 +203,33 @@
   <tr><td>Escaneo OWASP ZAP local</td><td>Sin vulnerabilidades altas en la API ni en la consola (escaneo ejecutado en nuestra propia máquina).</td></tr>
   <tr><td>Modo aislado</td><td>Todo el flujo funciona con el servidor desconectado de Internet.</td></tr>
 </table>
+
+<h3>5.6 Resiliencia ante caídas de conexión</h3>
+<p>Regla base: <b>si el servicio no puede verificar, no concede acceso</b> (falla cerrado). Nunca se deja pasar a un usuario porque “el MFA no respondió”.</p>
+<table>
+  <tr><th style="width:26%">Escenario</th><th>Comportamiento esperado</th></tr>
+  <tr><td>Teléfono sin conexión</td><td>Sin impacto: la app genera los códigos sin red. Solo necesita la hora del teléfono.</td></tr>
+  <tr><td>Se corta la red entre el sistema institucional y el servicio</td><td>El SDK usa tiempo de espera corto (3 s), un reintento con la misma clave de idempotencia y luego muestra “servicio no disponible, intente de nuevo”. Un JWT ya emitido se valida sin red con las claves JWKS guardadas en caché.</td></tr>
+  <tr><td>Se cae la base de datos</td><td>La API responde 503 sin revelar detalles; <code>/health/ready</code> pasa a “no listo” y el proxy deja de enviarle tráfico. Al volver, se reconecta sola.</td></tr>
+  <tr><td>Corte a mitad de una verificación</td><td>La actualización del último paso usado es atómica: un código nunca queda aceptado dos veces ni a medias. Un reintento con la misma clave de idempotencia devuelve el mismo resultado.</td></tr>
+  <tr><td>Se pierde la sincronización de hora (NTP)</td><td>El servidor sigue con su reloj local; la consola alerta si el desfase supera 2 s y la compensación de deriva absorbe desvíos pequeños.</td></tr>
+  <tr><td>Reinicio o caída del contenedor de la API</td><td>Docker lo reinicia solo; los límites y bloqueos se guardan en PostgreSQL, así que un reinicio no los borra.</td></tr>
+  <tr><td>Red lenta o inestable</td><td>Tiempos de espera en cada capa (proxy, API, base de datos) para que las peticiones no se acumulen y tumben el servicio.</td></tr>
+</table>
+
+<h3>5.7 Qué medimos</h3>
+<table>
+  <tr><th style="width:34%">Métrica</th><th>Para qué</th></tr>
+  <tr><td>Disponibilidad (% de chequeos de salud correctos)</td><td>Tiempo que el servicio estuvo operativo.</td></tr>
+  <tr><td>Latencia de verificación (p50 y p95)</td><td>Rapidez percibida por el usuario; objetivo p95 &lt; 200 ms.</td></tr>
+  <tr><td>Errores 5xx y tiempos de espera agotados</td><td>Detectar caídas parciales y cuellos de botella.</td></tr>
+  <tr><td>Desconexiones y reconexiones a la base de datos</td><td>Estabilidad de la persistencia.</td></tr>
+  <tr><td>Tiempo de recuperación tras una caída</td><td>Cuánto tarda en volver a responder (objetivo &lt; 30 s).</td></tr>
+  <tr><td>Desfase del reloj del servidor y deriva media de los usuarios</td><td>Salud de la base de tiempo de TOTP.</td></tr>
+  <tr><td>Fallos, bloqueos y alertas del detector</td><td>Presión de ataques y efectividad de las defensas.</td></tr>
+</table>
+<p>Se recogen en local (endpoint <code>/metrics</code> y panel de la consola), sin enviarlas a terceros.</p>
+<p><b>Pruebas de caos para la demo:</b> durante una ráfaga de verificaciones apagamos la base de datos, cortamos la red de la API y añadimos latencia artificial (<code>tc netem</code>). Medimos el tiempo de recuperación y comprobamos que ningún acceso se concedió de forma indebida.</p>
 
 <h2 class="pb">6. Contratos de la API (v1)</h2>
 <p class="small">Las aplicaciones integradoras se autentican con <code>client_id</code> + <code>client_secret</code> (secreto guardado como hash) sobre TLS. Todas las respuestas de error usan un formato genérico.</p>
