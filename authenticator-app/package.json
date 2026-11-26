@@ -1,0 +1,12 @@
+{
+  "name": "totp-authenticator-pwa",
+  "version": "1.0.0",
+  "description": "PWA Autenticadora TOTP 100% soberana y offline (0 dependencias npm)",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "test": "node --test totp-core.test.js"
+  }
+}

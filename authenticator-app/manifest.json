@@ -1,0 +1,20 @@
+{
+  "name": "Autenticador Soberano TOTP",
+  "short_name": "TOTP Soberano",
+  "description": "App autenticadora TOTP 100% soberana y sin conexión (RFC 6238, HMAC-SHA256 y SHA-512, bóveda cifrada con PIN).",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b1220",
+  "theme_color": "#0f766e",
+  "lang": "es-VE",
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

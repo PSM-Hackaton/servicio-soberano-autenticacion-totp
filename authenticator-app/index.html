@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f766e" />
+  <title>Autenticador Soberano TOTP — PWA Offline</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="./icons/icon.svg" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <img src="./icons/icon.svg" alt="TOTP Soberano" />
+        <div>
+          <h1>Autenticador Soberano</h1>
+          <small>RFC 6238 · HMAC-SHA256 / SHA-512 · 0 CDNs</small>
+        </div>
+      </div>
+      <span id="offline-pill" class="pill" title="Funciona 100% sin conexión">● 100% Local</span>
+    </header>
+
+    <!-- Pantalla de PIN (Crear / Desbloquear Bóveda IndexedDB) -->
+    <section id="pin-view" class="card">
+      <h2 id="pin-title">Protege tus semillas con PIN</h2>
+      <p id="pin-subtitle" class="subtitle">
+        Las semillas se cifran en tu dispositivo con <strong>AES-256-GCM</strong> y clave derivada por <strong>PBKDF2-SHA256</strong> (150.000 iteraciones). Ningún dato sale de tu equipo.
+      </p>
+      <div id="pin-error" class="alert alert-error hidden"></div>
+      <form id="pin-form">
+        <div class="field">
+          <label for="pin-input">PIN de acceso (mínimo 4 caracteres)</label>
+          <input id="pin-input" type="password" inputmode="numeric" minlength="4" maxlength="32" autocomplete="off" required placeholder="••••••" />
+        </div>
+        <div id="pin-confirm-wrap" class="field">
+          <label for="pin-confirm">Confirmar PIN</label>
+          <input id="pin-confirm" type="password" inputmode="numeric" minlength="4" maxlength="32" autocomplete="off" placeholder="••••••" />
+        </div>
+        <div class="actions">
+          <button type="submit" class="btn btn-primary" id="pin-submit-btn">Crear bóveda cifrada</button>
+          <button type="button" class="btn btn-danger hidden" id="wipe-vault-btn">Restablecer bóveda</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Vista Principal de Códigos -->
+    <section id="vault-view" class="hidden">
+      <div class="toolbar">
+        <div class="actions">
+          <button id="toggle-add-btn" class="btn btn-primary">+ Añadir cuenta</button>
+          <button id="load-demo-btn" class="btn btn-secondary">Cargar cuentas demo</button>
+        </div>
+        <div class="actions">
+          <button id="lock-btn" class="btn btn-secondary" title="Bloquear bóveda">🔒 Bloquear</button>
+        </div>
+      </div>
+
+      <!-- Formulario de Alta (Manual Base32 / URI otpauth:// / Cámara QR) -->
+      <section id="add-panel" class="card hidden">
+        <h2>Registrar cuenta TOTP</h2>
+        <div class="tabs">
+          <button type="button" class="tab active" data-tab="manual">Clave manual Base32</button>
+          <button type="button" class="tab" data-tab="uri">Pegar URI / QR</button>
+        </div>
+        <div id="add-error" class="alert alert-error hidden"></div>
+
+        <!-- Tab Manual -->
+        <form id="manual-form">
+          <div class="row-2">
+            <div class="field">
+              <label for="m-issuer">Institución / Emisor</label>
+              <input id="m-issuer" required placeholder="MincytSoberanoTOTP" value="MincytSoberanoTOTP" />
+            </div>
+            <div class="field">
+              <label for="m-account">Usuario / Etiqueta</label>
+              <input id="m-account" required placeholder="ciudadano-demo" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="m-secret">Semilla secreta (Base32)</label>
+            <input id="m-secret" required placeholder="JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP" autocomplete="off" />
+          </div>
+          <div class="row-3">
+            <div class="field">
+              <label for="m-alg">Algoritmo</label>
+              <select id="m-alg">
+                <option value="SHA256" selected>HMAC-SHA256 (Recomendado)</option>
+                <option value="SHA512">HMAC-SHA512 (Alta seguridad)</option>
+                <option value="SHA1">HMAC-SHA1 (Compatibilidad)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="m-digits">Dígitos</label>
+              <select id="m-digits">
+                <option value="6" selected>6 dígitos</option>
+                <option value="8">8 dígitos</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="m-period">Período (s)</label>
+              <input id="m-period" type="number" min="15" max="60" value="30" />
+            </div>
+          </div>
+          <div id="sha1-warn" class="alert alert-warn hidden">
+            Aviso de soberanía: SHA-1 es un modo heredado menos seguro. Prefiere SHA-256 o SHA-512.
+          </div>
+          <div class="actions">
+            <button type="submit" class="btn btn-primary">Guardar en bóveda cifrada</button>
+            <button type="button" class="btn btn-secondary" id="cancel-add-btn">Cancelar</button>
+          </div>
+        </form>
+
+        <!-- Tab URI / QR -->
+        <div id="uri-panel" class="hidden">
+          <form id="uri-form">
+            <div class="field">
+              <label for="u-uri">URI <code>otpauth://totp/...</code> (desde el enrolamiento)</label>
+              <textarea id="u-uri" rows="3" placeholder="otpauth://totp/MincytSoberanoTOTP:ciudadano?secret=...&algorithm=SHA256&digits=6&period=30"></textarea>
+            </div>
+            <div class="actions">
+              <button type="submit" class="btn btn-primary">Importar URI</button>
+              <button type="button" class="btn btn-secondary" id="scan-qr-btn">📷 Escanear QR (cámara)</button>
+              <button type="button" class="btn btn-secondary hidden" id="stop-qr-btn">Detener cámara</button>
+            </div>
+          </form>
+          <div id="qr-scanner-wrap" class="hidden" style="margin-top: 12px;">
+            <video id="qr-video" playsinline muted></video>
+            <p class="subtitle" style="margin-top: 6px;">Apunta al código QR generado por el Portal de Trámites o la API soberana.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Lista de cuentas activas -->
+      <div id="accounts-list"></div>
+
+      <div id="empty-state" class="card hidden" style="text-align: center;">
+        <h2>Sin cuentas registradas</h2>
+        <p class="subtitle">Añade una semilla Base32, importa una URI <code>otpauth://</code> o carga las cuentas demo institucionales.</p>
+      </div>
+    </section>
+
+    <footer class="footer-note">
+      Reloj local: <span id="local-clock">--:--:--</span> · Sin telemetría · Sin nube externa · Web Crypto API nativa
+    </footer>
+  </main>
+
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
