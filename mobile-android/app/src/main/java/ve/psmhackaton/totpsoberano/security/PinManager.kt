@@ -1,4 +1,4 @@
-package ve.gob.totpsoberano.security
+package ve.psmhackaton.totpsoberano.security
 
 import java.security.MessageDigest
 import java.security.SecureRandom

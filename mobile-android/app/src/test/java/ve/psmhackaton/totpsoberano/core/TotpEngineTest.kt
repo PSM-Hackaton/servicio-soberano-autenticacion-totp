@@ -1,6 +1,6 @@
-package ve.gob.totpsoberano.core
+package ve.psmhackaton.totpsoberano.core
 
-import ve.gob.totpsoberano.security.PinManager
+import ve.psmhackaton.totpsoberano.security.PinManager
 
 /**
  * Pruebas unitarias puras (JVM/Android) de:

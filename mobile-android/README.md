@@ -1,6 +1,7 @@
 # Autenticador Soberano — App Móvil Android Nativa (`mobile-android/`)
 
-> **Licencia:** GNU AGPL-3.0-or-later · **Decisión arquitectónica:** ADR-004 en [`ARCHITECTURE.md`](../ARCHITECTURE.md) (Issues `#39` M0, `#40` M1, `#41` M2).  
+> **Estado:** **En desarrollo** (módulo nativo complementario a la PWA soberana en producción `/app/`).  
+> **Licencia:** GNU AGPL-3.0-or-later · **Paquete / `applicationId`:** `ve.psmhackaton.totpsoberano` · **Decisión arquitectónica:** ADR-004 en [`ARCHITECTURE.md`](../ARCHITECTURE.md) (Issues `#39`–`#43`, `#58`).  
 > **Soberanía:** 100 % código propio en Kotlin sobre APIs estándar de Android (`javax.crypto`, `AndroidKeyStore`/StrongBox, `Camera2`, `BiometricPrompt`). **Cero dependencias de Google Play Services, Firebase ni telemetría.**
 
 ---
@@ -12,8 +13,8 @@ mobile-android/
 ├── README.md
 └── app/src/
     ├── main/
-    │   ├── AndroidManifest.xml                                    # allowBackup="false", cleartext="false"
-    │   └── java/ve/gob/totpsoberano/
+    │   ├── AndroidManifest.xml                                    # package="ve.psmhackaton.totpsoberano", allowBackup="false"
+    │   └── java/ve/psmhackaton/totpsoberano/
     │       ├── core/TotpEngine.kt                                 # Motor RFC 4226/6238 (SHA-1/256/512, 6/8d)
     │       ├── core/CedulaValidator.kt                            # Cédula V/E con/sin puntos → V12345678 / V-12.345.678
     │       ├── core/OtpAuthParser.kt                              # Validación estricta otpauth://totp/
@@ -21,7 +22,7 @@ mobile-android/
     │           ├── KeystoreVault.kt                               # AES-256-GCM en Android Keystore / StrongBox con AAD
     │           └── PinManager.kt                                  # PIN ≥ 6 dígitos (sin secuencias), PBKDF2 y bloqueo progresivo
     └── test/
-        └── java/ve/gob/totpsoberano/core/TotpEngineTest.kt        # Vectores RFC 6238 + Cédula + OtpAuth + PIN
+        └── java/ve/psmhackaton/totpsoberano/core/TotpEngineTest.kt # Vectores RFC 6238 + Cédula + OtpAuth + PIN
 ```
 
 ---
@@ -62,4 +63,39 @@ sequenceDiagram
 - **Almacenamiento hardware:** semillas cifradas con clave AES-256-GCM no exportable en `AndroidKeyStore` (`setIsStrongBoxBacked(true)` con fallback a TEE) y `setUserAuthenticationRequired(true)`.
 - **Sin respaldos en la nube:** `android:allowBackup="false"` y `android:fullBackupContent="false"` en `AndroidManifest.xml`.
 - **Protección de pantalla:** `WindowManager.LayoutParams.FLAG_SECURE` en todas las pantallas con códigos o semillas.
-- **Distribución soberana (M6):** APK firmado por la institución, publicado en `https://<servidor>:8443/descargas/` junto con su hash SHA-256 en el SBOM (sin depender de Google Play).
+- **Distribución soberana (M6):** APK firmado por la institución (`applicationId = "ve.psmhackaton.totpsoberano"`), publicado en `https://<servidor>:8443/descargas/` junto con su hash SHA-256 en el SBOM (sin depender de Google Play).
+
+---
+
+## 4. Cómo compilar y ejecutar `TotpEngineTest` (OpenJDK + Gradle)
+
+Las pruebas unitarias puras (`TotpEngine`, `CedulaValidator`, `OtpAuthParser` y `PinManager`) usan únicamente la biblioteca estándar de JVM (`javax.crypto`, `java.net.URI`) y no requieren emulador ni librerías externas.
+
+### Requisitos
+- **OpenJDK 17+** (`java -version`)
+- **Gradle 8.x** + **Android SDK (API 34+)** para compilar el módulo Android completo, o **`kotlinc` (Kotlin 1.9+)** sobre OpenJDK para ejecutar directamente las pruebas unitarias puras sin Android SDK.
+
+### Opción A — Proyecto Android con Gradle (cuando exista el wrapper en el entorno Android SDK)
+En `app/build.gradle.kts` declarar `namespace = "ve.psmhackaton.totpsoberano"` y `defaultConfig { applicationId = "ve.psmhackaton.totpsoberano" }`, y ejecutar:
+
+```bash
+cd mobile-android
+./gradlew :app:testDebugUnitTest --tests "ve.psmhackaton.totpsoberano.core.TotpEngineTest"
+./gradlew :app:assembleRelease
+```
+
+### Opción B — Ejecución directa sobre OpenJDK + `kotlinc` (sin Android SDK)
+```bash
+cd mobile-android
+mkdir -p build/classes
+kotlinc \
+  app/src/main/java/ve/psmhackaton/totpsoberano/core/TotpEngine.kt \
+  app/src/main/java/ve/psmhackaton/totpsoberano/core/CedulaValidator.kt \
+  app/src/main/java/ve/psmhackaton/totpsoberano/core/OtpAuthParser.kt \
+  app/src/main/java/ve/psmhackaton/totpsoberano/security/PinManager.kt \
+  app/src/test/java/ve/psmhackaton/totpsoberano/core/TotpEngineTest.kt \
+  -include-runtime -d build/totp-tests.jar
+java -cp build/totp-tests.jar ve.psmhackaton.totpsoberano.core.TotpEngineTestKt
+```
+
+*(Nota: `KeystoreVault.kt` requiere `android.security.keystore.*` del Android SDK, por lo que se compila con la Opción A.)*

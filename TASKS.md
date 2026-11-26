@@ -67,7 +67,8 @@
 - [x] `[D4 · #30]` `README.md` conforme a los 6 apartados del instructivo sin cédulas y con cifras/cobertura verificadas.
 - [x] `[D5 · #31]` CI sin dependencias (`scripts/verificar-todo.js`, `.gitlab-ci.yml`, `.github/workflows/pruebas.yml`) + cobertura real en `docs/evidencias/cobertura-2026-11-26.txt` (287/287 pruebas, backend 98,24 %).
 - [x] `[D7/F3 · #33/#50]` Auditoría WCAG 2.1 AA en `docs/evidencias/accesibilidad.md`.
-- [x] `[M0/M1/M2/M3/M4 · #39–#43]` ADR-004 en `ARCHITECTURE.md` + `mobile-android/` (`README.md` con flujo de cédula V/E, `AndroidManifest.xml`, `TotpEngine.kt`, `CedulaValidator.kt`, `OtpAuthParser.kt`, `KeystoreVault.kt`, `PinManager.kt` y `TotpEngineTest.kt`).
+- [x] `[M0/M1/M2/M3/M4 · #39–#43]` ADR-004 en `ARCHITECTURE.md` + `mobile-android/` (`ve.psmhackaton.totpsoberano`: `README.md` con flujo de cédula V/E y compilación OpenJDK+Gradle, `AndroidManifest.xml`, `TotpEngine.kt`, `CedulaValidator.kt`, `OtpAuthParser.kt`, `KeystoreVault.kt`, `PinManager.kt` y `TotpEngineTest.kt`).
+- [x] `[L1 · #58]` Paquete Android renombrado a `ve.psmhackaton.totpsoberano` (sin dominios gubernamentales reales), guía de compilación OpenJDK+Gradle en `mobile-android/README.md`, estado «en desarrollo» en `docs/cumplimiento/matriz-cumplimiento.html` y rama `laya` actualizada desde `staging` (pendiente `sh scripts/instalar-hooks.sh` tras fusionar PR `#59`).
 - [x] `[F1/F2/F4/F5/F6 · #48/#49/#51/#52/#53]` `sitio-publico/` montado en el backend (`/`, `/instalar-certificado`, `/estado`, `/sitio/*`) con pruebas en `api.test.js`, Centro de ayuda `/ayuda` en `demo-portal-tramites/` con pruebas en `portal.test.js` y `scripts/capturas.js`.
 - [x] `[F7 · #54 (base)]` Guion y plantilla de observación de usabilidad en `docs/evidencias/guion-usabilidad.md` (pendiente sesión presencial con 3 personas).
 

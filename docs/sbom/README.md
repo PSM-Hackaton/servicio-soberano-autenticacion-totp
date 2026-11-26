@@ -1,6 +1,6 @@
 # Inventario de software (SBOM)
 
-Generado por `node docs/sbom/generar-sbom.js` el 2026-11-26T19:16:10.632Z con Node.js v22.22.1 sobre la copia de trabajo del commit `96b94ca3daf0`.
+Generado por `node docs/sbom/generar-sbom.js` el 2026-11-26T19:55:05.496Z con Node.js v22.22.1 sobre la copia de trabajo del commit `bd923082187e`.
 No edite estos archivos a mano: vuelva a ejecutar el script tras cualquier cambio.
 
 | Archivo | Contenido |
@@ -30,13 +30,13 @@ No edite estos archivos a mano: vuelva a ejecutar el script tras cualquier cambi
 | Componente | Versión | Archivos | SHA-256 (resumen) | Módulos nativos |
 | --- | --- | ---: | --- | --- |
 | `backend/` | 0.1.0 | 66 | `e44a9e2a269b18ac…` | `node:assert/strict`, `node:child_process`, `node:crypto`, `node:fs`, `node:fs/promises`, `node:http`, `node:https`, `node:net`, `node:os`, `node:path`, `node:perf_hooks`, `node:sqlite`, `node:test`, `node:url`, `node:util` |
-| `authenticator-app/` | 0.0.0+git.96b94ca3daf0 | 19 | `1d42ea34debae19a…` | `node:assert/strict`, `node:test` |
-| `admin-console/` | 0.0.0+git.96b94ca3daf0 | 38 | `6b92775e69636fbc…` | — (código de navegador) |
+| `authenticator-app/` | 0.0.0+git.bd923082187e | 19 | `1d42ea34debae19a…` | `node:assert/strict`, `node:test` |
+| `admin-console/` | 0.0.0+git.bd923082187e | 38 | `6b92775e69636fbc…` | — (código de navegador) |
 | `sdk/` | 1.0.0 | 14 | `21f738b6868b6b10…` | `node:assert/strict`, `node:crypto`, `node:http`, `node:https`, `node:net`, `node:test`, `node:url`, `node:util` |
 | `demo-portal-tramites/` | 1.0.0 | 20 | `c7d91a18598fe900…` | `node:assert/strict`, `node:async_hooks`, `node:crypto`, `node:fs`, `node:http`, `node:https`, `node:os`, `node:path`, `node:test`, `node:url` |
 | `attack-lab/` | 1.0.0 | 29 | `0aef535da5d32b81…` | `node:assert/strict`, `node:child_process`, `node:crypto`, `node:fs`, `node:http`, `node:https`, `node:net`, `node:os`, `node:path`, `node:test`, `node:tls`, `node:url` |
-| `contracts/` | 0.0.0+git.96b94ca3daf0 | 34 | `89291c8bcfb84200…` | — (sin JavaScript) |
-| `deploy/` | 0.0.0+git.96b94ca3daf0 | 14 | `584cd14bfd031aa3…` | `node:child_process`, `node:crypto`, `node:fs`, `node:https`, `node:os`, `node:path`, `node:sqlite`, `node:url` |
+| `contracts/` | 0.0.0+git.bd923082187e | 34 | `89291c8bcfb84200…` | — (sin JavaScript) |
+| `deploy/` | 0.0.0+git.bd923082187e | 14 | `584cd14bfd031aa3…` | `node:child_process`, `node:crypto`, `node:fs`, `node:https`, `node:os`, `node:path`, `node:sqlite`, `node:url` |
 
 El hash de cada componente es el SHA-256 de su lista `"<sha256>  <ruta>\n"` (la de `hashes-sha256.txt`) en orden alfabético.
 
