@@ -32,3 +32,6 @@ Thumbs.db
 
 # Carpetas locales de herramientas
 .claude/
+
+# SDK del Reto 2 instalados en el portal: su dist/ es el propio paquete y debe versionarse
+!demo-portal-tramites/vendor/*/dist/
