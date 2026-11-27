@@ -726,9 +726,17 @@ async function comprobarHora() {
   caja.hidden = false;
   caja.className = 'resultado';
   caja.replaceChildren('Consultando la hora del servidor…');
+  const controlador = typeof AbortController === 'function' ? new AbortController() : null;
+  const limite = controlador ? setTimeout(() => controlador.abort(), 6000) : 0;
   try {
     const t0 = Date.now();
-    const respuesta = await fetch('/health', { cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer' });
+    const respuesta = await fetch('/health', {
+      cache: 'no-store',
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+      signal: controlador?.signal,
+    });
+    clearTimeout(limite);
     const t1 = Date.now();
     const fecha = respuesta.headers.get('Date');
     const servidor = fecha ? Date.parse(fecha) : NaN;
@@ -1087,14 +1095,35 @@ async function iniciar() {
     $('cargando-texto').textContent = 'No se pudo abrir el almacenamiento local. Si navegas en modo privado, abre la app en una ventana normal.';
   }
 
-  setInterval(() => {
-    if (!boveda.abierta()) return;
+  let temporizadorTick = 0;
+  const ejecutarTick = () => {
+    if (document.hidden || !boveda.abierta()) return;
     if (Date.now() - estado.ultimaActividad > estado.bloqueoMs) {
       bloquearApp('inactividad');
       return;
     }
     actualizarCodigos();
-  }, 250);
+  };
+  const iniciarTick = () => {
+    if (!temporizadorTick && !document.hidden) {
+      temporizadorTick = setInterval(ejecutarTick, 250);
+    }
+  };
+  const detenerTick = () => {
+    if (temporizadorTick) {
+      clearInterval(temporizadorTick);
+      temporizadorTick = 0;
+    }
+  };
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) detenerTick();
+    else {
+      ejecutarTick();
+      iniciarTick();
+    }
+  });
+  window.addEventListener('pagehide', detenerTick);
+  iniciarTick();
 }
 
 iniciar();
