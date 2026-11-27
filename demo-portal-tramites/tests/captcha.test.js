@@ -13,6 +13,7 @@ import { generarUsuarios, USUARIOS_DEMO } from '../src/usuarios.js';
 
 const CLAVE = 'Tramites-Demo-2026';
 const SECRETO = 'secreto-del-portal-de-prueba';
+const ingreso = { nacionalidad: 'V', cedula: '10.000.001', contrasena: CLAVE };
 
 class Navegador {
   constructor(base) { this.base = base; this.cookies = new Map(); this.csrf = null; this.html = ''; }
@@ -98,7 +99,6 @@ describe('Portal con verificación humana (Reto 2) antes del segundo factor', ()
     rmSync(dir, { recursive: true, force: true });
   });
 
-  const ingreso = { nacionalidad: 'V', cedula: '10.000.001', contrasena: CLAVE };
 
   /** Llama al intermediario JSON del portal como lo hace el widget del SDK. */
   const widget = (camino, datos, origen = base) => fetch(`${base}/captcha/api/${camino}`, {
@@ -112,7 +112,9 @@ describe('Portal con verificación humana (Reto 2) antes del segundo factor', ()
     assert.match(r.html, /<script type="module" src="\/publico\/captcha\.js"><\/script>/);
     assert.match(r.cabeceras.get('content-security-policy'), /worker-src blob:/);
     const init = await (await fetch(`${base}/publico/captcha.js`)).text();
-    assert.match(init, /from '\/vendor\/pow-captcha-client\/dist\/index\.js'/);
+    assert.match(init, /await import\(caja\.dataset\.sdk\)/);
+    assert.match(r.html, /data-sdk="\/vendor\/pow-captcha-client\/dist\/index\.js"/);
+    assert.match(r.html, /data-api="\/captcha\/api"/);
     const sdk = await fetch(`${base}/vendor/pow-captcha-client/dist/index.js`);
     assert.equal(sdk.status, 200);
     assert.match(await sdk.text(), /export class PowCaptchaClient/);
@@ -160,3 +162,49 @@ describe('Portal con verificación humana (Reto 2) antes del segundo factor', ()
     assert.equal(r.status, 403);
   });
 });
+
+describe('Modo directo (como indica la consola del servicio): SDK publicado por el servicio', () => {
+  const totp = crearServicioFalso({});
+  let portal; let base; let dir;
+
+  before(async () => {
+    const urlTotp = await totp.iniciar();
+    dir = mkdtempSync(join(tmpdir(), 'portal-captcha-directo-'));
+    await generarUsuarios(join(dir, 'usuarios.json'), USUARIOS_DEMO);
+    const config = configuracion({
+      TOTP_BASE_URL: urlTotp, TOTP_CLIENT_ID: totp.clientId, TOTP_CLIENT_SECRET: totp.clientSecret, TOTP_TIMEOUT_MS: '500',
+      PORTAL_USUARIOS: join(dir, 'usuarios.json'), PORTAL_TLS_CERT: join(dir, 'x.crt'), PORTAL_TLS_KEY: join(dir, 'x.key'),
+      PORTAL_CAPTCHA_URL: 'http://127.0.0.1:9', PORTAL_CAPTCHA_URL_PUBLICA: 'http://localhost:3001/', PORTAL_CAPTCHA_SITE_KEY: 'site_prueba',
+      PORTAL_CAPTCHA_SECRETO: SECRETO, PORTAL_CAPTCHA_TIMEOUT_MS: '300',
+    });
+    portal = await crearPortal({ config });
+    base = await portal.iniciar(0, '127.0.0.1');
+  });
+
+  after(async () => {
+    await portal.detener(); await totp.detener();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test('el widget carga /sdk/client.js del servicio y le habla directamente; la CSP permite solo ese origen', async () => {
+    const nav = new Navegador(base);
+    const r = await nav.get('/ingresar');
+    assert.match(r.html, /data-sdk="http:\/\/localhost:3001\/sdk\/client\.js"/);
+    assert.match(r.html, /data-api="http:\/\/localhost:3001\/api\/captcha"/);
+    assert.match(r.html, /data-sitekey="site_prueba"/);
+    const csp = r.cabeceras.get('content-security-policy');
+    assert.match(csp, /script-src 'self' http:\/\/localhost:3001;/);
+    assert.match(csp, /connect-src 'self' http:\/\/localhost:3001;/);
+    const ayuda = (await fetch(`${base}/ayuda`)).headers.get('content-security-policy');
+    assert.doesNotMatch(ayuda, /localhost:3001/, 'el resto del portal no autoriza el origen del servicio');
+  });
+
+  test('si el servicio no responde, el ingreso se rechaza (no se salta la verificación humana)', async () => {
+    const nav = new Navegador(base);
+    await nav.get('/ingresar');
+    const r = await nav.post('/ingresar', { ...ingreso, captcha_token: 'cualquier-token' });
+    assert.equal(r.status, 400);
+    assert.match(r.html, /Verificación humana no superada/);
+  });
+});
+

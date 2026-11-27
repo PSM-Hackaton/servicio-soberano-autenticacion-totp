@@ -72,6 +72,10 @@ export function configuracion(env = cargarEnv()) {
           url: env.PORTAL_CAPTCHA_URL.trim().replace(/\/+$/, ''),
           siteKey: (env.PORTAL_CAPTCHA_SITE_KEY ?? '').trim(),
           secreto: (env.PORTAL_CAPTCHA_SECRETO ?? '').trim() || 'sin-clave-modo-memoria',
+          // URL del servicio vista desde el navegador. Si se define, el widget carga el SDK publicado por el propio
+          // servicio (/sdk/client.js) y le habla directamente, como indica su consola: así el servicio ve la IP
+          // real de cada visitante para sus métricas y su prevención por IP. Sin ella se usa el intermediario.
+          publica: (env.PORTAL_CAPTCHA_URL_PUBLICA ?? '').trim().replace(/\/+$/, ''),
           timeoutMs: Number(env.PORTAL_CAPTCHA_TIMEOUT_MS ?? 3000),
         }
       : null,

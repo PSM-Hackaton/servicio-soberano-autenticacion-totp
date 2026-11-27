@@ -84,6 +84,7 @@ Queda registrado en `vendor/sdk-captcha.json` (versión y sha256 de cada paquete
 | `PORTAL_CAPTCHA_SITE_KEY` | Clave pública del sitio (`site_…`) |
 | `PORTAL_CAPTCHA_SECRETO` | Clave secreta del sitio (nunca llega al navegador) |
 | `PORTAL_CAPTCHA_TIMEOUT_MS` | Tiempo máximo por llamada (3000 por defecto) |
+| `PORTAL_CAPTCHA_URL_PUBLICA` | Opcional. URL del servicio vista desde el navegador (por ejemplo `http://localhost:3000`): el widget carga el SDK que publica el servicio (`/sdk/client.js`) y le habla directamente, como indica su consola, para que el servicio cuente y frene por la IP real de cada visitante. La CSP de la página de ingreso autoriza solo ese origen. |
 
 Sin `PORTAL_CAPTCHA_URL` el portal funciona igual que antes. El widget habla con el intermediario de mismo origen
 del portal (`/captcha/api/challenge` y `/captcha/api/verify`, solo JSON y con comprobación de origen), de modo que
