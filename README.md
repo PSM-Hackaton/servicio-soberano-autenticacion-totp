@@ -277,6 +277,40 @@ En la app: crear el PIN → **Agregar cuenta** → pestaña **Pegar** → pegar 
 **Revisar cuenta** → **Guardar cuenta**. Con un código nuevo, entre en `/consola/` con usuario, contraseña y
 código. Borre después `backend/data/admin-qr.svg`.
 
+### Guía rápida de uso: cómo entrar y qué probar
+
+El sistema tiene tres piezas que se usan juntas:
+
+| Pieza | Dirección | Para qué sirve |
+| :--- | :--- | :--- |
+| App autenticadora (PWA) | `https://localhost:8443/app/` | Guarda las cuentas y muestra cada 30 s el código de 6 dígitos de cada una. El **PIN** solo abre la app en ese navegador; no es la contraseña de ninguna cuenta. |
+| Consola administrativa | `https://localhost:8443/consola/` | Panel del administrador. Pide **usuario + contraseña + código de 6 dígitos** de la app. |
+| Portal de Trámites (ejemplo) | `https://localhost:8444/` | Sistema del Estado ficticio que usa el servicio como segundo factor. |
+
+**1. Preparar la app y añadir la cuenta del administrador**
+1. Abra `https://localhost:8443/app/` y cree un **PIN** (mínimo 6 dígitos).
+2. **Agregar cuenta** → pestaña **Pegar** → pegue la `URI TOTP` del administrador que imprimió `npm run seed`
+   (empieza por `otpauth://totp/ServicioSoberanoTOTP:admin_seguridad?...`) → **Revisar cuenta** → **Guardar cuenta**.
+3. La cuenta «ServicioSoberanoTOTP · admin_seguridad» muestra un código que cambia cada 30 segundos.
+
+**2. Entrar en la consola**
+1. Abra `https://localhost:8443/consola/`.
+2. Usuario `admin_seguridad`, la contraseña que imprimió `npm run seed` y el código actual de la app.
+3. Si el código es rechazado, espere al siguiente: cada código sirve una sola vez y el primero se consumió al
+   activar la cuenta.
+4. Dentro: panel de operación, aplicaciones y políticas, enrolamientos (suspender, reactivar, revocar,
+   dispositivo), detector de anomalías, llaves de firma (rotación), auditoría encadenada y administradores.
+
+**3. Recorrido del ciudadano (Portal de Trámites)**
+1. Con el portal en marcha (Paso 7), entre en `https://localhost:8444` con la cédula `V-10.000.001` y la clave
+   `Tramites-Demo-2026` (usuarios ficticios).
+2. El portal pide **vincular el autenticador**: QR, clave manual o botón «Abrir en el Autenticador Soberano».
+   En la app: **Agregar cuenta** → **Pegar** (o escanear) → **Guardar cuenta**.
+3. Escriba el código de la nueva cuenta → guarde los **códigos de recuperación** → código nuevo → panel.
+4. Un trámite sensible (p. ej. «Solicitud de certificado») pide un **código nuevo** (*step-up*). El panel
+   «Lo que ocurre por dentro» muestra cada llamada al servicio y la validación del JWT EdDSA.
+5. En la consola aparece el enrolamiento nuevo y sus eventos en la auditoría.
+
 ### Paso 6 — Teléfono en la red local (opcional)
 
 El certificado de `npm run certs` solo vale para `localhost`. Para abrir la app desde un teléfono, emita con
