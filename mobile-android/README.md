@@ -1,0 +1,110 @@
+# Autenticador Soberano — App Móvil Android Nativa (`mobile-android/`)
+
+> **Estado:** **Prototipo de hoja de ruta (en desarrollo, no compilable con Gradle)** — módulo nativo complementario a la PWA soberana en producción `/app/`.  
+> **Licencia:** GNU AGPL-3.0-or-later · **Paquete / `applicationId`:** `ve.psmhackaton.totpsoberano` · **Decisión arquitectónica:** ADR-004 en [`ARCHITECTURE.md`](../ARCHITECTURE.md) (Issues `#39`–`#43`, `#58`, `#71`).  
+> **Soberanía:** 100 % código propio en Kotlin sobre APIs estándar de Android (`javax.crypto`, `AndroidKeyStore`/StrongBox, `Camera2`, `BiometricPrompt`). **Cero dependencias de Google Play Services, Firebase ni telemetría.**
+
+---
+
+## 1. Estructura del Módulo
+
+```text
+mobile-android/
+├── README.md
+└── app/src/
+    ├── main/
+    │   ├── AndroidManifest.xml                                    # package="ve.psmhackaton.totpsoberano", allowBackup="false"
+    │   └── java/ve/psmhackaton/totpsoberano/
+    │       ├── core/TotpEngine.kt                                 # Motor RFC 4226/6238 (SHA-1/256/512, 6/8d)
+    │       ├── core/CedulaValidator.kt                            # Cédula V/E con/sin puntos → V12345678 / V-12.345.678
+    │       ├── core/OtpAuthParser.kt                              # Validación estricta otpauth://totp/
+    │       └── security/
+    │           ├── KeystoreVault.kt                               # AES-256-GCM en Android Keystore / StrongBox con AAD
+    │           └── PinManager.kt                                  # PIN ≥ 6 dígitos (sin secuencias), PBKDF2 y bloqueo progresivo
+    └── test/
+        └── java/ve/psmhackaton/totpsoberano/core/TotpEngineTest.kt # Vectores RFC 6238 + Cédula + OtpAuth + PIN
+```
+
+---
+
+## 2. Flujo de Vinculación Segura con Cédula y Contraseña (Issue `#40` · M1)
+
+> **Invariantes de privacidad y criptografía:**
+> 1. El ciudadano ingresa su **cédula de identidad** (`V`/`E` + número, con o sin puntos, normalizada a `V12345678` con `CedulaValidator`) y su contraseña institucional; la lista muestra la cuenta como `V-12.345.678` + nombre de la institución.
+> 2. La cédula se envía **únicamente al portal institucional**; el servicio TOTP **nunca** recibe la cédula en claro, solo un seudónimo HMAC (`user_ref`).
+> 3. El código TOTP **jamás** se deriva de la cédula ni de la contraseña: la semilla la genera el servicio TOTP con CSPRNG y queda almacenada exclusivamente en **Android Keystore (StrongBox/TEE)**.
+
+```mermaid
+sequenceDiagram
+    actor Ciudadano
+    participant App as App Android Soberana
+    participant Portal as Portal Institucional (IdP)
+    participant TOTP as Servicio Soberano TOTP
+
+    Ciudadano->>App: 1. Ingresa usuario y contraseña institucional
+    App->>Portal: 2. POST /api/vincular-dispositivo (TLS 1.3 + CA pinning)
+    Portal->>Portal: 3. Valida credenciales (1.er factor)
+    Portal->>TOTP: 4. POST /api/v1/enrollments { user_ref opaco }
+    TOTP-->>Portal: 5. enrollment_id + otpauth_uri (semilla CSPRNG única)
+    Portal-->>App: 6. Entrega semilla una sola vez sobre TLS 1.3 (CA pinning)
+    App->>App: 7. Cifra semilla con AES-256-GCM en Android Keystore (StrongBox)
+    App->>App: 8. Calcula 1.er código RFC 6238 (HMAC-SHA256/512)
+    App->>Portal: 9. Envía 1.er código para confirmar activación
+    Portal->>TOTP: 10. POST /api/v1/enrollments/{id}/activate { code, client_ip }
+    TOTP-->>Portal: 11. Estado ACTIVO + 10 códigos de recuperación
+    Portal-->>Ciudadano: 12. Muestra 10 códigos de recuperación (una sola vez)
+    Note over App: A partir de este punto la app genera códigos 100 % sin conexión
+```
+
+---
+
+## 2 bis. Vinculación del dispositivo con el servicio (Issue `#47` · M8)
+
+El portal institucional (no la app) llama al servicio TOTP con sus credenciales de integrador:
+
+1. `POST /api/v1/enrollments` con `device: { name, platform: "android" }`. `name` es el nombre visible
+   que el ciudadano elige en la app ("Teléfono de trabajo"); el servicio lo sanea y le asigna un
+   seudónimo aleatorio `device_id` (`dev_…`). **La app no envía ni el servicio guarda IMEI, MAC,
+   Android ID ni ningún otro identificador de hardware.**
+2. La respuesta trae, además del QR, `provisioning { otpauth_uri, expires_at, device_id,
+   ca_fingerprint_sha256? }`. El portal la reenvía **una sola vez** a la app: la app valida el URI con
+   `OtpAuthParser`, guarda la semilla en `KeystoreVault` y borra la copia en memoria. Si no se activa
+   antes de `expires_at`, el enrolamiento caduca y hay que repetir la vinculación.
+3. **Fijación de certificado:** `ca_fingerprint_sha256` (formato `AA:BB:…`, SHA-256 del certificado
+   de la CA publicada en `/ca.crt`, solo si el despliegue configura `TLS_CA_PUBLIC_PATH`) se compara
+   con la huella de la CA incluida en el APK firmado; si no coincide, la app aborta la vinculación.
+4. El primer código activa el enrolamiento (`POST …/activate`); desde entonces cada código aceptado
+   actualiza `last_used_at` del dispositivo.
+5. **Revocación:** el integrador llama a `DELETE /api/v1/enrollments/{id}/device` (o el soporte pulsa
+   **Revocar dispositivo** en la consola). El enrolamiento queda revocado: los códigos de ese teléfono
+   fallan igual que uno incorrecto. `GET /api/v1/enrollments/{id}/device` informa nombre, plataforma,
+   alta, último uso y `unlinked_at`.
+
+La PWA (`authenticator-app/`) sigue el mismo flujo con `platform: "pwa"`.
+
+## 3. Controles de Seguridad Obligatorios
+
+- **Almacenamiento hardware:** semillas cifradas con clave AES-256-GCM no exportable en `AndroidKeyStore` (`setIsStrongBoxBacked(true)` con fallback a TEE) y `setUserAuthenticationRequired(true)`.
+- **Sin respaldos en la nube:** `android:allowBackup="false"` y `android:fullBackupContent="false"` en `AndroidManifest.xml`.
+- **Protección de pantalla:** `WindowManager.LayoutParams.FLAG_SECURE` en todas las pantallas con códigos o semillas.
+- **Distribución soberana (M6):** APK firmado por la institución (`applicationId = "ve.psmhackaton.totpsoberano"`), publicado en `https://<servidor>:8443/descargas/` junto con su hash SHA-256 en el SBOM (sin depender de Google Play).
+
+---
+
+## 4. Cómo ejecutar `TotpEngineTest` (prototipo sin Gradle)
+
+> **Alcance honesto (Issue `#71`):** Este directorio es un **prototipo de hoja de ruta no compilable con Gradle** (no incluye `settings.gradle.kts`, `build.gradle.kts` ni wrapper `gradlew` para mantener el repositorio libre de binarios/dependencias externas en esta fase).
+
+Las pruebas unitarias puras (`TotpEngine`, `CedulaValidator`, `OtpAuthParser` y `PinManager`) usan únicamente la biblioteca estándar de JVM (`javax.crypto`, `java.net.URI`) y no requieren emulador, Android SDK ni Gradle.
+
+### Requisitos
+- **OpenJDK 17+** (`java -version`)
+- **`kotlinc` (Kotlin 1.9+)** para compilar y ejecutar las pruebas unitarias puras sobre JVM.
+
+### Ejecución rápida con `probar-motor.sh`
+```sh
+./mobile-android/probar-motor.sh
+```
+Si `kotlinc` o `java` no están instalados en el equipo, el script informa cómo instalarlos y ejecutar la suite.
+
+*(Nota: `KeystoreVault.kt` depende de `android.security.keystore.*` del Android SDK, por lo que su compilación y el empaquetado APK con Gradle forman parte de la hoja de ruta.)*

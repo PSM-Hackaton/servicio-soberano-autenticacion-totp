@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Guion de demostración — Servicio Soberano de Autenticación TOTP</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 18mm 16mm; }
+  :root { --ink:#1b1f24; --muted:#5b6470; --line:#d9dee4; --accent:#0b5c4a; --soft:#eef5f2; --warn:#8a4b00; --warnbg:#fff5e6; }
+  * { box-sizing: border-box; }
+  body { font-family: "Liberation Sans", "DejaVu Sans", Arial, sans-serif; color: var(--ink); font-size: 10.2pt; line-height: 1.45; margin: 0; }
+  h1 { font-size: 21pt; margin: 0 0 4px; color: var(--accent); letter-spacing: -0.3px; }
+  h2 { font-size: 13.5pt; margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 2px solid var(--accent); color: var(--accent); page-break-after: avoid; }
+  h3 { font-size: 11pt; margin: 14px 0 6px; page-break-after: avoid; }
+  p { margin: 0 0 8px; }
+  ul, ol { margin: 0 0 8px; padding-left: 18px; }
+  li { margin-bottom: 3px; }
+  code, .mono { font-family: "DejaVu Sans Mono", "Liberation Mono", monospace; font-size: 8.8pt; }
+  code { background: #f2f4f6; padding: 0 3px; border-radius: 3px; }
+  pre { font-family: "DejaVu Sans Mono", "Liberation Mono", monospace; font-size: 8.3pt; line-height: 1.35; background: #f6f8f9; border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; margin: 6px 0 10px; white-space: pre; page-break-inside: avoid; }
+  table { width: 100%; border-collapse: collapse; margin: 6px 0 12px; font-size: 9.2pt; page-break-inside: avoid; }
+  th, td { border: 1px solid var(--line); padding: 5px 7px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); font-weight: 700; }
+  .sub { color: var(--muted); font-size: 10.5pt; margin-bottom: 14px; }
+  .meta { color: var(--muted); font-size: 9pt; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 6px 0; margin-bottom: 14px; }
+  .box { background: var(--soft); border-left: 4px solid var(--accent); padding: 8px 12px; border-radius: 4px; margin: 8px 0 12px; page-break-inside: avoid; }
+  .warn { background: var(--warnbg); border-left: 4px solid var(--warn); padding: 8px 12px; border-radius: 4px; margin: 8px 0 12px; page-break-inside: avoid; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; page-break-inside: avoid; }
+  .card b { color: var(--accent); }
+  .pb { page-break-before: always; }
+  .small { font-size: 8.8pt; color: var(--muted); }
+  .t { display: inline-block; min-width: 82px; font-weight: 700; color: var(--accent); }
+  .di { border-left: 3px solid var(--line); padding: 2px 0 2px 10px; margin: 4px 0 8px; color: #2b3138; font-style: italic; }
+  h3 { border-top: 1px solid var(--line); padding-top: 8px; }
+</style>
+</head>
+<body>
+
+<h1>Guion de demostración (5–7 minutos)</h1>
+<div class="sub">Problema → soberanía → flujo en vivo → ataque bloqueado → caos sin Internet → consola y auditoría → impacto</div>
+<div class="meta">Equipo PSM-Hackaton · Servicio Soberano de Autenticación Multifactorial basado en Tiempo (TOTP) · 26 de noviembre de 2026</div>
+
+<div class="box">Versión consolidada a partir del guion inicial de Juan Laya (<code>docs/GUION_DEMO.md</code>), con tiempos y comandos verificados el 26-11-2026. <b>Reparto sugerido.</b> Presenta: Enggel Rodríguez. Teclado (portal y app): Javier Rodríguez. Terminal de ataques: Giovani Marcano. Consola: Juan Laya. Respuestas técnicas: Diego Landaeta. Ajustar al equipo el día de la demo.</div>
+
+<h2>0. Preparación (antes de subir, 15 minutos)</h2>
+<p><b>Repositorio de la entrega (GitLab del evento):</b> <code>https://gitlab.nube.gob.ve/grupo/chuao/chuao_grupo4/reto_otp</code> (ramas <code>desarrollo</code>, <code>avance</code> y <code>terminado</code>). Direcciones durante la demo: app <code>https://localhost:8443/app/</code>, consola <code>https://localhost:8443/consola/</code>, Portal de Trámites <code>https://localhost:8444</code>.</p>
+<pre>
+# Terminal 0 — clonar la versión entregada
+git clone https://gitlab.nube.gob.ve/grupo/chuao/chuao_grupo4/reto_otp.git servicio-soberano-autenticacion-totp
+cd servicio-soberano-autenticacion-totp && node --version          # v22.5.0 o superior
+
+# Terminal 1 — servicio (instalación limpia, ver README §6)
+cd backend
+npm run env &amp;&amp; npm run certs &amp;&amp; npm run seed      # anotar client_id/secret y datos del admin
+npm start
+
+# Terminal 2 — Portal de Trámites
+cd demo-portal-tramites
+cp .env.example .env                               # TOTP_CLIENT_ID / TOTP_CLIENT_SECRET de "Portal de Trámites"
+npm run usuarios &amp;&amp; npm start
+
+# Terminal 3 — laboratorio (letra grande)
+export ATTACK_CLIENT_ID=app_...   ATTACK_CLIENT_SECRET=...     # "Portal de Trámites"
+export ATTACK_CLIENT_ID_2=app_... ATTACK_CLIENT_SECRET_2=...   # "Agente Evaluador (Reto 3)"
+node attack-lab/ejecutar-todo.js --rapido          # ensayo completo: debe terminar sin fallos
+#   (con --comando-arranque "node src/main.js" --pid-backend &lt;PID&gt; incluye el reinicio: 12/12 y 127/127)
+</pre>
+<ul>
+  <li>CA local (<code>backend/certs/ca.crt</code>) importada en el navegador de la demo (README §6.5).</li>
+  <li>App abierta en <code>https://localhost:8443/app/</code> con PIN creado y la cuenta del administrador añadida (pestaña <b>Pegar</b>).</li>
+  <li>Consola abierta en <code>https://localhost:8443/consola/</code> con sesión iniciada, en <b>Detector de anomalías</b>. Para entrar: usuario <code>admin_seguridad</code> + contraseña impresa por <code>npm run seed</code> + código actual de la app. Si lo rechaza, esperar al siguiente código: cada código sirve una sola vez (README §6, «Guía rápida de uso»).</li>
+  <li>Recordatorio para el público: el <b>PIN</b> solo abre la app en ese navegador; la consola pide contraseña y código, y el Portal pide cédula, clave y código.</li>
+  <li>Portal en <code>https://localhost:8444</code>, pantalla <b>Ingresar al portal</b>, panel «Lo que ocurre por dentro» visible.</li>
+  <li>Ensayo hecho con <code>V-10.000.001</code> (Ana); en vivo se usa <b><code>V-10.000.002</code> (Bruno)</b> (sin segundo factor). Reserva: <code>E-80.000.003</code> (Carla). Clave de todos: <code>Tramites-Demo-2026</code>.</li>
+  <li>Informe de la última ejecución abierto en otra pestaña: <code>attack-lab/resultados/informe-&lt;fecha&gt;.html</code> (copia en <code>docs/evidencias/</code>).</li>
+</ul>
+
+<h2>1. Guion</h2>
+
+<h3><span class="t">0:00–0:45</span> El problema</h3>
+<div class="di">«Hoy, cuando un ciudadano entra a un trámite con segundo factor, sus claves suelen vivir en aplicaciones y nubes extranjeras. La institución no controla las semillas, ni la validación, ni los registros. Y muchas de esas apps solo saben SHA-1, aunque el reto exige HMAC-SHA256 y SHA-512.»</div>
+
+<h3><span class="t">0:45–1:30</span> Soberanía, demostrada</h3>
+<pre>node docs/sbom/generar-sbom.js</pre>
+<p>Abrir las herramientas del navegador (F12) → pestaña <b>Red</b> en la app y el portal: ninguna petición a dominios externos (ni CDN, ni fuentes, ni analítica).</p>
+<div class="di">«Cero dependencias npm, cero librerías externas, cero recursos de terceros: solo los módulos nativos de Node.js. El motor TOTP, el servidor HTTPS, el codificador QR, los JWT y el detector de anomalías son código nuestro, bajo licencia AGPL. El inventario CycloneDX y el hash de cada archivo están en <code>docs/sbom/</code>.»</div>
+
+<h3><span class="t">1:30–3:00</span> Flujo completo en vivo</h3>
+<ol>
+  <li>Portal: <code>V-10.000.002</code> (Bruno) / <code>Tramites-Demo-2026</code> → <b>Continuar</b>. «Primer factor: la contraseña del propio portal.»</li>
+  <li><b>Vincule su autenticador</b> → <b>Abrir en el Autenticador Soberano</b> → PIN → <b>Guardar cuenta</b>. «La semilla nació en nuestro servidor con el CSPRNG y se guardó cifrada con AES-256-GCM; viaja una sola vez.»</li>
+  <li>Escribir el código → <b>Activar segundo factor</b> → mostrar los 10 códigos de recuperación → <b>Continuar al ingreso</b>.</li>
+  <li>Código nuevo → <b>Verificar y entrar</b>. Señalar en «Lo que ocurre por dentro»: JWT EdDSA, firma comprobada con la JWKS en caché, <code>jti</code> consumido.</li>
+  <li><b>Cambio de datos bancarios</b> → pide otro código (<i>step-up</i>) → <b>Confirmar y enviar</b>.</li>
+  <li>Opcional, si sobra tiempo: en <b>Aplicaciones</b> de la consola, poner la política del Portal en SHA-512 y 8 dígitos y enrolar a <code>E-80.000.003</code> (Carla): «lo que muchas apps comerciales no calculan».</li>
+</ol>
+
+<h3><span class="t">3:00–4:30</span> Ataque bloqueado en vivo</h3>
+<pre>
+node attack-lab/escenarios/replay.js --detallado
+node attack-lab/escenarios/jwt.js
+node attack-lab/escenarios/spraying.js
+</pre>
+<div class="di">«Robamos un código válido y lo reenviamos: rechazado, y con la misma respuesta que un código cualquiera; el atacante ni siquiera sabe que el código era bueno. Diez envíos simultáneos del mismo código: exactamente uno entra.» «Alteramos el token, le ponemos <code>alg: none</code>, lo firmamos con HS256 o con otra clave, lo usamos en otra app o lo reutilizamos: todo rechazado.» «Ahora un atacante prueba pocas veces muchas cuentas para esquivar el bloqueo por cuenta: el detector local, un Isolation Forest programado por nosotros, bloquea el origen; al atacante solo le llega un 429 genérico y las razones las ve el equipo de seguridad en la consola. Todo se calcula en esta máquina.»</div>
+<p>Cambiar a la consola → <b>Detector de anomalías</b> → leer en voz alta una razón (por ejemplo, «Una misma IP probó 20 cuentas distintas en 15 minutos»).</p>
+
+<h3><span class="t">4:30–5:20</span> Caos y sin Internet</h3>
+<ol>
+  <li>Desconectar la red del equipo a la vista del jurado (cable o Wi-Fi; en Linux: <code>nmcli networking off</code>, comprobar con <code>nmcli networking connectivity</code> → <code>none</code>).</li>
+  <li>Salir del portal y entrar otra vez con <code>V-10.000.002</code> (Bruno) y un código de la app: «Sin Internet, todo sigue funcionando. La soberanía no se declara: se demuestra.»</li>
+  <li>Cortes entre el portal y el servicio:</li>
+</ol>
+<pre>node attack-lab/caos/escenario-caos.js --detallado</pre>
+<div class="di">«800 ms de latencia: el usuario entra, más lento. Cortamos la red 10 segundos: nadie entra y ningún código incorrecto se aprueba, el sistema falla cerrado. Restauramos: se recupera en milisegundos.»</div>
+<p>Reconectar la red al terminar (<code>nmcli networking on</code>).</p>
+
+<h3><span class="t">5:20–6:20</span> Consola y auditoría</h3>
+<ol>
+  <li><b>Panel</b>: verificaciones, bloqueos, disponibilidad, latencias y desfase de reloj, sin IP ni nombres.</li>
+  <li><b>Aplicaciones</b> → <b>Editar</b> la política del Portal (por ejemplo, SHA-512 u 8 dígitos) y cancelar o guardar.</li>
+  <li><b>Llaves de firma</b> → <b>Rotar llave de firma</b>: aparece un <code>kid</code> nuevo y el anterior pasa a <code>solo_verificacion</code> y sigue publicado en <code>/.well-known/jwks.json</code>: «los tokens ya emitidos siguen validando».</li>
+  <li><b>Enrolamientos</b> → filtrar por la app «Portal de Trámites» → en el enrolamiento recién creado, <b>Suspender</b> y <b>Reactivar</b>: «un suspendido responde como un código incorrecto; revocar es definitivo». Mencionar que las apps que derivan el <code>user_ref</code> de la cédula con el SDK permiten buscar por cédula sin guardarla, y que desde <b>Administradores</b> se crean cuentas de Operador y Auditor con su propio TOTP.</li>
+  <li><b>Auditoría</b> → <b>Verificar integridad de la cadena</b>: «cada evento lleva el hash del anterior; si alguien borra o altera un registro, la cadena se rompe en ese punto».</li>
+</ol>
+
+<h3><span class="t">6:20–7:00</span> Impacto y viabilidad</h3>
+<div class="di">«Se despliega en cualquier servidor de la institución con Node.js y <code>systemd</code>, sin contenedores ni Internet, con su propio NTP y su propia CA. Cualquier sistema se integra con nuestro SDK o con cuatro llamadas HTTPS: lo hicimos con el Portal de Trámites y lo ofrecemos al equipo del Reto 3. 340 pruebas automatizadas, 127 verificaciones de ataque y 12 del escaneo dinámico en verde, cero costo de licencias y cero dependencia extranjera.»</div>
+<p>Mostrar el informe autocontenido de <code>attack-lab/ejecutar-todo.js</code> y la unidad <code>deploy/servicio-totp.service</code>. Cerrar con la matriz de cumplimiento (<code>docs/cumplimiento/matriz-cumplimiento.pdf</code>) y la escalabilidad (<code>docs/escalabilidad/</code>).</p>
+
+<h2 class="pb">2. Plan B</h2>
+<table>
+  <tr><th style="width:30%">Si falla…</th><th>Hacer</th></tr>
+  <tr><td>El backend no arranca</td><td>Mostrar <code>cd backend &amp;&amp; npm test</code> (237 pruebas en ~7 s) y el informe HTML de <code>docs/evidencias/</code>. Revisar que <code>backend/.env</code> no conserve <code>CHANGE_ME</code> (el servicio lo indica al arrancar).</td></tr>
+  <tr><td>El portal no conecta con el servicio</td><td>Revisar <code>TOTP_CLIENT_ID</code>/<code>TOTP_CLIENT_SECRET</code> en <code>demo-portal-tramites/.env</code>. Alternativa sin backend: <code>node ../sdk/testing/servicio-falso.js --puerto 8099 &amp;</code> y <code>TOTP_BASE_URL=http://127.0.0.1:8099 TOTP_CLIENT_SECRET=secreto-de-prueba-no-usar-en-produccion node server.js</code>.</td></tr>
+  <tr><td>Aviso de certificado en el navegador</td><td>Importar <code>backend/certs/ca.crt</code> (README §6.5). No usar la opción de ignorar el aviso delante del jurado.</td></tr>
+  <tr><td>La cámara no lee el QR</td><td>Usar <b>Abrir en el Autenticador Soberano</b> o la clave manual (la cámara está permitida en <code>/app/</code>, pero la lectura depende de <code>BarcodeDetector</code> en el navegador).</td></tr>
+  <tr><td>«Código incorrecto» con el código correcto</td><td>Esperar al siguiente código (el usado al activar ya no vale); revisar <b>Ajustes → Comprobar hora</b> en la app.</td></tr>
+  <tr><td>El usuario de la demo quedó bloqueado</td><td>Los bloqueos persisten en la base de datos: continuar con <code>E-80.000.003</code> (Carla).</td></tr>
+  <tr><td>Un escenario de attack-lab no responde</td><td>Comprobar <code>ATTACK_CLIENT_ID</code>/<code>SECRET</code>; mostrar la ejecución preparada en el informe HTML; plan B sin backend: <code>cd attack-lab &amp;&amp; npm test</code> (28 pruebas, incluido el proxy de caos).</td></tr>
+  <tr><td>No se puede desconectar la red</td><td>Mostrar solo <code>escenario-caos.js</code> y explicar que el servicio, la app y el portal no hacen ninguna llamada externa (SBOM: 0 recursos externos).</td></tr>
+  <tr><td>Falta tiempo</td><td>Saltar la sección de consola y cerrar con la diapositiva de impacto (30 s).</td></tr>
+</table>
+
+<h2>3. Preguntas probables del jurado</h2>
+<table>
+  <tr><th style="width:34%">Pregunta</th><th>Respuesta corta</th></tr>
+  <tr><td>¿Inventaron su propia criptografía?</td><td>No: RFC 6238, HMAC-SHA256/512, AES-256-GCM, Ed25519 y scrypt, con las primitivas de <code>node:crypto</code> y los vectores oficiales del RFC en las pruebas. Lo propio es la implementación y la custodia.</td></tr>
+  <tr><td>¿Qué pasa si roban la base de datos?</td><td>Las semillas y las claves privadas están cifradas con una llave maestra que no está en la base; usuarios e IP solo como HMAC.</td></tr>
+  <tr><td>¿Y si el servicio se cae?</td><td>Falla cerrado: nadie entra sin verificar. Un JWT ya emitido se valida sin red con la JWKS en caché. Reinicio medido en 0,33 s.</td></tr>
+  <tr><td>¿Funciona con otras apps autenticadoras?</td><td>Sí, el URI <code>otpauth://</code> es estándar; para apps que solo saben SHA-1 hay modo de compatibilidad por app, desactivado por defecto.</td></tr>
+  <tr><td>¿Escala?</td><td>Un proceso con SQLite atiende la demo con p95 de milisegundos; el plan de crecimiento está en <code>docs/escalabilidad/</code>.</td></tr>
+</table>
+
+<p class="small">Fuente: <code>docs/presentacion/guion-demo.html</code>.</p>
+</body>
+</html>

@@ -1,0 +1,43 @@
+# Unidad systemd DE USUARIO del Servicio Soberano TOTP (estación sin privilegios de administrador).
+# Plantilla: deploy/instalar.sh sustituye @NODE@, @PREFIJO@, @CONFIG@ y @DATOS@ y la copia en
+# ~/.config/systemd/user/. Gestión: systemctl --user {status|restart|stop} servicio-totp
+#
+# En modo usuario systemd no puede crear espacios de nombres de montaje (ProtectSystem, ProtectHome,
+# PrivateTmp no tendrían efecto real), así que el aislamiento se basa en filtros seccomp, sin nuevos
+# privilegios, umask 077, carpetas 0700 y límites de recursos. El modo sistema añade el resto.
+
+[Unit]
+Description=Servicio Soberano de Autenticación TOTP (modo usuario)
+Documentation=file://@PREFIJO@/deploy/README.md
+After=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=10
+
+[Service]
+Type=simple
+WorkingDirectory=@PREFIJO@/backend
+Environment=NODE_ENV=production
+Environment=ENV_FILE=@CONFIG@/servicio-totp.env
+ExecStart=@NODE@ --disable-warning=ExperimentalWarning src/main.js
+Restart=on-failure
+RestartSec=3
+KillSignal=SIGTERM
+TimeoutStopSec=15
+UMask=0077
+
+NoNewPrivileges=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+SystemCallErrorNumber=EPERM
+MemoryMax=768M
+TasksMax=256
+LimitNOFILE=65536
+
+[Install]
+WantedBy=default.target

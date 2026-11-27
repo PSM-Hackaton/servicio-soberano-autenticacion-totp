@@ -1,0 +1,182 @@
+{
+  "inicio": "2026-11-26T16:51:53.108Z",
+  "uptimeSegundos": 68,
+  "totales": {
+    "peticiones": 50,
+    "errores5xx": 0,
+    "errores4xx": 22,
+    "erroresBaseDatos": 0,
+    "reconexiones": 0,
+    "limitadas": 0,
+    "verificaciones": 8
+  },
+  "disponibilidadPct": 100,
+  "salud": {
+    "total": 2,
+    "ok": 2,
+    "ultimo": true
+  },
+  "tasa5xx": 0,
+  "ventana": {
+    "ms": 900000,
+    "peticiones": 50,
+    "errores5xx": 0,
+    "tasa5xx": 0
+  },
+  "latenciaPorRuta": {
+    "/.well-known/jwks.json": {
+      "total": 1,
+      "errores5xx": 0,
+      "p50Ms": 0.6277770000015153,
+      "p95Ms": 0.6277770000015153,
+      "muestras": 1
+    },
+    "/admin/api/anomalies": {
+      "total": 1,
+      "errores5xx": 0,
+      "p50Ms": 0.947093999988283,
+      "p95Ms": 0.947093999988283,
+      "muestras": 1
+    },
+    "/admin/api/apps": {
+      "total": 6,
+      "errores5xx": 0,
+      "p50Ms": 0.3197270000091521,
+      "p95Ms": 29.777478999996674,
+      "muestras": 6
+    },
+    "/admin/api/audit": {
+      "total": 2,
+      "errores5xx": 0,
+      "p50Ms": 0.21191600000020117,
+      "p95Ms": 0.5090930000005756,
+      "muestras": 2
+    },
+    "/admin/api/audit/verify-chain": {
+      "total": 1,
+      "errores5xx": 0,
+      "p50Ms": 0.8294960000057472,
+      "p95Ms": 0.8294960000057472,
+      "muestras": 1
+    },
+    "/admin/api/enrollments": {
+      "total": 1,
+      "errores5xx": 0,
+      "p50Ms": 0.6560039999894798,
+      "p95Ms": 0.6560039999894798,
+      "muestras": 1
+    },
+    "/admin/api/login": {
+      "total": 2,
+      "errores5xx": 0,
+      "p50Ms": 27.955056999999215,
+      "p95Ms": 35.81188600001042,
+      "muestras": 2
+    },
+    "/admin/api/session": {
+      "total": 1,
+      "errores5xx": 0,
+      "p50Ms": 0.3065399999904912,
+      "p95Ms": 0.3065399999904912,
+      "muestras": 1
+    },
+    "/api/v1/enrollments": {
+      "total": 3,
+      "errores5xx": 0,
+      "p50Ms": 8.798816999995324,
+      "p95Ms": 52.684000000001106,
+      "muestras": 3
+    },
+    "/api/v1/enrollments/:id": {
+      "total": 2,
+      "errores5xx": 0,
+      "p50Ms": 0.24805300000298303,
+      "p95Ms": 2.7610249999997905,
+      "muestras": 2
+    },
+    "/api/v1/enrollments/:id/activate": {
+      "total": 2,
+      "errores5xx": 0,
+      "p50Ms": 98.36623099999997,
+      "p95Ms": 136.27269399999932,
+      "muestras": 2
+    },
+    "/api/v1/enrollments/:id/resync": {
+      "total": 1,
+      "errores5xx": 0,
+      "p50Ms": 3.763338000004296,
+      "p95Ms": 3.763338000004296,
+      "muestras": 1
+    },
+    "/api/v1/recovery": {
+      "total": 2,
+      "errores5xx": 0,
+      "p50Ms": 30.398216000001412,
+      "p95Ms": 113.02325999999448,
+      "muestras": 2
+    },
+    "/api/v1/tokens/validate": {
+      "total": 4,
+      "errores5xx": 0,
+      "p50Ms": 2.197284000001673,
+      "p95Ms": 40.727137000001676,
+      "muestras": 4
+    },
+    "/api/v1/verify": {
+      "total": 15,
+      "errores5xx": 0,
+      "p50Ms": 2.1004439999960596,
+      "p95Ms": 27.705830999999307,
+      "muestras": 15
+    },
+    "/health": {
+      "total": 1,
+      "errores5xx": 0,
+      "p50Ms": 2.9471709999997984,
+      "p95Ms": 2.9471709999997984,
+      "muestras": 1
+    },
+    "/health/ready": {
+      "total": 1,
+      "errores5xx": 0,
+      "p50Ms": 0.5796239999981481,
+      "p95Ms": 0.5796239999981481,
+      "muestras": 1
+    },
+    "/metrics": {
+      "total": 1,
+      "errores5xx": 0,
+      "p50Ms": 5.856356999996933,
+      "p95Ms": 5.856356999996933,
+      "muestras": 1
+    },
+    "no_encontrada": {
+      "total": 2,
+      "errores5xx": 0,
+      "p50Ms": 0.10893799999757903,
+      "p95Ms": 0.28854900000442285,
+      "muestras": 2
+    },
+    "preflight": {
+      "total": 1,
+      "errores5xx": 0,
+      "p50Ms": 0.28556399999797577,
+      "p95Ms": 0.28556399999797577,
+      "muestras": 1
+    }
+  },
+  "resultadosVerificacion": {
+    "ok": 1,
+    "invalid_code": 4,
+    "replay": 1,
+    "locked": 0,
+    "anomaly_blocked": 2,
+    "rate_limited": 0
+  },
+  "inferencia": {
+    "total": 8,
+    "mediaMs": 0.667,
+    "p95Ms": 4.736
+  },
+  "desfaseRelojMs": 0
+}

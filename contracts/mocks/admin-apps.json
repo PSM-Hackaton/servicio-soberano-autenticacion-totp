@@ -1,0 +1,52 @@
+{
+  "apps": [
+    {
+      "id": "e23bbcdf-b078-4c41-ba1f-4ba494d7eb23",
+      "nombre": "Portal de Trámites",
+      "client_id": "app_92ac25d65219ee26d26e83847b010007",
+      "algoritmo": "SHA256",
+      "digitos": 6,
+      "periodo": 30,
+      "ventana": 1,
+      "max_intentos": 5,
+      "umbral_riesgo_bloqueo": 75,
+      "modo_heuristica": "bloqueo",
+      "permitir_sha1": false,
+      "estado": "activo",
+      "created_at": "2026-11-26T16:51:31.634Z",
+      "updated_at": "2026-11-26T16:51:31.634Z"
+    },
+    {
+      "id": "1d32551b-e8e0-4251-af70-034e4ea06a43",
+      "nombre": "Agente Evaluador (Reto 3)",
+      "client_id": "app_a4a7ef37fab67c4200fe2e75830fbeb5",
+      "algoritmo": "SHA256",
+      "digitos": 6,
+      "periodo": 30,
+      "ventana": 1,
+      "max_intentos": 5,
+      "umbral_riesgo_bloqueo": 75,
+      "modo_heuristica": "bloqueo",
+      "permitir_sha1": false,
+      "estado": "activo",
+      "created_at": "2026-11-26T16:51:31.668Z",
+      "updated_at": "2026-11-26T16:51:31.668Z"
+    },
+    {
+      "id": "acfbd78f-b2a2-4b01-a499-1411bee8236c",
+      "nombre": "Consola Administrativa",
+      "client_id": "app_11f5e2b10da6d79c115e36a9aea08177",
+      "algoritmo": "SHA256",
+      "digitos": 6,
+      "periodo": 30,
+      "ventana": 1,
+      "max_intentos": 5,
+      "umbral_riesgo_bloqueo": 75,
+      "modo_heuristica": "bloqueo",
+      "permitir_sha1": false,
+      "estado": "activo",
+      "created_at": "2026-11-26T16:51:31.701Z",
+      "updated_at": "2026-11-26T16:51:31.701Z"
+    }
+  ]
+}

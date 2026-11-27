@@ -1,0 +1,11 @@
+{
+  "verified": true,
+  "token": "<JWT_EdDSA_DE_EJEMPLO: cabecera.carga.firma en base64url, ver VerifySuccessResponse en contracts/openapi.yaml>",
+  "jti": "90d50824-6e63-432c-b40c-6cc16c9bba56",
+  "kid": "r0RDlpspVyB6l7jT1pZ0lw",
+  "expires_at": "2026-11-26T16:57:43.000Z",
+  "drift_steps": 1,
+  "risk": {
+    "level": "LOW"
+  }
+}

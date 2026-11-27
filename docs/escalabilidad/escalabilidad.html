@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Escalabilidad y crecimiento · Servicio Soberano TOTP</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 18mm 16mm; }
+  :root { --ink:#1b1f24; --muted:#5b6470; --line:#d9dee4; --accent:#0b5c4a; --soft:#eef5f2; --warn:#8a4b00; --warnbg:#fff5e6; }
+  * { box-sizing: border-box; }
+  body { font-family: "Liberation Sans", "DejaVu Sans", Arial, sans-serif; color: var(--ink); font-size: 10.2pt; line-height: 1.45; margin: 0; background: #fff; }
+  h1 { font-size: 21pt; margin: 0 0 4px; color: var(--accent); letter-spacing: -0.3px; }
+  h2 { font-size: 13.5pt; margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 2px solid var(--accent); color: var(--accent); page-break-after: avoid; }
+  h3 { font-size: 11pt; margin: 14px 0 6px; page-break-after: avoid; }
+  p { margin: 0 0 8px; }
+  ul, ol { margin: 0 0 8px; padding-left: 18px; }
+  li { margin-bottom: 3px; }
+  code, .mono { font-family: "DejaVu Sans Mono", "Liberation Mono", monospace; font-size: 8.8pt; }
+  code { background: #f2f4f6; padding: 0 3px; border-radius: 3px; }
+  pre { font-family: "DejaVu Sans Mono", "Liberation Mono", monospace; font-size: 8.1pt; line-height: 1.35; background: #f6f8f9; border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; margin: 6px 0 10px; white-space: pre-wrap; page-break-inside: avoid; }
+  table { width: 100%; border-collapse: collapse; margin: 6px 0 12px; font-size: 9.2pt; page-break-inside: avoid; }
+  th, td { border: 1px solid var(--line); padding: 5px 7px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); font-weight: 700; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .sub { color: var(--muted); font-size: 10.5pt; margin-bottom: 14px; }
+  .meta { color: var(--muted); font-size: 9pt; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 6px 0; margin-bottom: 14px; }
+  .box { background: var(--soft); border-left: 4px solid var(--accent); padding: 8px 12px; border-radius: 4px; margin: 8px 0 12px; page-break-inside: avoid; }
+  .warn { background: var(--warnbg); border-left: 4px solid var(--warn); padding: 8px 12px; border-radius: 4px; margin: 8px 0 12px; page-break-inside: avoid; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; page-break-inside: avoid; }
+  .card b { color: var(--accent); }
+  .pb { page-break-before: always; }
+  .small { font-size: 8.8pt; color: var(--muted); }
+  figure { margin: 8px 0 14px; page-break-inside: avoid; }
+  figure svg { display: block; width: 100%; height: auto; }
+  figcaption { font-size: 8.8pt; color: var(--muted); margin-top: 4px; }
+  .etapa { border: 1px solid var(--line); border-left: 5px solid var(--accent); border-radius: 6px; padding: 8px 12px; margin: 10px 0 12px; }
+  .etapa h3 { margin-top: 2px; color: var(--accent); }
+  .etapa table { font-size: 8.9pt; margin-bottom: 4px; page-break-inside: auto; }
+  .etapa td:first-child { width: 19%; font-weight: 700; color: var(--accent); background: #fafcfb; }
+  .kpi { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 8px 0 12px; }
+  .kpi div { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; text-align: center; }
+  .kpi b { display: block; font-size: 15pt; color: var(--accent); }
+  .kpi span { font-size: 8.4pt; color: var(--muted); }
+  .ok { color: var(--accent); font-weight: 700; }
+  table.densa { font-size: 7.9pt; }
+  table.densa th, table.densa td { padding: 3px 4px; }
+</style>
+</head>
+<body>
+
+<h1>Escalabilidad y crecimiento</h1>
+<div class="sub">Servicio Soberano de Autenticación Multifactorial basado en Tiempo (TOTP) · De una institución a un servicio nacional, paso a paso y con mediciones reales</div>
+<div class="meta">Equipo PSM-Hackaton · Hackatón 2026 · 26 de noviembre de 2026 · Versión 1.1 (mejoras G.2 aplicadas y medidas, §G.3) · Mediciones propias reproducibles (anexo H) · Datos crudos en <code>docs/escalabilidad/datos/</code></div>
+
+<h2>A. Resumen ejecutivo</h2>
+<div class="box">
+<ol style="margin-bottom:0">
+  <li><b>Medimos, no suponemos.</b> Una sola instancia del servicio, con la configuración de la versión 1.0 (<code>synchronous=FULL</code>, dos confirmaciones por verificación), en un equipo de escritorio de 6 núcleos, sostuvo <b>≈ 350 verificaciones de código por segundo</b> y <b>≈ 800 validaciones de token por segundo</b> con usuarios distintos y legítimos, siempre por HTTPS con TLS 1.3, cifrado AES-256 y bitácora encadenada activos.</li>
+  <li><b>Eso equivale a ≈ 245 inicios de sesión completos por segundo</b> y, con supuestos explícitos (4 inicios por usuario al día, 20 % en la hora pico, ráfagas del doble y servidor al 50 % de su capacidad), a <b>≈ 275 000 usuarios</b> o <b>≈ 27 instituciones de 10 000 personas</b> con un solo servidor.</li>
+  <li><b>El cuello de botella no es la criptografía sino la escritura a disco:</b> cada verificación hace dos confirmaciones (<i>fsync</i>) de SQLite de ≈ 1 ms cada una; el procesador está ocupado menos de la mitad del tiempo. Un ajuste de una línea (modo <code>synchronous=NORMAL</code>, medido) multiplica la capacidad por <b>3 a 4</b> en verificación y por <b>5</b> en validación: <b>≈ 900 000 usuarios por servidor</b>.</li>
+  <li><b>Crecer es una escalera de 6 etapas</b> con disparadores medibles: afinado (1 servidor), alta disponibilidad (2 servidores), varios nodos sin estado con PostgreSQL autoalojado, servicio nacional multiinstitución con HSM, y continuidad (copias cifradas, RPO/RTO). El código ya separa núcleo, casos de uso y persistencia, y la anti repetición ya es atómica en base de datos.</li>
+  <li><b>Soberanía en todas las etapas:</b> solo infraestructura propia o nacional y software libre; sin licencias, sin nubes ni servicios extranjeros, sin telemetría externa. El costo es solo hardware, expresado aquí en servidores de <i>X</i> núcleos e <i>Y</i> GB.</li>
+</ol>
+</div>
+
+<div class="box"><b>Actualización 1.1 — mejoras G.2 aplicadas y medidas de nuevo (§G.3).</b> El producto ya trae <code>SQLITE_SYNCHRONOUS</code> (NORMAL por defecto en WAL, FULL configurable), <b>una sola transacción por verificación</b> (paso aceptado + intento + evento de bitácora, con el JWT firmado antes), bitácora que lee el último hash dentro de la transacción (<code>BEGIN IMMEDIATE</code>: la cadena no se bifurca con varios procesos) e historial del detector con solo las columnas necesarias e índices de cobertura (migración <code>003</code>). Medido en el mismo equipo y con el mismo método: la verificación pasa de <b>≈ 360–530/s</b> (versión 1.0, FULL) a <b>≈ 1 710–1 990/s</b> con los valores por defecto (<b>×3,6 a ×5,0</b>), y a <b>≈ 830–940/s</b> si se mantiene FULL (<b>×1,7 a ×2,4</b>, solo por la transacción única). Con los supuestos de B.5 equivale a <b>≈ 1,46 millones de usuarios por servidor</b> (NORMAL) o ≈ 550 000 (FULL).</div>
+
+<div class="kpi">
+  <div><b>≈ 1 750/s</b><span>verificaciones TOTP (v1.1, por defecto)</span></div>
+  <div><b>≈ 4 700/s</b><span>validaciones de token (v1.1, por defecto)</span></div>
+  <div><b>×3,6–×5,0</b><span>frente a la v1.0 medida (≈ 350/s)</span></div>
+  <div><b>4,0 MB</b><span>por cada 1 000 usuarios enrolados</span></div>
+</div>
+
+<h3>Cómo leer este documento</h3>
+<p>Cada etapa de crecimiento se explica igual: <b>qué es</b>, <b>por qué</b> hace falta, <b>cómo</b> se hace, <b>costo y esfuerzo</b>, <b>riesgo</b> y <b>cómo se verifica</b>. Todo número sale de una medición que ejecutamos (sección B y anexo H) o de un cálculo mostrado paso a paso. Donde no hemos medido algo (por ejemplo, PostgreSQL en red), lo decimos y damos la fórmula para medirlo.</p>
+
+<table>
+  <tr><th style="width:26%">Criterio del jurado</th><th>Qué aporta este documento</th></tr>
+  <tr><td>Impacto y viabilidad (15 %)</td><td>Capacidad medida de una instancia, traducida a usuarios e instituciones; plan de crecimiento con disparadores, hardware por etapa y riesgos con mitigación.</td></tr>
+  <tr><td>Innovación y creatividad (10 %)</td><td>Banco de pruebas propio con <b>reloj acelerado</b> que permite medir miles de autenticaciones reales por segundo sin desactivar la protección anti repetición; servicio nacional federado con tenencia por institución y llaves aisladas.</td></tr>
+  <tr><td>Buenas prácticas y seguridad (15 %)</td><td>Cada etapa mantiene los estándares obligatorios: AES-256 en reposo, TLS 1.3, anonimización HMAC, OWASP, trazabilidad (bitácora encadenada, SBOM) y rotación de llaves.</td></tr>
+</table>
+
+<h2>B. Situación actual: una instancia, medida</h2>
+
+<h3>B.1 Arquitectura de una instancia</h3>
+<p>Hoy el servicio es <b>un solo proceso Node.js 22</b> sin dependencias externas que atiende HTTPS (TLS 1.3), ejecuta los casos de uso y guarda todo en <b>un archivo SQLite en modo WAL</b>. La llave maestra AES-256 vive fuera de la base, en el archivo de configuración protegido. La hora la da el NTP institucional.</p>
+<figure><svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg" font-family="Liberation Sans, Arial, sans-serif" role="img" aria-label="Arquitectura de una instancia"><defs><marker id="f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5b6470"/></marker></defs><rect x="6" y="40" width="104" height="54" rx="5" fill="#fafcfb" stroke="#0b5c4a"/><text x="58" y="58.5" text-anchor="middle" font-size="9.5" fill="#1b1f24">Portal o sistema</text><text x="58" y="70" text-anchor="middle" font-size="9.5" fill="#1b1f24">integrador</text><text x="58" y="81.5" text-anchor="middle" font-size="9.5" fill="#1b1f24">(SDK)</text><rect x="6" y="160" width="104" height="46" rx="5" fill="#fafcfb" stroke="#0b5c4a"/><text x="58" y="180.25" text-anchor="middle" font-size="9.5" fill="#1b1f24">App autenticadora</text><text x="58" y="191.75" text-anchor="middle" font-size="9.5" fill="#1b1f24">(PWA) del ciudadano</text><rect x="134" y="8" width="420" height="232" rx="8" fill="#f6faf8" stroke="#0b5c4a" stroke-width="1.5"/><text x="144" y="24" font-size="10" font-weight="700" fill="#0b5c4a">Proceso Node.js 22 (un hilo) · servidor institucional</text><line x1="110" y1="67" x2="152" y2="67" stroke="#5b6470" stroke-width="1.2" marker-end="url(#f)"/><text x="58" y="33" text-anchor="middle" font-size="8.5" fill="#5b6470">HTTPS · TLS 1.3</text><rect x="152" y="46" width="90" height="42" rx="5" fill="#fff" stroke="#0b5c4a"/><text x="197" y="70" text-anchor="middle" font-size="9.5" fill="#1b1f24">1. Límite de tasa</text><rect x="252" y="46" width="90" height="42" rx="5" fill="#fff" stroke="#0b5c4a"/><text x="297" y="64.25" text-anchor="middle" font-size="9.5" fill="#1b1f24">2. Autenticar app</text><text x="297" y="75.75" text-anchor="middle" font-size="9.5" fill="#1b1f24">(caché 30 s)</text><line x1="242" y1="67" x2="252" y2="67" stroke="#5b6470" stroke-width="1.2" marker-end="url(#f)"/><rect x="352" y="46" width="90" height="42" rx="5" fill="#fff" stroke="#0b5c4a"/><text x="397" y="64.25" text-anchor="middle" font-size="9.5" fill="#1b1f24">3. Detector local</text><text x="397" y="75.75" text-anchor="middle" font-size="9.5" fill="#1b1f24">(lee historial)</text><line x1="342" y1="67" x2="352" y2="67" stroke="#5b6470" stroke-width="1.2" marker-end="url(#f)"/><rect x="452" y="46" width="90" height="42" rx="5" fill="#fff" stroke="#0b5c4a"/><text x="497" y="64.25" text-anchor="middle" font-size="9.5" fill="#1b1f24">4. TOTP HMAC +</text><text x="497" y="75.75" text-anchor="middle" font-size="9.5" fill="#1b1f24">descifrar AES-GCM</text><line x1="442" y1="67" x2="452" y2="67" stroke="#5b6470" stroke-width="1.2" marker-end="url(#f)"/><rect x="452" y="110" width="90" height="42" rx="5" fill="#fff5e6" stroke="#b86e00"/><text x="497" y="128.25" text-anchor="middle" font-size="9.5" fill="#1b1f24">5. Transacción:</text><text x="497" y="139.75" text-anchor="middle" font-size="9.5" fill="#1b1f24">intento + anti replay</text><rect x="352" y="110" width="90" height="42" rx="5" fill="#fff5e6" stroke="#b86e00"/><text x="397" y="128.25" text-anchor="middle" font-size="9.5" fill="#1b1f24">6. Bitácora</text><text x="397" y="139.75" text-anchor="middle" font-size="9.5" fill="#1b1f24">encadenada</text><line x1="452" y1="131" x2="442" y2="131" stroke="#5b6470" stroke-width="1.2" marker-end="url(#f)"/><rect x="252" y="110" width="90" height="42" rx="5" fill="#fff" stroke="#0b5c4a"/><text x="297" y="128.25" text-anchor="middle" font-size="9.5" fill="#1b1f24">7. Firmar JWT</text><text x="297" y="139.75" text-anchor="middle" font-size="9.5" fill="#1b1f24">Ed25519</text><line x1="352" y1="131" x2="342" y2="131" stroke="#5b6470" stroke-width="1.2" marker-end="url(#f)"/><line x1="497" y1="88" x2="497" y2="110" stroke="#5b6470" stroke-width="1.2" marker-end="url(#f)"/><polyline points="252,131 58,131 58,98" fill="none" stroke="#5b6470" stroke-width="1.2" marker-end="url(#f)"/><text x="150" y="126" text-anchor="middle" font-size="8.5" fill="#5b6470">JWT firmado (aud = app)</text><text x="144" y="176" font-size="9" fill="#5b6470">Estado en memoria del proceso (no compartido):</text><rect x="144" y="184" width="74" height="26" rx="5" fill="#eceff2" stroke="#b9c0c8"/><text x="181" y="200" text-anchor="middle" font-size="8.5" fill="#5b6470">límites de tasa</text><rect x="224" y="184" width="74" height="26" rx="5" fill="#eceff2" stroke="#b9c0c8"/><text x="261" y="200" text-anchor="middle" font-size="8.5" fill="#5b6470">caché de apps</text><rect x="304" y="184" width="74" height="26" rx="5" fill="#eceff2" stroke="#b9c0c8"/><text x="341" y="200" text-anchor="middle" font-size="8.5" fill="#5b6470">sesiones consola</text><rect x="384" y="184" width="74" height="26" rx="5" fill="#eceff2" stroke="#b9c0c8"/><text x="421" y="200" text-anchor="middle" font-size="8.5" fill="#5b6470">idempotencia</text><rect x="464" y="184" width="74" height="26" rx="5" fill="#eceff2" stroke="#b9c0c8"/><text x="501" y="200" text-anchor="middle" font-size="8.5" fill="#5b6470">bloqueos fantasma</text><text x="144" y="228" font-size="8.5" fill="#5b6470">Servicio también de /app/ (PWA), /consola/, /metrics (local) y /.well-known/jwks.json</text><rect x="584" y="98" width="110" height="66" rx="5" fill="#fff5e6" stroke="#b86e00"/><text x="639" y="122.5" text-anchor="middle" font-size="9.5" fill="#1b1f24">SQLite (WAL)</text><text x="639" y="134" text-anchor="middle" font-size="9.5" fill="#1b1f24">semillas AES-256-GCM</text><text x="639" y="145.5" text-anchor="middle" font-size="9.5" fill="#1b1f24">intentos · bitácora</text><line x1="542" y1="131" x2="584" y2="131" stroke="#5b6470" stroke-width="1.2" marker-end="url(#f)"/><text x="563" y="126" text-anchor="middle" font-size="8.5" fill="#5b6470">fsync</text><rect x="584" y="20" width="110" height="44" rx="5" fill="#fafcfb" stroke="#0b5c4a"/><text x="639" y="39.25" text-anchor="middle" font-size="9.5" fill="#1b1f24">.env protegido</text><text x="639" y="50.75" text-anchor="middle" font-size="9.5" fill="#1b1f24">llave maestra · peppers</text><rect x="584" y="184" width="110" height="40" rx="5" fill="#fafcfb" stroke="#0b5c4a"/><text x="639" y="201.25" text-anchor="middle" font-size="9.5" fill="#1b1f24">NTP institucional</text><text x="639" y="212.75" text-anchor="middle" font-size="9.5" fill="#1b1f24">(chrony)</text><line x1="584" y1="42" x2="556" y2="42" stroke="#5b6470" stroke-width="1.2" marker-end="url(#f)"/><line x1="584" y1="204" x2="556" y2="204" stroke="#5b6470" stroke-width="1.2" marker-end="url(#f)"/><text x="694" y="258" text-anchor="end" font-size="8.5" fill="#b86e00">Naranja: el límite medido hoy</text><text x="694" y="270" text-anchor="end" font-size="8.5" fill="#b86e00">(2 confirmaciones a disco por verificación)</text><text x="6" y="270" font-size="8.5" fill="#5b6470">El código: la PWA lo muestra, el ciudadano lo escribe en el portal.</text></svg><figcaption>Figura 1. Recorrido de una verificación dentro de una instancia. En gris, lo que se guarda en memoria del proceso (se pierde al reiniciar y no se comparte entre nodos).</figcaption></figure>
+
+<h3>B.2 Qué se midió y cómo (en lenguaje llano)</h3>
+<ul>
+  <li><b>Máquina:</b> Intel Core i5-12400 (6 núcleos, 12 hilos, hasta 4,4 GHz), 14 GiB de RAM (≈ 3–4 GiB libres durante la prueba), disco NVMe de consumo, Linux 7.0, Node.js v22.22.1. El generador de carga corría <b>en la misma máquina</b>, compitiendo por CPU: los resultados son conservadores.</li>
+  <li><b>Servicio:</b> el mismo código del repositorio (TLS 1.3, AES-256-GCM, Ed25519, detector local de anomalías activo, bitácora encadenada). Solo dos cambios de banco de pruebas, sin tocar el producto: límites de tasa muy altos (para medir el servicio y no el limitador) y <b>reloj acelerado 100 veces</b>.</li>
+  <li><b>¿Por qué acelerar el reloj?</b> La protección anti repetición impide usar dos veces un código en la misma ventana de 30 s: un usuario real solo puede autenticarse una vez cada 30 s. Con el reloj del servicio y del generador acelerados ×100, cada paso TOTP dura 0,3 s reales y los mismos 1 000 usuarios pueden autenticarse legítimamente muchas veces. El trabajo por petición (HMAC, AES, firma, escrituras en base) es idéntico.</li>
+  <li><b>Usuarios:</b> 1 000 ciudadanos de prueba distintos, enrolados y activados por la API pública; sus códigos se calculan con el propio motor <code>backend/src/core/totp/totp.js</code>.</li>
+  <li><b>Escenarios:</b> <b>«Actual»</b> = configuración del producto hoy (SQLite <code>synchronous=FULL</code>, valor por defecto). <b>«Afinado»</b> = mismo código con <code>synchronous=NORMAL</code> (propuesta de la etapa 2). Concurrencias 1, 10, 50 y 100 clientes simultáneos, 8 s por punto.</li>
+</ul>
+
+<h3>B.3 Resultados</h3>
+<figure><svg viewBox="0 0 700 270" xmlns="http://www.w3.org/2000/svg" font-family="Liberation Sans, Arial, sans-serif" font-size="10" role="img" aria-label="Peticiones por segundo por endpoint"><line x1="54" x2="690" y1="222" y2="222" stroke="#d9dee4" stroke-width="1"/><text x="48" y="225" text-anchor="end" fill="#5b6470">0</text><line x1="54" x2="690" y1="184" y2="184" stroke="#d9dee4" stroke-width="0.6"/><text x="48" y="187" text-anchor="end" fill="#5b6470">1 000</text><line x1="54" x2="690" y1="146" y2="146" stroke="#d9dee4" stroke-width="0.6"/><text x="48" y="149" text-anchor="end" fill="#5b6470">2 000</text><line x1="54" x2="690" y1="108" y2="108" stroke="#d9dee4" stroke-width="0.6"/><text x="48" y="111" text-anchor="end" fill="#5b6470">3 000</text><line x1="54" x2="690" y1="70" y2="70" stroke="#d9dee4" stroke-width="0.6"/><text x="48" y="73" text-anchor="end" fill="#5b6470">4 000</text><line x1="54" x2="690" y1="32" y2="32" stroke="#d9dee4" stroke-width="0.6"/><text x="48" y="35" text-anchor="end" fill="#5b6470">5 000</text><text x="12" y="127" transform="rotate(-90 12 127)" text-anchor="middle" fill="#5b6470">peticiones por segundo</text><rect x="71.75" y="208.776" width="28" height="13.223999999999998" fill="#7fb8a6"/><text x="85.75" y="205.776" text-anchor="middle" fill="#1b1f24" font-size="8.5">348</text><rect x="102.75" y="170.016" width="28" height="51.984" fill="#0b5c4a"/><text x="116.75" y="167.016" text-anchor="middle" fill="#1b1f24" font-size="8.5">1 368</text><rect x="133.75" y="196.274" width="28" height="25.726" fill="#f0c27a"/><text x="147.75" y="193.274" text-anchor="middle" fill="#1b1f24" font-size="8.5">677</text><rect x="164.75" y="114.00399999999999" width="28" height="107.99600000000001" fill="#b86e00"/><text x="178.75" y="111.00399999999999" text-anchor="middle" fill="#1b1f24" font-size="8.5">2 842</text><text x="132.25" y="237" text-anchor="middle" fill="#1b1f24">1 cliente simultáneo</text><rect x="228.25" y="207.902" width="28" height="14.098" fill="#7fb8a6"/><text x="242.25" y="204.902" text-anchor="middle" fill="#1b1f24" font-size="8.5">371</text><rect x="259.25" y="168.078" width="28" height="53.922" fill="#0b5c4a"/><text x="273.25" y="165.078" text-anchor="middle" fill="#1b1f24" font-size="8.5">1 419</text><rect x="290.25" y="190.954" width="28" height="31.046" fill="#f0c27a"/><text x="304.25" y="187.954" text-anchor="middle" fill="#1b1f24" font-size="8.5">817</text><rect x="321.25" y="68.06199999999998" width="28" height="153.93800000000002" fill="#b86e00"/><text x="335.25" y="65.06199999999998" text-anchor="middle" fill="#1b1f24" font-size="8.5">4 051</text><text x="288.75" y="237" text-anchor="middle" fill="#1b1f24">10 clientes simultáneos</text><rect x="384.75" y="208.092" width="28" height="13.908" fill="#7fb8a6"/><text x="398.75" y="205.092" text-anchor="middle" fill="#1b1f24" font-size="8.5">366</text><rect x="415.75" y="180.048" width="28" height="41.952" fill="#0b5c4a"/><text x="429.75" y="177.048" text-anchor="middle" fill="#1b1f24" font-size="8.5">1 104</text><rect x="446.75" y="190.38400000000001" width="28" height="31.616" fill="#f0c27a"/><text x="460.75" y="187.38400000000001" text-anchor="middle" fill="#1b1f24" font-size="8.5">832</text><rect x="477.75" y="49.74600000000001" width="28" height="172.254" fill="#b86e00"/><text x="491.75" y="46.74600000000001" text-anchor="middle" fill="#1b1f24" font-size="8.5">4 533</text><text x="445.25" y="237" text-anchor="middle" fill="#1b1f24">50 clientes simultáneos</text><rect x="541.25" y="208.51" width="28" height="13.489999999999998" fill="#7fb8a6"/><text x="555.25" y="205.51" text-anchor="middle" fill="#1b1f24" font-size="8.5">355</text><rect x="572.25" y="183.81" width="28" height="38.190000000000005" fill="#0b5c4a"/><text x="586.25" y="180.81" text-anchor="middle" fill="#1b1f24" font-size="8.5">1 005</text><rect x="603.25" y="191.372" width="28" height="30.628" fill="#f0c27a"/><text x="617.25" y="188.372" text-anchor="middle" fill="#1b1f24" font-size="8.5">806</text><rect x="634.25" y="55.75" width="28" height="166.25" fill="#b86e00"/><text x="648.25" y="52.75" text-anchor="middle" fill="#1b1f24" font-size="8.5">4 375</text><text x="601.75" y="237" text-anchor="middle" fill="#1b1f24">100 clientes simultáneos</text><rect x="64" y="254" width="12" height="10" fill="#7fb8a6"/><text x="80" y="263" fill="#1b1f24">verify actual</text><rect x="214" y="254" width="12" height="10" fill="#0b5c4a"/><text x="230" y="263" fill="#1b1f24">verify afinado</text><rect x="364" y="254" width="12" height="10" fill="#f0c27a"/><text x="380" y="263" fill="#1b1f24">validate actual</text><rect x="514" y="254" width="12" height="10" fill="#b86e00"/><text x="530" y="263" fill="#1b1f24">validate afinado</text></svg><figcaption>Figura 2. Peticiones por segundo sostenidas por endpoint, configuración actual frente a afinada. JWKS (clave pública, sin escritura) no se dibuja: ≈ 10 100–18 800 por segundo en ambos casos.</figcaption></figure>
+
+<table class="densa">
+  <tr><th rowspan="2">Clientes</th><th colspan="4" class="n">POST /api/v1/verify (actual)</th><th colspan="4" class="n">POST /api/v1/tokens/validate (actual)</th><th colspan="2" class="n">GET /.well-known/jwks.json</th></tr>
+  <tr><th class="n">pet./s</th><th class="n">p50 ms</th><th class="n">p95 ms</th><th class="n">p99 ms</th><th class="n">pet./s</th><th class="n">p50 ms</th><th class="n">p95 ms</th><th class="n">p99 ms</th><th class="n">pet./s</th><th class="n">p99 ms</th></tr>
+  <tr><td class="n">1</td><td class="n"><b>348</b></td><td class="n">2,57</td><td class="n">3,64</td><td class="n">5,97</td><td class="n"><b>677</b></td><td class="n">1,36</td><td class="n">1,81</td><td class="n">2,98</td><td class="n">11 026</td><td class="n">0,22</td></tr>
+  <tr><td class="n">10</td><td class="n"><b>371</b></td><td class="n">23,6</td><td class="n">47,4</td><td class="n">56,1</td><td class="n"><b>817</b></td><td class="n">10,6</td><td class="n">21,4</td><td class="n">27,7</td><td class="n">18 778</td><td class="n">1,46</td></tr>
+  <tr><td class="n">50</td><td class="n"><b>366</b></td><td class="n">131</td><td class="n">153</td><td class="n">333</td><td class="n"><b>832</b></td><td class="n">57,7</td><td class="n">68,9</td><td class="n">211</td><td class="n">13 302</td><td class="n">15,3</td></tr>
+  <tr><td class="n">100</td><td class="n"><b>355</b></td><td class="n">280</td><td class="n">307</td><td class="n">319</td><td class="n"><b>806</b></td><td class="n">104</td><td class="n">150</td><td class="n">369</td><td class="n">18 564</td><td class="n">12,7</td></tr>
+</table>
+<table class="densa">
+  <tr><th rowspan="2">Clientes</th><th colspan="4" class="n">POST /api/v1/verify (afinado)</th><th colspan="4" class="n">POST /api/v1/tokens/validate (afinado)</th><th colspan="2" class="n">GET /.well-known/jwks.json</th></tr>
+  <tr><th class="n">pet./s</th><th class="n">p50 ms</th><th class="n">p95 ms</th><th class="n">p99 ms</th><th class="n">pet./s</th><th class="n">p50 ms</th><th class="n">p95 ms</th><th class="n">p99 ms</th><th class="n">pet./s</th><th class="n">p99 ms</th></tr>
+  <tr><td class="n">1</td><td class="n"><b>1 368</b></td><td class="n">0,55</td><td class="n">0,92</td><td class="n">6,66</td><td class="n"><b>2 842</b></td><td class="n">0,28</td><td class="n">0,44</td><td class="n">1,33</td><td class="n">10 115</td><td class="n">0,26</td></tr>
+  <tr><td class="n">10</td><td class="n"><b>1 419</b></td><td class="n">5,58</td><td class="n">13,7</td><td class="n">19,3</td><td class="n"><b>4 051</b></td><td class="n">1,90</td><td class="n">4,33</td><td class="n">9,80</td><td class="n">15 996</td><td class="n">1,91</td></tr>
+  <tr><td class="n">50</td><td class="n"><b>1 104</b></td><td class="n">42,2</td><td class="n">72,2</td><td class="n">116</td><td class="n"><b>4 533</b></td><td class="n">9,74</td><td class="n">16,8</td><td class="n">18,3</td><td class="n">17 214</td><td class="n">7,80</td></tr>
+  <tr><td class="n">100</td><td class="n"><b>1 005</b></td><td class="n">76,3</td><td class="n">108</td><td class="n">767</td><td class="n"><b>4 375</b></td><td class="n">19,5</td><td class="n">27,1</td><td class="n">33,0</td><td class="n">18 616</td><td class="n">12,2</td></tr>
+</table>
+<p class="small">p50/p95/p99: la mitad, el 95 % y el 99 % de las peticiones terminaron en ese tiempo o menos. Con 50 y 100 clientes, entre el 0,6 % y el 1,4 % de las verificaciones respondieron 401: es un efecto del reloj acelerado (cuando la espera supera 0,3–0,6 s, el código ya «caducó» en tiempo acelerado); con el reloj real la ventana es de 30 s y esos códigos serían válidos. Todas las validaciones de token respondieron 200.</p>
+
+<table>
+  <tr><th>Recurso del proceso</th><th class="n">Actual</th><th class="n">Afinado</th><th>Lectura</th></tr>
+  <tr><td>CPU usada durante verify (núcleos)</td><td class="n">0,41–0,67</td><td class="n">0,83–1,37</td><td>En «actual» el proceso <b>espera al disco</b> más de la mitad del tiempo; en «afinado» ya usa su núcleo completo.</td></tr>
+  <tr><td>Memoria residente (RSS) máxima</td><td class="n">224 MB</td><td class="n">230 MB</td><td>Estable; la memoria no limita.</td></tr>
+  <tr><td>Enrolamiento + activación (16 en paralelo)</td><td class="n">12,5 usuarios/s</td><td class="n">12,8 usuarios/s</td><td>Limitado por los 10 hashes scrypt de códigos de recuperación (4,1 núcleos ocupados; activación p50 1,23 s). Con <code>UV_THREADPOOL_SIZE=10</code>: <b>18,4 usuarios/s</b>, p50 0,83 s.</td></tr>
+</table>
+
+<h3>B.4 El cuello de botella real, con evidencia</h3>
+<p>Medimos por separado cada pieza que participa en una verificación (un solo hilo, módulos reales del backend):</p>
+<figure><svg viewBox="0 0 700 224" xmlns="http://www.w3.org/2000/svg" font-family="Liberation Sans, Arial, sans-serif" font-size="10" role="img" aria-label="Costo por pieza"><text x="272" y="17" text-anchor="end" fill="#1b1f24">Confirmar 1 transacción SQLite (actual, FULL)</text><rect x="280" y="7" width="342.3" height="13" fill="#b86e00"/><text x="627.3" y="17" fill="#1b1f24">1 076 µs</text><text x="272" y="38" text-anchor="end" fill="#1b1f24">Evento de bitácora encadenada (actual, FULL)</text><rect x="280" y="28" width="343.5409090909091" height="13" fill="#b86e00"/><text x="628.540909090909" y="38" fill="#1b1f24">1 080 µs</text><text x="272" y="59" text-anchor="end" fill="#1b1f24">Verificar firma Ed25519 del JWT</text><rect x="280" y="49" width="27.3" height="13" fill="#0b5c4a"/><text x="312.3" y="59" fill="#1b1f24">85,8 µs</text><text x="272" y="80" text-anchor="end" fill="#1b1f24">Leer historial para el detector (2 consultas)</text><rect x="280" y="70" width="23.036363636363635" height="13" fill="#7fb8a6"/><text x="308.03636363636366" y="80" fill="#1b1f24">72,4 µs</text><text x="272" y="101" text-anchor="end" fill="#1b1f24">Confirmar 1 transacción SQLite (afinado, NORMAL)</text><rect x="280" y="91" width="17.754545454545454" height="13" fill="#7fb8a6"/><text x="302.75454545454545" y="101" fill="#1b1f24">55,8 µs</text><text x="272" y="122" text-anchor="end" fill="#1b1f24">Firmar el JWT Ed25519</text><rect x="280" y="112" width="11.549999999999999" height="13" fill="#0b5c4a"/><text x="296.55" y="122" fill="#1b1f24">36,3 µs</text><text x="272" y="143" text-anchor="end" fill="#1b1f24">Detector local de anomalías (Isolation Forest + reglas)</text><rect x="280" y="133" width="7.413636363636364" height="13" fill="#0b5c4a"/><text x="292.4136363636364" y="143" fill="#1b1f24">23,3 µs</text><text x="272" y="164" text-anchor="end" fill="#1b1f24">Verificar código TOTP (3 HMAC-SHA256)</text><rect x="280" y="154" width="2.4818181818181815" height="13" fill="#0b5c4a"/><text x="287.4818181818182" y="164" fill="#1b1f24">7,8 µs</text><text x="272" y="185" text-anchor="end" fill="#1b1f24">Descifrar semilla AES-256-GCM</text><rect x="280" y="175" width="1.5" height="13" fill="#0b5c4a"/><text x="286.5" y="185" fill="#1b1f24">3,5 µs</text><text x="272" y="206" text-anchor="end" fill="#1b1f24">Anonimizar usuario (HMAC-SHA256)</text><rect x="280" y="196" width="1.5" height="13" fill="#0b5c4a"/><text x="286.5" y="206" fill="#1b1f24">1,8 µs</text></svg><figcaption>Figura 3. Costo de cada pieza en microsegundos por operación. Una confirmación de SQLite en el modo actual cuesta ≈ 1 080 µs, unas 140 veces más que verificar el código TOTP. (scrypt, que solo se usa al activar o al autenticar una app no cacheada, cuesta 28 811 µs y queda fuera de escala).</figcaption></figure>
+<table>
+  <tr><th>Pieza (medición aislada)</th><th class="n">µs por operación</th><th class="n">operaciones/s</th></tr>
+  <tr><td>TOTP: verificar código (ventana ±1, 3 HMAC-SHA256)</td><td class="n">7,8</td><td class="n">128 070</td></tr>
+  <tr><td>AES-256-GCM: descifrar semilla</td><td class="n">3,5</td><td class="n">284 611</td></tr>
+  <tr><td>HMAC-SHA256: anonimizar user_ref</td><td class="n">1,8</td><td class="n">546 699</td></tr>
+  <tr><td>Ed25519: firmar JWT</td><td class="n">36,3</td><td class="n">27 529</td></tr>
+  <tr><td>Ed25519: verificar JWT</td><td class="n">85,8</td><td class="n">11 657</td></tr>
+  <tr><td>Detector local: evaluar intento (100 eventos de historial)</td><td class="n">23,3</td><td class="n">42 838</td></tr>
+  <tr><td>scrypt N=16384: verificar client_secret o código (1 hilo)</td><td class="n">28 811</td><td class="n">35</td></tr>
+  <tr><td>SQLite FULL: transacción con 1 intento (attempts)</td><td class="n">1 076</td><td class="n">930</td></tr>
+  <tr><td>SQLite FULL: evento de bitácora encadenada</td><td class="n">1 080</td><td class="n">926</td></tr>
+  <tr><td>SQLite FULL: historial del detector (2 consultas de 50 filas)</td><td class="n">72,4</td><td class="n">13 822</td></tr>
+  <tr><td>SQLite NORMAL: transacción con 1 intento (attempts)</td><td class="n">55,8</td><td class="n">17 915</td></tr>
+  <tr><td>SQLite NORMAL: evento de bitácora encadenada</td><td class="n">49,4</td><td class="n">20 250</td></tr>
+  <tr><td>SQLite NORMAL: historial del detector (2 consultas de 50 filas)</td><td class="n">70,9</td><td class="n">14 108</td></tr>
+</table>
+<p><b>Tres evidencias coinciden:</b></p>
+<ol>
+  <li><b>Capacidad plana:</b> en el modo actual la verificación da ≈ 350–370 por segundo con 1, 10, 50 o 100 clientes. Más clientes no aumentan el rendimiento: solo hacen cola.</li>
+  <li><b>CPU ociosa:</b> el proceso usa menos de medio núcleo. La CPU espera.</li>
+  <li><b>Conteo de llamadas al sistema</b> (<code>strace -f -w -c</code>, 2 089 verificaciones + 200 enrolamientos): 5 078 <code>fdatasync</code> con 588 µs de media, el 90 % del tiempo de E/S. Son <b>dos confirmaciones por verificación</b>: la transacción (intento + paso anti repetición) y el evento de bitácora encadenada. Como <code>node:sqlite</code> es síncrono, mientras el disco confirma <b>el proceso entero espera</b>.</li>
+</ol>
+<p>Con el ajuste <code>synchronous=NORMAL</code> la confirmación baja a ≈ 50 µs y el límite pasa a ser la CPU de un núcleo. El perfil de CPU (<code>node --cpu-prof</code>, fase de verify en saturación) muestra dónde se va entonces el tiempo:</p>
+<figure><svg viewBox="0 0 700 210" xmlns="http://www.w3.org/2000/svg" font-family="Liberation Sans, Arial, sans-serif" font-size="10" role="img" aria-label="Perfil de CPU"><text x="292" y="15" text-anchor="end" fill="#1b1f24">Base de datos (repositorios SQLite)</text><rect x="300" y="5" width="313.5555555555556" height="13" fill="#b86e00"/><text x="618.5555555555557" y="15" fill="#1b1f24">41,5 %</text><text x="292" y="35" text-anchor="end" fill="#1b1f24">Resto del servicio (casos de uso, consultas, cripto en JS)</text><rect x="300" y="25" width="135.24444444444444" height="13" fill="#0b5c4a"/><text x="440.2444444444444" y="35" fill="#1b1f24">17,9 %</text><text x="292" y="55" text-anchor="end" fill="#1b1f24">TLS 1.3 y envío por la red</text><rect x="300" y="45" width="108.8" height="13" fill="#0b5c4a"/><text x="413.8" y="55" fill="#1b1f24">14,4 %</text><text x="292" y="75" text-anchor="end" fill="#1b1f24">HTTP de Node</text><rect x="300" y="65" width="63.46666666666667" height="13" fill="#0b5c4a"/><text x="368.4666666666667" y="75" fill="#1b1f24">8,4 %</text><text x="292" y="95" text-anchor="end" fill="#1b1f24">Otros de Node</text><rect x="300" y="85" width="38.53333333333333" height="13" fill="#0b5c4a"/><text x="343.5333333333333" y="95" fill="#1b1f24">5,1 %</text><text x="292" y="115" text-anchor="end" fill="#1b1f24">Detector local de anomalías</text><rect x="300" y="105" width="32.48888888888889" height="13" fill="#0b5c4a"/><text x="337.4888888888889" y="115" fill="#1b1f24">4,3 %</text><text x="292" y="135" text-anchor="end" fill="#1b1f24">Inactivo</text><rect x="300" y="125" width="26.444444444444446" height="13" fill="#0b5c4a"/><text x="331.44444444444446" y="135" fill="#1b1f24">3,5 %</text><text x="292" y="155" text-anchor="end" fill="#1b1f24">Bitácora y métricas</text><rect x="300" y="145" width="16.622222222222224" height="13" fill="#0b5c4a"/><text x="321.6222222222222" y="155" fill="#1b1f24">2,2 %</text><text x="292" y="175" text-anchor="end" fill="#1b1f24">Motor V8 sin atribuir</text><rect x="300" y="165" width="10.577777777777778" height="13" fill="#0b5c4a"/><text x="315.5777777777778" y="175" fill="#1b1f24">1,4 %</text><text x="292" y="195" text-anchor="end" fill="#1b1f24">Recolector de basura</text><rect x="300" y="185" width="10.577777777777778" height="13" fill="#0b5c4a"/><text x="315.5777777777778" y="195" fill="#1b1f24">1,4 %</text></svg><figcaption>Figura 4. Reparto del tiempo de CPU del proceso durante verificaciones sostenidas en modo afinado. La criptografía (firma Ed25519, HMAC, AES) suma ≈ 12 %; las lecturas de historial que alimentan al detector, ≈ 17 % (repartidas entre repositorios y consultas).</figcaption></figure>
+<div class="warn"><b>Conclusión:</b> hoy limita la <b>escritura síncrona a disco</b>; tras afinar, limita <b>un núcleo de CPU</b> (un proceso Node atiende en un solo hilo). Ni la memoria, ni TLS, ni la criptografía TOTP son el problema. La autenticación de apps con scrypt no influye en régimen normal porque el servidor ya guarda en caché 30 s las apps autenticadas; sí limita las <b>campañas de enrolamiento masivo</b> (12,5 usuarios/s).</div>
+
+<h3>B.5 De peticiones por segundo a usuarios e instituciones</h3>
+<p><b>Supuestos explícitos</b> (cámbielos y rehaga la cuenta): cada usuario inicia sesión con segundo factor <b>L = 4</b> veces al día; el <b>20 %</b> de los inicios diarios cae en la hora pico; dentro de esa hora hay ráfagas del <b>doble</b> del promedio; se planifica con el servidor al <b>50 %</b> de su capacidad medida (margen para picos imprevistos, ataques y mantenimiento). Un inicio completo = 1 verify + 1 validate (si el integrador valida el JWT localmente con el JWKS, como permite el SDK, solo cuenta el verify).</p>
+<pre>Capacidad de inicios completos  C = 1 / (1/verify + 1/validate)
+  Actual:   1 / (1/355 + 1/806)   ≈ 245 inicios/s     (valores medidos con 100 clientes)
+  Afinado:  1 / (1/1005 + 1/4375) ≈ 815 inicios/s
+
+Tasa pico por usuario  = L × 0,20 × 2 / 3600 s = 4 × 0,4 / 3600 ≈ 0,000444 inicios/s
+Usuarios por servidor  U = (C × 0,50) / 0,000444
+  Actual:   (245 × 0,5) / 0,000444 ≈ 275 000 usuarios   ≈ 27 instituciones de 10 000 personas
+  Afinado:  (815 × 0,5) / 0,000444 ≈ 917 000 usuarios   ≈ 90 instituciones de 10 000 personas
+
+Versión 1.1 (G.2 aplicada, §G.3; valores medidos con 100 clientes)
+  FULL:     1 / (1/873 + 1/1113)   ≈ 489 inicios/s   → (489 × 0,5) / 0,000444   ≈ 551 000 usuarios
+  NORMAL:   1 / (1/1785 + 1/4759)  ≈ 1 298 inicios/s → (1 298 × 0,5) / 0,000444 ≈ 1 460 000 usuarios</pre>
+
+<h3>B.6 Crecimiento de la base de datos (medido y extrapolado)</h3>
+<table>
+  <tr><th>Concepto</th><th class="n">Medido</th><th class="n">Por unidad</th><th>Retención actual</th></tr>
+  <tr><td>Enrolamiento activo (semilla cifrada, 10 códigos de recuperación scrypt, 2 eventos de bitácora)</td><td class="n">1 000 usuarios: 4 038 656 bytes</td><td class="n"><b>4,0 MB por 1 000</b></td><td>Mientras el usuario exista</td></tr>
+  <tr><td>Intentos de verificación (<code>attempts</code> + 3 índices)</td><td class="n">31 455 filas: 19,0 MB</td><td class="n"><b>60,5 MB por 100 000</b></td><td>30 días (purga horaria)</td></tr>
+  <tr><td>Bitácora encadenada (<code>audit_log</code> + índice), 1 evento por verificación exitosa</td><td class="n">31 327 filas: 14,9 MB</td><td class="n"><b>47,6 MB por 100 000</b></td><td><b>Sin límite</b> (no se purga)</td></tr>
+  <tr><td>Tokens consumidos (<code>consumed_jti</code> + índices)</td><td class="n">19 696 filas: 3,1 MB</td><td class="n">15,6 MB por 100 000</td><td>Hasta su caducidad (purga horaria)</td></tr>
+</table>
+<p>Ejemplo para 275 000 usuarios con 4 inicios diarios (401,5 millones de verificaciones al año): enrolamientos ≈ 1,1 GB; intentos en régimen (30 días, 33 millones de filas) ≈ 20 GB; <b>bitácora ≈ 191 GB por año</b> si no se archiva. La bitácora es el único dato que crece sin límite: la etapa 2 propone archivarla por tramos sellados.</p>
+
+<h2 class="pb">C. Escalera de crecimiento</h2>
+<figure><svg viewBox="0 0 700 236" xmlns="http://www.w3.org/2000/svg" font-family="Liberation Sans, Arial, sans-serif" role="img" aria-label="Escalera de crecimiento"><rect x="6" y="120" width="132" height="84" rx="5" fill="#cfe5dd"/><text x="14" y="138" font-size="15" font-weight="700" fill="#1b1f24">1</text><text x="32" y="137" font-size="10" font-weight="700" fill="#1b1f24">Un servidor</text><text x="14" y="153" font-size="8.8" fill="#1b1f24">≈ 275 000 usuarios</text><text x="14" y="165" font-size="8.3" fill="#1b1f24" font-style="italic">medido</text><rect x="12" y="173" width="120" height="16" rx="3" fill="#fff5e6" stroke="#b86e00" stroke-width="0.8"/><text x="72" y="184" text-anchor="middle" font-size="8.2" fill="#b86e00">sube si: pico &gt; 120 inicios/s</text><rect x="144" y="90" width="132" height="114" rx="5" fill="#a9d1c3"/><text x="152" y="108" font-size="15" font-weight="700" fill="#1b1f24">2</text><text x="170" y="107" font-size="10" font-weight="700" fill="#1b1f24">Afinado</text><text x="152" y="123" font-size="8.8" fill="#1b1f24">≈ 900 000 usuarios</text><text x="152" y="135" font-size="8.3" fill="#1b1f24" font-style="italic">medido</text><rect x="150" y="143" width="120" height="16" rx="3" fill="#fff5e6" stroke="#b86e00" stroke-width="0.8"/><text x="210" y="154" text-anchor="middle" font-size="8.2" fill="#b86e00">sube si: servicio crítico</text><rect x="282" y="60" width="132" height="144" rx="5" fill="#7fb8a6"/><text x="290" y="78" font-size="15" font-weight="700" fill="#1b1f24">3</text><text x="308" y="77" font-size="10" font-weight="700" fill="#1b1f24">Activo/pasivo</text><text x="290" y="93" font-size="8.8" fill="#1b1f24">igual + relevo ≤ 5 min</text><text x="290" y="105" font-size="8.3" fill="#1b1f24" font-style="italic">sin código nuevo</text><rect x="288" y="113" width="120" height="16" rx="3" fill="#fff5e6" stroke="#b86e00" stroke-width="0.8"/><text x="348" y="124" text-anchor="middle" font-size="8.2" fill="#b86e00">sube si: pico &gt; 400 inicios/s</text><rect x="420" y="30" width="132" height="174" rx="5" fill="#3f8c76"/><text x="428" y="48" font-size="15" font-weight="700" fill="#fff">4</text><text x="446" y="47" font-size="10" font-weight="700" fill="#fff">Varios nodos</text><text x="428" y="63" font-size="8.8" fill="#fff">N × nodo (fórmula E.3)</text><text x="428" y="75" font-size="8.3" fill="#fff" font-style="italic">PostgreSQL propio</text><rect x="426" y="83" width="120" height="16" rx="3" fill="#fff5e6" stroke="#b86e00" stroke-width="0.8"/><text x="486" y="94" text-anchor="middle" font-size="8.2" fill="#b86e00">sube si: varias instituciones</text><rect x="558" y="0" width="132" height="204" rx="5" fill="#0b5c4a"/><text x="566" y="18" font-size="15" font-weight="700" fill="#fff">5</text><text x="584" y="17" font-size="10" font-weight="700" fill="#fff">Federación</text><text x="566" y="33" font-size="8.8" fill="#fff">escala nacional</text><text x="566" y="45" font-size="8.3" fill="#fff" font-style="italic">tenencia + HSM</text><rect x="6" y="210" width="688" height="20" rx="4" fill="#fff5e6" stroke="#b86e00"/><text x="350" y="224" text-anchor="middle" font-size="9.2" fill="#1b1f24"><tspan font-weight="700">6 · Continuidad (todas las etapas):</tspan> copias cifradas · RPO/RTO · rotación de llaves sin corte · NTP institucional</text></svg><figcaption>Figura 5. Seis etapas. Cada una se activa por un disparador medible, no por calendario. La capacidad de las etapas 1 y 2 está medida; la de la etapa 4 se calcula con la fórmula de la sección E.3 tras medir en el hardware destino.</figcaption></figure>
+
+<div class="box"><b>Regla de soberanía en todas las etapas.</b> Solo servidores propios de la institución o de un centro de datos nacional (nube soberana nacional), y solo software libre con estándares abiertos: HAProxy o nginx (balanceo), keepalived (IP flotante), PostgreSQL con Patroni y etcd (base replicada), Valkey (almacén compartido, licencia BSD), Litestream o DRBD (réplica), chrony (hora), GnuPG (copias cifradas), OpenBao (custodia de llaves), Prometheus y Grafana autoalojados (observabilidad). Ninguna etapa usa nubes públicas extranjeras, CDN, proveedores de identidad externos, mensajería de terceros ni telemetría externa.</div>
+
+<div class="etapa">
+<h3>Etapa 1 — Una institución en un servidor (lo actual)</h3>
+<table>
+  <tr><td>Qué es</td><td>Un servidor Linux institucional con el servicio como unidad <code>systemd</code> (<code>deploy/servicio-totp.service</code>), base SQLite cifrada en campo (AES-256-GCM), TLS 1.3 con certificado de la CA institucional, NTP institucional con chrony.</td></tr>
+  <tr><td>Por qué</td><td>Es lo mínimo viable y ya cubre ≈ 275 000 usuarios medidos. Para una institución típica sobra capacidad: la prioridad es operar bien, no escalar.</td></tr>
+  <tr><td>Cómo</td><td>Seguir <code>deploy/README.md</code>: usuario sin privilegios, <code>ProtectSystem=strict</code>, secretos en <code>/etc/servicio-totp/</code> con permisos 0640, semilla inicial, copias cifradas horarias con <code>VACUUM INTO</code> + GPG.</td></tr>
+  <tr><td>Costo / esfuerzo</td><td>1 servidor de 4 núcleos, 8 GB, 2 SSD en espejo. Instalación en horas; sin licencias.</td></tr>
+  <tr><td>Riesgo</td><td>Punto único de fallo (si cae el servidor, no hay segundo factor). Estado en memoria (límites, sesiones de consola) se pierde al reiniciar.</td></tr>
+  <tr><td>Cómo se verifica</td><td><code>/health/ready</code>, <code>/metrics</code> local, verificación de la cadena de auditoría y prueba de restauración de copia mensual.</td></tr>
+  <tr><td>Disparador para subir</td><td>Pico sostenido &gt; <b>120 inicios/s</b> (50 % de lo medido) o p95 de verify &gt; 100 ms durante 5 min en hora pico; o campaña de enrolamiento que necesite más de 40 000 altas por hora (capacidad medida ≈ 45 000 por hora).</td></tr>
+  <tr><td>Criterios y Términos</td><td>Soberanía de datos (almacenamiento local), cifrado en reposo y tránsito, trazabilidad. Impacto: servicio usable desde el primer día.</td></tr>
+</table>
+</div>
+
+<div class="etapa">
+<h3>Etapa 2 — Vertical y afinado (mismo servidor, más rendimiento)</h3>
+<table>
+  <tr><td>Qué es</td><td>Aprovechar mejor el mismo servidor con ajustes de configuración, casi sin código.</td></tr>
+  <tr><td>Por qué</td><td>La medición muestra que el proceso espera al disco. Quitar esa espera multiplica la capacidad antes de comprar un segundo servidor.</td></tr>
+  <tr><td>Cómo</td><td><ol>
+    <li><b>Aplicado en 1.1 (§G.3).</b> <b>SQLite <code>synchronous=NORMAL</code></b> en modo WAL (era FULL por defecto; ahora <code>SQLITE_SYNCHRONOUS</code>, NORMAL por defecto): medido <b>×2,8 a ×4</b> en verify y <b>×4,2 a ×5,4</b> en validate. Una línea en <code>backend/src/infrastructure/persistence/db.js</code>, idealmente configurable.</li>
+    <li><b>Aplicado en 1.1.</b> <b>Una confirmación por verificación en vez de dos:</b> escribir el evento de bitácora dentro de la misma transacción del intento (<code>application/use-cases/mfa.js</code>). Reduce a la mitad los <i>fsync</i> si se mantiene FULL.</li>
+    <li><b>Validación local del JWT</b> con el JWKS (ya soportada por <code>sdk/src/local.js</code>, con caché de 300 s): el integrador deja de llamar a <code>/tokens/validate</code>; la capacidad pasa de 245 a 355 inicios/s sin tocar el servidor (el integrador asume el control de un solo uso del <code>jti</code>).</li>
+    <li><b><code>UV_THREADPOOL_SIZE</code></b> igual al número de núcleos en la unidad <code>systemd</code>: enrolamiento de 12,5 a 18,4 usuarios/s (medido con 10 hilos).</li>
+    <li><b>Archivado de la bitácora</b> por tramos mensuales sellados (hash final del tramo firmado y guardado en la cadena nueva) y <b>lecturas más ligeras</b> del historial del detector (solo 4 columnas, sin interpretar JSON).</li>
+    <li><b>Límites de tasa por app</b> dimensionados al pico real: el valor por defecto de la versión en curso (<code>RATE_LIMIT_APP_POR_MIN=3000</code>, 50 por segundo) es menor que la capacidad medida.</li>
+    <li>SSD de servidor con protección ante cortes de energía (confirma escrituras mucho más rápido que un disco de escritorio; hay que medirlo en el equipo destino con <code>partes.js</code>).</li>
+  </ol></td></tr>
+  <tr><td>Costo / esfuerzo</td><td>Horas de configuración y 1–2 días de código revisado con pruebas. Si hace falta, servidor de 8 núcleos y 16 GB.</td></tr>
+  <tr><td>Riesgo</td><td>Con NORMAL, ante un <b>corte de energía</b> (no ante una caída del proceso) pueden perderse las últimas transacciones confirmadas, nunca corromperse la base. Efecto máximo: reaceptar un código de un usuario dentro de los mismos 30 s. Mitigación: SAI, SSD con protección de energía, o mantener FULL y aplicar el punto 2.</td></tr>
+  <tr><td>Cómo se verifica</td><td>Repetir <code>medir.sh</code> antes y después; comparar p95 y peticiones/s; <code>npm test</code> en verde; prueba de corte de energía en laboratorio con verificación de la cadena.</td></tr>
+  <tr><td>Disparador para subir</td><td>La institución declara el servicio <b>crítico</b> (disponibilidad objetivo ≥ 99,9 %, ≤ 43 min de caída al mes) o depende de él más de una institución. No depende de la carga.</td></tr>
+  <tr><td>Criterios y Términos</td><td>Impacto y viabilidad (≈ 900 000 usuarios por servidor), protección anti-DDoS (más margen ante inundaciones), buenas prácticas (decisión medida, no intuitiva).</td></tr>
+</table>
+</div>
+
+<div class="etapa">
+<h3>Etapa 3 — Alta disponibilidad: dos nodos activo/pasivo</h3>
+<table>
+  <tr><td>Qué es</td><td>Dos servidores idénticos en salas o sedes distintas. Uno atiende; el otro tiene una copia al día de la base y las mismas llaves, listo para tomar el relevo.</td></tr>
+  <tr><td>Por qué</td><td>Si el segundo factor cae, nadie entra a los trámites críticos. La disponibilidad pesa más que la capacidad.</td></tr>
+  <tr><td>Cómo</td><td><ul>
+    <li><b>IP flotante</b> con keepalived (VRRP) que apunta al nodo activo; el chequeo es <code>/health/ready</code>.</li>
+    <li><b>Réplica de la base:</b> opción A, DRBD (réplica de bloque síncrona, RPO 0) con Pacemaker/Corosync; opción B, Litestream (réplica continua del WAL de SQLite hacia almacenamiento propio, RPO de segundos).</li>
+    <li><b>Llaves:</b> el mismo archivo <code>.env</code> (llave maestra versionada y peppers) en ambos nodos, distribuido por un canal interno cifrado y con custodia dual; certificado TLS para el nombre del servicio en ambos.</li>
+    <li>Las claves de firma Ed25519 ya viajan dentro de la base (cifradas): el nodo pasivo las hereda con la réplica.</li>
+  </ul></td></tr>
+  <tr><td>Costo / esfuerzo</td><td>2 servidores de 4 núcleos y 8 GB + almacenamiento de copias. 1–2 semanas de ingeniería de sistemas; sin cambios de código.</td></tr>
+  <tr><td>Riesgo</td><td>Doble activo («cerebro dividido»): mitigado con quórum y aislamiento del nodo caído (<i>fencing</i>). En el relevo se pierden límites de tasa en memoria y sesiones de consola (los administradores vuelven a entrar).</td></tr>
+  <tr><td>Cómo se verifica</td><td>Simulacro trimestral: apagar el activo y medir el tiempo hasta que <code>/health/ready</code> responde por la IP flotante (objetivo RTO ≤ 5 min) y que la cadena de auditoría sigue íntegra.</td></tr>
+  <tr><td>Disparador para subir</td><td>Pico sostenido &gt; <b>400 inicios/s</b> (50 % de lo afinado), más de ≈ 900 000 usuarios, o necesidad de actualizar sin ventana de corte.</td></tr>
+  <tr><td>Criterios y Términos</td><td>Resiliencia operativa (Términos), soberanía (réplica solo en infraestructura propia), seguridad (llaves nunca fuera de la institución).</td></tr>
+</table>
+</div>
+
+<div class="etapa">
+<h3>Etapa 4 — Horizontal: varios nodos sin estado detrás de un balanceador</h3>
+<table>
+  <tr><td>Qué es</td><td>N nodos del servicio, todos activos, detrás de un par de balanceadores institucionales (HAProxy + keepalived). El estado compartido sale del proceso: <b>PostgreSQL autoalojado</b> con réplica síncrona (Patroni + etcd) y, para contadores de alta frecuencia, un almacén compartido autoalojado (Valkey) o tablas de PostgreSQL.</td></tr>
+  <tr><td>Por qué</td><td>Un proceso usa un núcleo. Para pasar de cientos a miles de inicios por segundo y actualizar nodo a nodo sin cortes, hay que repartir la carga.</td></tr>
+  <tr><td>Lo que ya está preparado</td><td><ul>
+    <li><b>Persistencia desacoplada:</b> toda la base pasa por <code>crearRepositorios(db)</code> (<code>infrastructure/persistence/repositorios.js</code>); los casos de uso reciben <code>repos</code>, <code>vault</code>, <code>firmas</code> y <code>reloj</code> inyectados.</li>
+    <li><b>Núcleo puro</b> (<code>core/totp</code>, <code>core/vault</code>, <code>core/tokens</code>): no sabe de base ni de red.</li>
+    <li><b>Anti repetición atómica en base:</b> <code>UPDATE … WHERE last_step &lt; ?</code> y <code>jti</code> como clave primaria. Funcionan igual con varios nodos.</li>
+    <li><b>Rotación de firmas con <code>kid</code></b> y período de gracia; JWKS cacheable; salud (<code>/health/ready</code>) para el balanceador; apagado ordenado ante SIGTERM para actualizaciones nodo a nodo.</li>
+    <li>Esquema PostgreSQL de referencia en <code>contracts/schema.sql</code>.</li>
+  </ul></td></tr>
+  <tr><td>Qué hay que cambiar, por archivo</td><td><ul>
+    <li><code>infrastructure/persistence/db.js</code> y <code>config/config.js</code>: controlador <code>DB_DRIVER=postgres</code> con conjunto de conexiones y migraciones propias del dialecto. Node no trae cliente PostgreSQL: o se implementa uno propio del protocolo v3 (SCRAM-SHA-256, consultas extendidas) o se incorpora una biblioteca libre auditada y declarada en el SBOM; es la decisión de mayor peso.</li>
+    <li><code>repositorios.js</code>: misma interfaz pero asíncrona; <code>transaccion(fn)</code> con conexión dedicada; parámetros <code>$1</code>, <code>bytea</code> y <code>timestamptz</code>.</li>
+    <li><code>application/use-cases/mfa.js</code>, <code>admin.js</code>, <code>bloqueos.js</code>, <code>consultas.js</code>: <code>await</code> en llamadas a repositorios y transacciones asíncronas. La lógica no cambia.</li>
+    <li><code>audit/cadena.js</code>: leer el último hash e insertar dentro de la <b>misma transacción con bloqueo</b> (p. ej., <code>pg_advisory_xact_lock</code>); hoy funciona porque hay un solo proceso, con varios la cadena se bifurcaría.</li>
+    <li><code>application/use-cases/mfa.js</code>: idempotencia (<code>Idempotency-Key</code>) de memoria a una tabla con clave (app, clave).</li>
+    <li><code>api/servidor.js</code>: sesiones de consola a tabla; límites de tasa al almacén compartido (<code>security/limitador.js</code> pasa a interfaz asíncrona); la pimienta de anonimización en memoria se deriva de la configuración para que todos los nodos usen las mismas claves; lista de proxys de confianza para conocer la IP real detrás del balanceador (hoy, con razón, no se confía en <code>X-Forwarded-For</code>).</li>
+    <li><code>infrastructure/config/firmas.js</code>: recargar claves periódicamente o por aviso de la base para que una rotación se vea en todos los nodos.</li>
+    <li><code>main.js</code>: purgas con bloqueo para que las ejecute un solo nodo; métricas por nodo agregadas por un Prometheus propio.</li>
+  </ul></td></tr>
+  <tr><td>Costo / esfuerzo</td><td>2 balanceadores (2 núcleos, 4 GB), N nodos (4 núcleos, 8 GB), 3 nodos PostgreSQL (8 núcleos, 32 GB, NVMe), 3 nodos etcd/Valkey (2 núcleos, 4 GB). Código: 3–5 semanas de dos personas con pruebas (los 156 actuales se reutilizan contra PostgreSQL).</td></tr>
+  <tr><td>Riesgo</td><td>La escritura en PostgreSQL por red añade latencia por petición y pasa a ser el nuevo límite: <b>no la hemos medido</b>; debe medirse antes de prometer cifras. Relojes de los nodos: todos al mismo NTP. Migraciones compatibles hacia atrás (ampliar y luego contraer) para actualizar sin cortes.</td></tr>
+  <tr><td>Cómo se verifica</td><td>El mismo banco (<code>carga.js</code>) contra el balanceador con 1, 2 y 4 nodos: la capacidad debe crecer casi lineal hasta que la base se sature; prueba de caída de un nodo durante la carga sin errores 5xx.</td></tr>
+  <tr><td>Disparador para subir</td><td>Varias instituciones piden el servicio y se decide un modelo nacional (decisión de política, no de carga).</td></tr>
+  <tr><td>Criterios y Términos</td><td>Impacto (servicio para millones), protección anti-DDoS distribuida, resiliencia; soberanía intacta: todo autoalojado.</td></tr>
+</table>
+</div>
+
+<div class="etapa">
+<h3>Etapa 5 — Multiinstitución y federación nacional</h3>
+<table>
+  <tr><td>Qué es</td><td>Ofrecer el segundo factor a muchas instituciones del Estado. Dos modelos, ambos con el mismo código:</td></tr>
+  <tr><td>Modelo A: un servicio por institución</td><td>Cada institución despliega su propia instancia (etapas 1–3). Máximo aislamiento: base, llave maestra, claves de firma y bitácora propias. Costo: operación repetida en cada una.</td></tr>
+  <tr><td>Modelo B: servicio central con tenencia</td><td>Un servicio nacional (etapa 4) donde cada institución es una o varias <b>apps</b>. Ya existe: tabla <code>apps</code> con política propia (algoritmo, dígitos, ventana, intentos, umbral y modo del detector), <code>user_ref_hash</code> separado por app, JWT con <code>aud</code> = <code>client_id</code> de cada app, límites por app. Falta: <b>claves de firma por institución</b> (hoy una global), <b>llave maestra por institución</b> (llavero por tenencia, con la institución en el AAD), <b>administradores limitados a su institución</b> (hoy los roles son globales), bitácora y métricas filtradas por institución.</td></tr>
+  <tr><td>HSM y custodia</td><td>Llaves maestras y de firma en un <b>HSM con interfaz PKCS#11</b> (estándar abierto), preferiblemente de fabricación o certificación nacional, o en un servicio de custodia libre autoalojado (OpenBao, motor <i>transit</i>), accesible por HTTPS sin dependencias nuevas. La bóveda (<code>core/vault/vault.js</code>) ya cifra por versión de llave: se añade el «envoltorio» de la llave por el HSM.</td></tr>
+  <tr><td>Recomendación</td><td><b>Modelo híbrido:</b> servicio central para instituciones pequeñas y medianas; instancias dedicadas (modelo A) para las que custodian datos más sensibles. El SDK y la API son idénticos en ambos casos.</td></tr>
+  <tr><td>Costo / esfuerzo</td><td>Tenencia: 3–4 semanas. HSM: 2 unidades por sede (activo y respaldo). Operación: un equipo nacional de guardia.</td></tr>
+  <tr><td>Riesgo</td><td>Un error en el aislamiento expone a varias instituciones; mitigación: llaves separadas por institución (una fuga de una llave no afecta a las demás), pruebas automáticas de aislamiento y auditoría externa.</td></tr>
+  <tr><td>Cómo se verifica</td><td>Pruebas de que una app no puede ver ni validar tokens de otra (ya cubierto por <code>aud</code>), rotación de la llave de una institución sin afectar a las demás, verificación de cadena por institución.</td></tr>
+  <tr><td>Criterios y Términos</td><td>Objetivo del reto: eliminar la dependencia de autenticadores extranjeros a escala nacional. Innovación: federación soberana con aislamiento criptográfico por institución.</td></tr>
+</table>
+</div>
+
+<div class="etapa">
+<h3>Etapa 6 — Continuidad (transversal, desde la etapa 1)</h3>
+<table>
+  <tr><td>Qué es</td><td>Poder recuperarse de cualquier desastre sin perder semillas ni registros, y cambiar llaves sin cortar el servicio.</td></tr>
+  <tr><td>Copias cifradas</td><td>Ya documentadas: <code>VACUUM INTO</code> en caliente + GPG AES-256; la base y el <code>.env</code> se guardan <b>por separado</b> y con claves distintas, en sede distinta. Con PostgreSQL: copia base + archivo continuo de WAL cifrado.</td></tr>
+  <tr><td>Objetivos propuestos</td><td>
+    <table>
+      <tr><th>Etapa</th><th>RPO (datos que se pueden perder)</th><th>RTO (tiempo para volver)</th></tr>
+      <tr><td>1–2</td><td>≤ 1 h (copia horaria)</td><td>≤ 4 h (reinstalar y restaurar)</td></tr>
+      <tr><td>3</td><td>0 (DRBD) o ≤ 1 min (Litestream)</td><td>≤ 5 min (relevo automático)</td></tr>
+      <tr><td>4–5</td><td>0 (réplica síncrona)</td><td>≤ 1 min (un nodo cae, los demás siguen)</td></tr>
+    </table></td></tr>
+  <tr><td>Rotación sin interrupción</td><td>Ya existe: claves de firma con <code>kid</code> nuevo y la anterior en «solo verificación»; llave maestra versionada (<code>MASTER_KEY_V2_HEX</code>) y script <code>npm run rotar-llave-maestra</code> para recifrar en lote.</td></tr>
+  <tr><td>Hora soberana</td><td>chrony contra el NTP institucional o nacional en todos los nodos; el servicio mide el desfase (<code>CLOCK_REFERENCE_URL</code>, métrica <code>totp_clock_skew_ms</code>).</td></tr>
+  <tr><td>Riesgo</td><td>Pérdida de la llave maestra = pérdida de todas las semillas. Mitigación: custodia dual (dos personas, dos sobres o HSM con quórum), copia fuera de línea y prueba de restauración trimestral.</td></tr>
+  <tr><td>Cómo se verifica</td><td>Restaurar en un servidor limpio, arrancar, comprobar <code>/admin/api/audit/verify-chain</code> (<code>intact: true</code>) y que un usuario de prueba sigue verificando.</td></tr>
+  <tr><td>Criterios y Términos</td><td>Rotación de llaves, cifrado en reposo, trazabilidad y resiliencia operativa.</td></tr>
+</table>
+</div>
+
+<h2>D. Crecimiento funcional (hoja de ruta de producto)</h2>
+<table>
+  <tr><th style="width:20%">Funcionalidad</th><th>Qué aporta</th><th style="width:10%">Impacto</th><th style="width:10%">Esfuerzo</th><th style="width:8%">Prioridad</th></tr>
+  <tr><td>Portal de autoservicio del ciudadano</td><td>Ver dispositivos, regenerar códigos de recuperación, revocar un teléfono perdido sin llamar a soporte. Reduce la carga de la mesa de ayuda, el costo más grande de un MFA masivo.</td><td>Alto</td><td>Bajo</td><td><b>1</b></td></tr>
+  <tr><td>Integración con directorios institucionales (LDAP: OpenLDAP, FreeIPA) y SCIM</td><td>Alta y baja automática: quien deja la institución pierde su segundo factor el mismo día.</td><td>Alto</td><td>Medio</td><td><b>2</b></td></tr>
+  <tr><td>WebAuthn / llaves físicas (estándar abierto W3C/FIDO)</td><td>Factor adicional resistente a suplantación de sitio, para administradores y cargos críticos. La verificación de firmas ES256/EdDSA se hace con <code>node:crypto</code>, sin servicios externos.</td><td>Alto</td><td>Medio</td><td><b>3</b></td></tr>
+  <tr><td>Panel multiinstitución</td><td>Vista nacional de salud, uso y anomalías por institución (etapa 5), con datos anonimizados.</td><td>Medio</td><td>Medio</td><td><b>4</b></td></tr>
+  <tr><td>Certificación y auditoría externa</td><td>Auditoría de código y criptografía por el ente nacional competente (p. ej., la autoridad nacional de certificación electrónica) y pruebas de penetración independientes. Condición para uso masivo en el Estado.</td><td>Alto</td><td>Medio</td><td><b>5</b></td></tr>
+  <tr><td>Notificaciones propias</td><td>Avisar «alguien intenta entrar con su cuenta». <b>No</b> se usa la notificación web estándar porque depende de servidores de los fabricantes de navegadores; en su lugar, servidor propio de notificaciones (protocolo abierto UnifiedPush con distribuidor autoalojado) para la app nativa y consulta al servidor propio mientras la PWA está abierta.</td><td>Medio</td><td>Medio</td><td>6</td></tr>
+  <tr><td>App nativa opcional (código abierto)</td><td>Almacenamiento en el chip seguro del teléfono; distribuida desde un repositorio institucional propio. La PWA se mantiene como opción principal.</td><td>Medio</td><td>Alto</td><td>7</td></tr>
+</table>
+
+<h2>E. Operación y observabilidad a escala</h2>
+<h3>E.1 Métricas que ya expone el servicio</h3>
+<p><code>/metrics</code> (formato de texto estándar, solo desde la propia máquina) y <code>/admin/api/metrics</code> (consola, con RBAC): <code>totp_http_requests_total</code> y <code>totp_http_request_duration_ms</code> por ruta, <code>totp_http_errors_5xx_total</code>, <code>totp_http_5xx_ratio</code>, <code>totp_availability_percent</code>, <code>totp_health_up</code>, <code>totp_verifications_total</code> por resultado (ok, código inválido, repetición, bloqueo, anomalía, límite), <code>totp_rate_limited_total</code>, <code>totp_db_errors_total</code>, <code>totp_anomaly_inference_ms_avg</code>, <code>totp_clock_skew_ms</code>, <code>totp_uptime_seconds</code>. Un Prometheus propio en la misma red las recoge; ningún dato sale de la institución.</p>
+<h3>E.2 Alertas recomendadas</h3>
+<table>
+  <tr><th>Alerta</th><th>Condición</th><th>Por qué ese umbral</th></tr>
+  <tr><td>Servicio caído</td><td><code>totp_health_up == 0</code> o <code>/health/ready</code> falla 2 veces seguidas</td><td>Sin segundo factor no hay acceso.</td></tr>
+  <tr><td>Errores internos</td><td><code>totp_http_5xx_ratio</code> &gt; 1 % durante 5 min</td><td>En la medición hubo 0 % de 5xx.</td></tr>
+  <tr><td>Lentitud</td><td>p95 de <code>/api/v1/verify</code> &gt; 100 ms durante 5 min</td><td>Medido: 47 ms con 10 clientes (actual), 14 ms (afinado).</td></tr>
+  <tr><td>Cerca del techo</td><td>Verificaciones/s en pico &gt; 175 (actual) o &gt; 500 (afinado)</td><td>50 % de la capacidad medida: disparador de etapa.</td></tr>
+  <tr><td>Posible ataque</td><td>Aumento brusco de <code>totp_rate_limited_total</code>, de «repetición» o «anomalía», o proporción de código inválido &gt; 20 %</td><td>Fuerza bruta o reutilización de códigos.</td></tr>
+  <tr><td>Reloj</td><td>|<code>totp_clock_skew_ms</code>| &gt; 2 000 (aviso), &gt; 5 000 (crítico)</td><td>La ventana ±1 tolera ≈ 30 s; el servicio ya avisa a partir de 5 s.</td></tr>
+  <tr><td>Base de datos</td><td><code>totp_db_errors_total</code> aumenta; disco libre &lt; 20 %; archivo WAL &gt; 1 GB</td><td>La base crece ≈ 108 MB por cada 100 000 verificaciones.</td></tr>
+  <tr><td>Memoria</td><td>RSS &gt; 1 GB</td><td>Medido estable en ≈ 230 MB.</td></tr>
+</table>
+<h3>E.3 Planificación de capacidad (fórmulas simples)</h3>
+<pre>Tasa pico          R = U × L × f_hora × f_ráfaga / 3600      (ej.: f_hora = 0,20; f_ráfaga = 2)
+Nodos necesarios   N = techo( R / (C_nodo × 0,5) ) + 1        (+1: se puede perder un nodo)
+Disco (bytes)      S = 4,0 KB × U
+                     + 0,605 KB × verificaciones de los últimos 30 días     (attempts)
+                     + 0,476 KB × verificaciones desde el último archivado  (bitácora)
+Enrolamiento       horas de campaña = usuarios / (12,5 × 3600)  (≈ 18,4 con UV_THREADPOOL_SIZE=10)</pre>
+<p>Ejemplo: 2 millones de usuarios con L = 4 → R = 2 000 000 × 4 × 0,2 × 2 / 3600 ≈ 889 inicios/s. Con nodos afinados (C ≈ 815) → N = techo(889 / 407,5) + 1 = 4 nodos, siempre que la base de la etapa 4 lo soporte (medirlo).</p>
+
+<h2>F. Costos por etapa</h2>
+<p>El software no tiene licencias: todo es propio o libre. El costo es <b>hardware, energía, espacio y personas</b>. No damos precios de proveedores: expresamos el hardware para que cada institución cotice con sus proveedores nacionales. Supuestos de dimensionamiento: el proceso medido usa ≈ 1 núcleo y ≈ 230 MB; el enrolamiento masivo usa hasta 4–10 núcleos; se duplica todo lo necesario para tolerar fallos.</p>
+<table>
+  <tr><th>Etapa</th><th>Servidores</th><th>Disco</th><th>Capacidad de referencia</th><th>Personas</th></tr>
+  <tr><td>1</td><td>1 × (4 núcleos, 8 GB)</td><td>2 × SSD 240 GB en espejo</td><td class="n">≈ 275 000 usuarios</td><td>Operación a tiempo parcial</td></tr>
+  <tr><td>2</td><td>1 × (8 núcleos, 16 GB) o el mismo</td><td>2 × SSD con protección de energía, 480 GB</td><td class="n">≈ 900 000 usuarios</td><td>Igual</td></tr>
+  <tr><td>3</td><td>2 × (8 núcleos, 16 GB) + 1 almacenamiento de copias</td><td>Igual por nodo + 2 TB copias</td><td class="n">≈ 900 000 con relevo</td><td>Guardia 8×5</td></tr>
+  <tr><td>4</td><td>2 balanceadores (2 n., 4 GB) + N nodos (4 n., 8 GB) + 3 PostgreSQL (8 n., 32 GB) + 3 coordinación/caché (2 n., 4 GB)</td><td>NVMe en PostgreSQL, 1–2 TB</td><td class="n">N × capacidad medida (E.3)</td><td>Guardia 24×7</td></tr>
+  <tr><td>5</td><td>Etapa 4 en 2 sedes + 2 HSM por sede</td><td>Según E.3</td><td class="n">Escala nacional</td><td>Equipo nacional</td></tr>
+</table>
+
+<h2>G. Riesgos de escalado y mitigaciones</h2>
+<table>
+  <tr><th style="width:30%">Riesgo</th><th>Mitigación</th></tr>
+  <tr><td>El disco limita (medido en 1.0: 2 <i>fsync</i> por verificación)</td><td>Aplicado en 1.1: <code>SQLITE_SYNCHRONOUS=NORMAL</code> por defecto y una sola confirmación por verificación (medido ×3,6–×5,0, §G.3). Queda: SSD de servidor con protección de energía y volver a medir en el equipo destino.</td></tr>
+  <tr><td>Un hilo por proceso: una operación lenta frena a todos</td><td>Etapa 4 (varios procesos o nodos); evitar trabajo síncrono pesado en la ruta de verificación.</td></tr>
+  <tr><td>La bitácora crece sin límite (≈ 191 GB/año para 275 000 usuarios)</td><td>Archivado mensual sellado: se exporta el tramo cifrado, se conserva su hash final firmado como primer eslabón del tramo siguiente.</td></tr>
+  <tr><td>Estado en memoria al pasar a varios nodos (límites, idempotencia, sesiones, caché de apps, cadena de auditoría)</td><td>Cambios por archivo de la etapa 4; la caché de apps (30 s) implica que suspender una app tarda hasta 30 s en verse en todos los nodos: documentarlo.</td></tr>
+  <tr><td>Portal con muchos ciudadanos detrás de una sola IP</td><td>Resuelto: la app envía <code>client_ip</code> y el límite por origen, el historial del detector y <code>ip_hash</code> se calculan por app y ciudadano.</td></tr>
+  <tr><td>Campañas de enrolamiento masivo saturan scrypt (12,5 usuarios/s)</td><td>Programarlas fuera de hora pico, <code>UV_THREADPOOL_SIZE</code> mayor, o un nodo dedicado a enrolamiento.</td></tr>
+  <tr><td>Desfase de reloj entre nodos</td><td>NTP institucional común, alerta a 2 s; el anti repetición se apoya en la base, no en el reloj de un nodo.</td></tr>
+  <tr><td>Cliente PostgreSQL frente a la regla «sin dependencias»</td><td>Cliente propio del protocolo v3 o biblioteca libre auditada, fijada por versión y en el SBOM.</td></tr>
+  <tr><td>Pérdida o fuga de la llave maestra</td><td>Custodia dual, HSM en etapa 5, llaves por institución, rotación ensayada.</td></tr>
+  <tr><td>Inundación (DDoS) contra el servicio central</td><td>Límites en el balanceador y en el servicio (global, por app, por origen), capacidad con margen del 50 %, servicio solo en la red del Estado cuando sea posible.</td></tr>
+</table>
+
+<h3>G.2 Mejoras de código detectadas al medir (aplicadas en la versión 1.1)</h3>
+<table>
+  <tr><th style="width:30%">Archivo</th><th>Mejora y motivo</th><th style="width:16%">Estado</th></tr>
+  <tr><td><code>backend/src/infrastructure/persistence/db.js</code></td><td><code>PRAGMA synchronous</code> configurable con <code>SQLITE_SYNCHRONOUS</code> (FULL | NORMAL; NORMAL por defecto en WAL). Compromiso documentado en el código y en <code>.env.example</code>: la base nunca se corrompe y una caída del proceso no pierde nada; un corte de energía puede deshacer las últimas transacciones de ese instante (como mucho, reaceptar un código dentro de sus 30 s). FULL lo evita a cambio de rendimiento.</td><td>Aplicada</td></tr>
+  <tr><td><code>backend/src/application/use-cases/mfa.js</code></td><td>Una sola transacción por verificación: paso aceptado (anti replay atómico) + intento + evento de bitácora; el JWT se firma antes de abrirla. También en fallos, replay, bloqueo y usuarios inexistentes. Si la bitácora falla, se deshace todo (sin token).</td><td>Aplicada</td></tr>
+  <tr><td><code>backend/src/infrastructure/persistence/repositorios.js</code>, <code>application/use-cases/consultas.js</code> y migración <code>003_indices_detector.sql</code></td><td>Historial del detector con solo <code>id, user_ref_hash, ip_hash, resultado, ts</code> (sin <code>reasons_json</code> ni su JSON.parse) e índices de cobertura <code>(columna, ts DESC, id DESC, resultado, otra)</code> que sustituyen a los anteriores: consulta resuelta solo con el índice y sin ordenamiento temporal.</td><td>Aplicada</td></tr>
+  <tr><td><code>backend/src/audit/cadena.js</code> y <code>main.js</code></td><td>Leer el último hash e insertar en una sola transacción (<code>crearBitacoraSqlite</code>: <code>BEGIN IMMEDIATE</code>, o SAVEPOINT dentro de la verificación). Probado con 4 procesos × 150 eventos sobre el mismo archivo: 600/600 <code>prev_hash</code> distintos y cadena íntegra (la versión 1.0 dejaba 568/600 y la cadena rota). <b>Pendiente:</b> archivado periódico y sellado de <code>audit_log</code>.</td><td>Aplicada (archivado pendiente)</td></tr>
+  <tr><td><code>deploy/servicio-totp.service</code></td><td><code>Environment=UV_THREADPOOL_SIZE=&lt;núcleos&gt;</code> para campañas de enrolamiento (12,5 → 18,4 usuarios/s medido).</td><td>Pendiente</td></tr>
+  <tr><td><code>deploy/README.md</code></td><td>Explicar cómo dimensionar <code>RATE_LIMIT_APP_POR_MIN</code> (por defecto 3 000/min = 50/s por app, por debajo de la capacidad).</td><td>Pendiente</td></tr>
+</table>
+
+<h3>G.3 Medición antes y después de G.2</h3>
+<p>Mismo equipo (Intel Core i5-12400, 12 hilos, NVMe ext4, Node.js 22.22.1), mismo método (<code>medir.sh</code>: 1 000 usuarios, 8 s por concurrencia, reloj ×100, detector local, TLS 1.3), base en disco real (no en <code>tmpfs</code>, donde <i>fsync</i> no cuesta nada) y escenarios ejecutados uno tras otro. «Antes» = código de la versión 1.0 (rama <code>staging</code> previa); «después» = versión 1.1. El equipo era compartido con otros procesos (carga media ≈ 4): las cifras son conservadoras y una primera ejecución de «después NORMAL» con un valle aislado en c = 50 (200/s, p99 871 ms) se repitió y se guarda como descartada. Datos crudos en <code>docs/escalabilidad/datos/g2/</code>.</p>
+<table>
+  <tr><th>Escenario</th><th class="n">verify c=1</th><th class="n">c=10</th><th class="n">c=50</th><th class="n">c=100</th><th class="n">p99 c=100 (ms)</th><th class="n">validate c=100</th><th class="n">CPU verify c=100</th></tr>
+  <tr><td>Antes · FULL (por defecto en 1.0)</td><td class="n">498</td><td class="n">528</td><td class="n">447</td><td class="n">360</td><td class="n">817</td><td class="n">869</td><td class="n">0,95</td></tr>
+  <tr><td>Antes · NORMAL (forzado en el banco)</td><td class="n">1 438</td><td class="n">1 448</td><td class="n">1 313</td><td class="n">1 084</td><td class="n">215</td><td class="n">4 175</td><td class="n">1,38</td></tr>
+  <tr><td>Después · FULL (<code>SQLITE_SYNCHRONOUS=FULL</code>)</td><td class="n">832</td><td class="n">938</td><td class="n">898</td><td class="n">873</td><td class="n">665</td><td class="n">1 113</td><td class="n">0,53</td></tr>
+  <tr><td><b>Después · NORMAL (por defecto en 1.1)</b></td><td class="n"><b>1 822</b></td><td class="n"><b>1 985</b></td><td class="n"><b>1 709</b></td><td class="n"><b>1 785</b></td><td class="n"><b>75</b></td><td class="n"><b>4 759</b></td><td class="n">0,92</td></tr>
+</table>
+<ul>
+  <li><b>Valores por defecto, antes → después:</b> verify ×3,7 / ×3,8 / ×3,8 / ×5,0 (c = 1 / 10 / 50 / 100); p99 con 100 clientes de 817 a 75 ms; validate ×5,5 con 100 clientes.</li>
+  <li><b>Solo la transacción única</b> (FULL en ambos): verify ×1,7 a ×2,4, porque cada verificación confirma a disco una vez en lugar de dos.</li>
+  <li><b>Con NORMAL en ambos</b> (efecto de transacción única + historial ligero + índices de cobertura): verify ×1,3 a ×1,6 y menos CPU por petición (0,92 núcleos para 1 785/s frente a 1,38 para 1 084/s).</li>
+  <li>Las respuestas 401 en c = 100 (64 de 14 403) son códigos que ya no valen tras el salto del reloj acelerado, igual que en la versión 1.0; ninguna respuesta 5xx en ningún escenario.</li>
+</ul>
+
+<h2 class="pb">H. Anexo: método reproducible y datos crudos</h2>
+<h3>H.1 Archivos</h3>
+<table>
+  <tr><th>Archivo</th><th>Qué hace</th></tr>
+  <tr><td><code>docs/escalabilidad/medicion/banco.js</code></td><td>Arranca el servicio con los módulos reales (mismo orden que <code>main.js</code>), límites altos y reloj acelerado; registra una app de prueba.</td></tr>
+  <tr><td><code>docs/escalabilidad/medicion/carga.js</code></td><td>Generador de carga propio (<code>node:https</code>, keep-alive, lazo cerrado): enrola y activa usuarios, mide verify, validate y JWKS, CPU y memoria del proceso (<code>/proc</code>) y tamaño de la base (<code>dbstat</code>).</td></tr>
+  <tr><td><code>docs/escalabilidad/medicion/partes.js</code></td><td>Costo aislado de cada pieza (TOTP, AES, HMAC, Ed25519, detector, scrypt, escrituras SQLite FULL y NORMAL).</td></tr>
+  <tr><td><code>docs/escalabilidad/medicion/perfil.js</code></td><td>Resume un perfil de CPU de V8 por categoría y función.</td></tr>
+  <tr><td><code>docs/escalabilidad/medicion/medir.sh</code></td><td>Orquesta un escenario completo en una carpeta temporal fuera del repositorio.</td></tr>
+  <tr><td><code>docs/escalabilidad/datos/</code></td><td>Resultados crudos (JSON), perfil, conteo de <code>fdatasync</code> y datos de la máquina.</td></tr>
+</table>
+<h3>H.2 Comandos exactos</h3>
+<pre>cd docs/escalabilidad/medicion
+T=/ruta/temporal/fuera/del/repo          # p. ej. ../../../../.tmp-escala
+./medir.sh $T full   FULL   1000 8 1,10,50,100     # configuración actual
+./medir.sh $T normal NORMAL 1000 8 1,10,50,100     # afinado (etapa 2)
+node partes.js $T                                   # costo por pieza
+PERFIL=1 FASES=verify ./medir.sh $T perfil NORMAL 1000 10 10
+node perfil.js $T/perfil/CPU*.cpuprofile 25 9       # últimos 9 s = fase verify
+UV_THREADPOOL_SIZE=10 FASES=jwks ./medir.sh $T hilos10 NORMAL 500 1 1   # enrolamiento
+# G.3 (antes/después): T en un disco real (no tmpfs); «antes» desde una copia del código 1.0
+./medir.sh $T despues-full   FULL   1000 8 1,10,50,100
+./medir.sh $T despues-normal NORMAL 1000 8 1,10,50,100
+# Conteo de fdatasync (FULL): arrancar banco.js bajo  strace -f -w -c -e trace=fdatasync,pwrite64
+# y lanzar  node carga.js $T/strace --usuarios 200 --duracion 5 --concurrencias 10 --fases verify
+rm -rf $T                                           # limpieza</pre>
+<p>Variables: <code>ACELERACION</code> (100), <code>PUERTO</code> (18900). El script genera su propio <code>.env</code> con secretos aleatorios en la carpeta temporal y usa los certificados de desarrollo de <code>backend/certs/</code>. Al terminar, la instancia se detiene y la carpeta temporal se borra.</p>
+<h3>H.3 Datos crudos resumidos</h3>
+<table><tr><th>Dato</th><th class="n">Actual (resultados-full.json)</th><th class="n">Afinado (resultados-normal.json)</th></tr>
+<tr><td>Inicio de las mediciones (UTC)</td><td class="n">2026-11-26T17:30:46</td><td class="n">2026-11-26T17:34:42</td></tr>
+<tr><td>Modo SQLite synchronous</td><td class="n">FULL</td><td class="n">NORMAL</td></tr>
+<tr><td>Aceleración del reloj / detector</td><td class="n">100 / local</td><td class="n">100 / local</td></tr>
+<tr><td>Usuarios enrolados y activados</td><td class="n">1 000</td><td class="n">1 000</td></tr>
+<tr><td>Enrolamiento: usuarios/s</td><td class="n">12,5</td><td class="n">12,8</td></tr>
+<tr><td>Enrolar p50 / p95 (ms)</td><td class="n">7,35 / 12,0</td><td class="n">5,08 / 13,4</td></tr>
+<tr><td>Activar p50 / p95 (ms)</td><td class="n">1 230 / 1 381</td><td class="n">1 236 / 1 277</td></tr>
+<tr><td>CPU verify por concurrencia (núcleos)</td><td class="n">0,41 · 0,47 · 0,67 · 0,48</td><td class="n">0,83 · 0,93 · 1,15 · 1,37</td></tr>
+<tr><td>CPU validate por concurrencia (núcleos)</td><td class="n">0,47 · 0,44 · 0,67 · 0,42</td><td class="n">0,75 · 0,95 · 0,93 · 0,93</td></tr>
+<tr><td>Respuestas verify (c = 50 / 100)</td><td class="n">{"200":2965,"401":17} {"200":2906,"401":27}</td><td class="n">{"200":8868,"401":12} {"200":8027,"401":111}</td></tr>
+<tr><td>Filas finales (attempts / audit_log / consumed_jti)</td><td class="n">31 455 / 33 328 / 19 696</td><td class="n">59 019 / 60 897 / 19 696</td></tr>
+<tr><td>Base: bytes tras enrolar / al final</td><td class="n">4 157 440 / 41 140 224</td><td class="n">4 165 632 / 71 221 248</td></tr>
+<tr><td>Proceso al final: CPU total (s) / RSS (MB) / hilos</td><td class="n">406,7 / 224 / 11</td><td class="n">400,6 / 230 / 11</td></tr></table>
+<pre>strace -f -w -c -e trace=fdatasync,pwrite64 (modo actual, 200 enrolamientos + 2 089 verificaciones)
+% time     seconds  usecs/call     calls    errors syscall
+------ ----------- ----------- --------- --------- ----------------
+ 89,84    2,990617         588      5078           fdatasync
+ 10,16    0,338033           5     61272           pwrite64
+------ ----------- ----------- --------- --------- ----------------
+100,00    3,328650          50     66350           total</pre>
+<pre>node perfil.js (modo afinado, fase verify con 10 clientes, últimos 9 s)
+Tiempo perfilado: 9.0 s
+
+Por categoría:
+ 41.5 %  Repositorios SQLite (JS)
+ 17.9 %  Resto del código del servicio
+ 14.4 %  TLS y escritura de sockets
+  8.4 %  HTTP y flujos de Node
+  5.1 %  Otros (Node)
+  4.3 %  Detector local de anomalías
+  3.5 %  Inactivo (esperando E/S o peticiones)
+  2.2 %  Bitácora y métricas
+  1.4 %  Motor V8 / nativo sin atribuir
+  1.4 %  Recolector de basura
+
+Funciones con más tiempo propio:
+ 13.0 %  transaccion backend/src/infrastructure/persistence/repositorios.js:99
+  8.2 %  insertar backend/src/infrastructure/persistence/repositorios.js:407
+  7.3 %  signOneShot node:internal/crypto/sig:143
+  5.4 %  ultimosPorIp backend/src/infrastructure/persistence/repositorios.js:303
+  4.2 %  writevGeneric node:internal/stream_base_commons:121
+  4.1 %  ultimosPorUsuario backend/src/application/use-cases/consultas.js:40
+  4.0 %  mapearIntento backend/src/infrastructure/persistence/repositorios.js:64
+  3.5 %  (idle) :0
+  3.5 %  buscarActivoPorUsuario backend/src/infrastructure/persistence/repositorios.js:195
+  3.4 %  intento backend/src/application/use-cases/consultas.js:13
+  2.6 %  Hmac node:internal/crypto/hash:161
+  2.2 %  insertar backend/src/infrastructure/persistence/repositorios.js:81
+  1.5 %  manejar backend/src/api/servidor.js:570
+  1.4 %  verificarInterno backend/src/application/use-cases/mfa.js:267
+  1.4 %  mapearEnrolamiento backend/src/infrastructure/persistence/repositorios.js:40
+  1.4 %  (program) :0
+  1.4 %  (garbage collector) :0
+  1.4 %  digest node:internal/crypto/hash:180
+  1.4 %  ultimo backend/src/infrastructure/persistence/repositorios.js:413
+  1.2 %  evaluar backend/src/heuristics/detector.js:163
+  1.2 %  extraerCaracteristicas backend/src/heuristics/caracteristicas.js:109
+  1.1 %  registrarPasoAceptado backend/src/infrastructure/persistence/repositorios.js:211
+  1.1 %  createCipherBase node:internal/crypto/cipher:115
+  1.1 %  plano backend/src/infrastructure/persistence/repositorios.js:70
+  1.0 %  puntuar backend/src/heuristics/isolationForest.js:153</pre>
+
+<h3>H.4 Limitaciones honestas</h3>
+<ul>
+  <li>Un solo equipo de escritorio con otras tareas en marcha; generador y servicio comparten CPU. En un servidor dedicado, y sobre todo con SSD de servidor, los números deberían ser iguales o mejores; hay que confirmarlo con estos mismos scripts.</li>
+  <li>Ejecuciones únicas de 8 s por punto: entre ejecuciones vimos variaciones de hasta un 20 % (p. ej., verify afinado con 10 clientes: 1 419/s en una ejecución y 1 677/s en otra). Las cifras de capacidad usan los valores medidos con 100 clientes, que están entre los más bajos de cada serie.</li>
+  <li>El reloj acelerado no cambia el trabajo por petición, pero sí hace que las esperas largas parezcan caducidades de código (los 401 indicados).</li>
+  <li>No se midieron PostgreSQL, el balanceador ni la red entre nodos: las etapas 3–5 dan el método para medirlos, no cifras.</li>
+</ul>
+
+</body>
+</html>

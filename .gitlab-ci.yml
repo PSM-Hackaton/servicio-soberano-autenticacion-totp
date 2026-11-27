@@ -1,0 +1,34 @@
+# Integración continua sin dependencias externas (ADR-002: solo Node.js 22 nativo, sin npm install).
+# Issue #31 (D5): pruebas, validación estricta OpenAPI, SBOM e higiene con node scripts/verificar-todo.js.
+#
+# Cuándo se ejecuta (flujo de docs/entrega/flujo-gitlab.md):
+#   - en cada Merge Request hacia avance o terminado (el resultado queda en el propio MR);
+#   - en cada push a las ramas personales (diego, laya, javier, enggel, giovani) y a avance/terminado,
+#     salvo que la rama tenga un MR abierto (entonces basta la ejecución del MR, sin duplicarla).
+# Si el GitLab del evento no tiene runners disponibles, el pipeline queda pendiente y no bloquea nada:
+# la misma verificación se hace en local con el gancho pre-push (sh scripts/instalar-hooks.sh) y su
+# resultado se registra en la descripción del Merge Request (plantilla Entrega).
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ /^(avance|terminado)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: never
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH =~ /^(diego|laya|javier|enggel|giovani|avance|terminado)$/
+
+stages:
+  - verificar
+
+verificar-todo:
+  stage: verificar
+  # Imagen oficial completa de Node.js 22: trae git, que verificar-todo.js usa para la auditoría de higiene
+  # (git ls-files). La variante -slim no lo trae y esa auditoría quedaría vacía.
+  image: node:22-bookworm
+  interruptible: true
+  timeout: 20m
+  script:
+    - node --version
+    - git --version
+    - node scripts/verificar-todo.js --cobertura

@@ -1,0 +1,10 @@
+[
+  {
+    "valid": false,
+    "reason": "jti_consumido"
+  },
+  {
+    "valid": false,
+    "reason": "aud"
+  }
+]

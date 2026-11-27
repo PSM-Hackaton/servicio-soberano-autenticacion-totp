@@ -1,0 +1,983 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:11429958-4708-4bc5-92e8-45c7be24404e",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-11-27T15:54:55.680Z",
+    "lifecycles": [
+      {
+        "phase": "build"
+      }
+    ],
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "generar-sbom.js",
+          "version": "1.0.0",
+          "description": "Generador propio sin dependencias (docs/sbom/generar-sbom.js)"
+        }
+      ]
+    },
+    "authors": [
+      {
+        "name": "Equipo PSM-Hackaton"
+      }
+    ],
+    "component": {
+      "type": "application",
+      "bom-ref": "servicio-soberano-autenticacion-totp@0.1.0",
+      "name": "servicio-soberano-autenticacion-totp",
+      "version": "0.1.0",
+      "description": "Servicio Soberano de Autenticación Multifactorial basado en Tiempo (TOTP)",
+      "licenses": [
+        {
+          "license": {
+            "id": "AGPL-3.0-or-later"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/PSM-Hackaton/servicio-soberano-autenticacion-totp"
+        }
+      ],
+      "properties": [
+        {
+          "name": "git:commit",
+          "value": "4c99f8414bd25c93f136baccc65d5c061d5e3670"
+        }
+      ]
+    },
+    "properties": [
+      {
+        "name": "sbom:dependencias-npm-declaradas",
+        "value": "0"
+      },
+      {
+        "name": "sbom:importaciones-externas",
+        "value": "0"
+      },
+      {
+        "name": "sbom:package-json-revisados",
+        "value": "4"
+      },
+      {
+        "name": "sbom:archivos-js-escaneados",
+        "value": "159"
+      },
+      {
+        "name": "sbom:node-usado-al-generar",
+        "value": "v22.22.1"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "platform",
+      "bom-ref": "runtime:nodejs@22.22.1",
+      "name": "Node.js",
+      "version": "22.22.1",
+      "description": "Entorno de ejecución. Versión mínima exigida por engines: >=22.5 (node:sqlite). Incluye OpenSSL y SQLite embebidos.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://nodejs.org/"
+        }
+      ],
+      "properties": [
+        {
+          "name": "engines.node (backend)",
+          "value": ">=22.5"
+        },
+        {
+          "name": "openssl embebido",
+          "value": "3.5.5"
+        },
+        {
+          "name": "sqlite embebido",
+          "value": "3.46.1"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "herramienta:openssl",
+      "name": "openssl (herramienta del sistema)",
+      "description": "Solo para generar certificados de desarrollo (backend/scripts/certificados.js, npm run certs). No se usa en ejecución.",
+      "scope": "excluded",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "nodejs-builtin:node:assert/strict",
+      "group": "nodejs",
+      "name": "node:assert/strict",
+      "version": "22.22.1",
+      "description": "Módulo nativo de Node.js (incluido en el entorno de ejecución, no se descarga)",
+      "scope": "optional",
+      "properties": [
+        {
+          "name": "usado-en-archivos",
+          "value": "28"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "nodejs-builtin:node:async_hooks",
+      "group": "nodejs",
+      "name": "node:async_hooks",
+      "version": "22.22.1",
+      "description": "Módulo nativo de Node.js (incluido en el entorno de ejecución, no se descarga)",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "usado-en-archivos",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "nodejs-builtin:node:child_process",
+      "group": "nodejs",
+      "name": "node:child_process",
+      "version": "22.22.1",
+      "description": "Módulo nativo de Node.js (incluido en el entorno de ejecución, no se descarga)",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "usado-en-archivos",
+          "value": "12"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "nodejs-builtin:node:crypto",
+      "group": "nodejs",
+      "name": "node:crypto",
+      "version": "22.22.1",
+      "description": "Módulo nativo de Node.js (incluido en el entorno de ejecución, no se descarga)",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "usado-en-archivos",
+          "value": "44"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "nodejs-builtin:node:fs",
+      "group": "nodejs",
+      "name": "node:fs",
+      "version": "22.22.1",
+      "description": "Módulo nativo de Node.js (incluido en el entorno de ejecución, no se descarga)",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "usado-en-archivos",
+          "value": "39"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "nodejs-builtin:node:fs/promises",
+      "group": "nodejs",
+      "name": "node:fs/promises",
+      "version": "22.22.1",
+      "description": "Módulo nativo de Node.js (incluido en el entorno de ejecución, no se descarga)",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "usado-en-archivos",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "nodejs-builtin:node:http",
+      "group": "nodejs",
+      "name": "node:http",
+      "version": "22.22.1",
+      "description": "Módulo nativo de Node.js (incluido en el entorno de ejecución, no se descarga)",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "usado-en-archivos",
+          "value": "11"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "nodejs-builtin:node:https",
+      "group": "nodejs",
+      "name": "node:https",
+      "version": "22.22.1",
+      "description": "Módulo nativo de Node.js (incluido en el entorno de ejecución, no se descarga)",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "usado-en-archivos",
+          "value": "9"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "nodejs-builtin:node:net",
+      "group": "nodejs",
+      "name": "node:net",
+      "version": "22.22.1",
+      "description": "Módulo nativo de Node.js (incluido en el entorno de ejecución, no se descarga)",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "usado-en-archivos",
+          "value": "5"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "nodejs-builtin:node:os",
+      "group": "nodejs",
+      "name": "node:os",
+      "version": "22.22.1",
+      "description": "Módulo nativo de Node.js (incluido en el entorno de ejecución, no se descarga)",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "usado-en-archivos",
+          "value": "12"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "nodejs-builtin:node:path",
+      "group": "nodejs",
+      "name": "node:path",
+      "version": "22.22.1",
+      "description": "Módulo nativo de Node.js (incluido en el entorno de ejecución, no se descarga)",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "usado-en-archivos",
+          "value": "34"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "nodejs-builtin:node:perf_hooks",
+      "group": "nodejs",
+      "name": "node:perf_hooks",
+      "version": "22.22.1",
+      "description": "Módulo nativo de Node.js (incluido en el entorno de ejecución, no se descarga)",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "usado-en-archivos",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "nodejs-builtin:node:sqlite",
+      "group": "nodejs",
+      "name": "node:sqlite",
+      "version": "22.22.1",
+      "description": "Módulo nativo de Node.js (incluido en el entorno de ejecución, no se descarga)",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "usado-en-archivos",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "nodejs-builtin:node:test",
+      "group": "nodejs",
+      "name": "node:test",
+      "version": "22.22.1",
+      "description": "Módulo nativo de Node.js (incluido en el entorno de ejecución, no se descarga)",
+      "scope": "optional",
+      "properties": [
+        {
+          "name": "usado-en-archivos",
+          "value": "28"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "nodejs-builtin:node:timers/promises",
+      "group": "nodejs",
+      "name": "node:timers/promises",
+      "version": "22.22.1",
+      "description": "Módulo nativo de Node.js (incluido en el entorno de ejecución, no se descarga)",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "usado-en-archivos",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "nodejs-builtin:node:tls",
+      "group": "nodejs",
+      "name": "node:tls",
+      "version": "22.22.1",
+      "description": "Módulo nativo de Node.js (incluido en el entorno de ejecución, no se descarga)",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "usado-en-archivos",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "nodejs-builtin:node:url",
+      "group": "nodejs",
+      "name": "node:url",
+      "version": "22.22.1",
+      "description": "Módulo nativo de Node.js (incluido en el entorno de ejecución, no se descarga)",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "usado-en-archivos",
+          "value": "21"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "nodejs-builtin:node:util",
+      "group": "nodejs",
+      "name": "node:util",
+      "version": "22.22.1",
+      "description": "Módulo nativo de Node.js (incluido en el entorno de ejecución, no se descarga)",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "usado-en-archivos",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "propio:backend@0.1.0",
+      "name": "servicio-soberano-autenticacion-totp-backend",
+      "version": "0.1.0",
+      "description": "API HTTPS, motor TOTP, bóveda AES-256-GCM, JWT EdDSA, seguridad, detector local y auditoría",
+      "licenses": [
+        {
+          "license": {
+            "id": "AGPL-3.0-or-later"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "fb190c1800217cca798433ca295097d7a7395c0334841599452d2bb874a26004"
+        }
+      ],
+      "properties": [
+        {
+          "name": "carpeta",
+          "value": "backend/"
+        },
+        {
+          "name": "archivos",
+          "value": "73"
+        },
+        {
+          "name": "bytes",
+          "value": "643664"
+        },
+        {
+          "name": "hash",
+          "value": "SHA-256 de la lista \"<sha256>  <ruta>\\n\" de sus archivos en orden (ver hashes-sha256.txt)"
+        },
+        {
+          "name": "package.json",
+          "value": "backend/package.json"
+        },
+        {
+          "name": "package.json license",
+          "value": "(no declarada)"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "propio:authenticator-app@0.0.0+git.4c99f8414bd2",
+      "name": "authenticator-app",
+      "version": "0.0.0+git.4c99f8414bd2",
+      "description": "App autenticadora PWA (HTML/CSS/JS propios, sin conexión, PIN)",
+      "licenses": [
+        {
+          "license": {
+            "id": "AGPL-3.0-or-later"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "11224c1a07624b121e50b974e56ee4a07fc6eeb3fb0986d0f0e185d6e7647a27"
+        }
+      ],
+      "properties": [
+        {
+          "name": "carpeta",
+          "value": "authenticator-app/"
+        },
+        {
+          "name": "archivos",
+          "value": "19"
+        },
+        {
+          "name": "bytes",
+          "value": "201821"
+        },
+        {
+          "name": "hash",
+          "value": "SHA-256 de la lista \"<sha256>  <ruta>\\n\" de sus archivos en orden (ver hashes-sha256.txt)"
+        },
+        {
+          "name": "package.json",
+          "value": "(no tiene; versión derivada del commit)"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "propio:admin-console@0.0.0+git.4c99f8414bd2",
+      "name": "admin-console",
+      "version": "0.0.0+git.4c99f8414bd2",
+      "description": "Consola administrativa (HTML/CSS/JS propios, RBAC, auditoría)",
+      "licenses": [
+        {
+          "license": {
+            "id": "AGPL-3.0-or-later"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "4445bfc1976b681dbd9efb06ce7f1df1eebad90f33d4c307d5fcf8878a43450a"
+        }
+      ],
+      "properties": [
+        {
+          "name": "carpeta",
+          "value": "admin-console/"
+        },
+        {
+          "name": "archivos",
+          "value": "38"
+        },
+        {
+          "name": "bytes",
+          "value": "382375"
+        },
+        {
+          "name": "hash",
+          "value": "SHA-256 de la lista \"<sha256>  <ruta>\\n\" de sus archivos en orden (ver hashes-sha256.txt)"
+        },
+        {
+          "name": "package.json",
+          "value": "(no tiene; versión derivada del commit)"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "propio:sdk@1.0.0",
+      "name": "@soberano/sdk-totp",
+      "version": "1.0.0",
+      "description": "SDK para sistemas integradores (cliente API v1 y validación local del JWT)",
+      "licenses": [
+        {
+          "license": {
+            "id": "AGPL-3.0-or-later"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1c84524f50ea2683993818c62e60a61bf245f44d31b9d475906f01dc81c12982"
+        }
+      ],
+      "properties": [
+        {
+          "name": "carpeta",
+          "value": "sdk/"
+        },
+        {
+          "name": "archivos",
+          "value": "14"
+        },
+        {
+          "name": "bytes",
+          "value": "98258"
+        },
+        {
+          "name": "hash",
+          "value": "SHA-256 de la lista \"<sha256>  <ruta>\\n\" de sus archivos en orden (ver hashes-sha256.txt)"
+        },
+        {
+          "name": "package.json",
+          "value": "sdk/package.json"
+        },
+        {
+          "name": "package.json license",
+          "value": "AGPL-3.0-or-later"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "propio:demo-portal-tramites@1.0.0",
+      "name": "demo-portal-tramites",
+      "version": "1.0.0",
+      "description": "Portal de Trámites de demostración que integra el segundo factor con el SDK",
+      "licenses": [
+        {
+          "license": {
+            "id": "AGPL-3.0-or-later"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "da05fc3935a36b6491656fe6aa7798c8e8d97099953cef727d65f62214371804"
+        }
+      ],
+      "properties": [
+        {
+          "name": "carpeta",
+          "value": "demo-portal-tramites/"
+        },
+        {
+          "name": "archivos",
+          "value": "21"
+        },
+        {
+          "name": "bytes",
+          "value": "180511"
+        },
+        {
+          "name": "hash",
+          "value": "SHA-256 de la lista \"<sha256>  <ruta>\\n\" de sus archivos en orden (ver hashes-sha256.txt)"
+        },
+        {
+          "name": "package.json",
+          "value": "demo-portal-tramites/package.json"
+        },
+        {
+          "name": "package.json license",
+          "value": "(no declarada)"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "propio:attack-lab@1.0.0",
+      "name": "servicio-soberano-totp-attack-lab",
+      "version": "1.0.0",
+      "description": "Laboratorio de ataques simulados y pruebas de caos",
+      "licenses": [
+        {
+          "license": {
+            "id": "AGPL-3.0-or-later"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "4cf28cbf950af3c14e7a4f0ef13635e9f94d72c605e6021ef130d912608781f8"
+        }
+      ],
+      "properties": [
+        {
+          "name": "carpeta",
+          "value": "attack-lab/"
+        },
+        {
+          "name": "archivos",
+          "value": "29"
+        },
+        {
+          "name": "bytes",
+          "value": "200294"
+        },
+        {
+          "name": "hash",
+          "value": "SHA-256 de la lista \"<sha256>  <ruta>\\n\" de sus archivos en orden (ver hashes-sha256.txt)"
+        },
+        {
+          "name": "package.json",
+          "value": "attack-lab/package.json"
+        },
+        {
+          "name": "package.json license",
+          "value": "(no declarada)"
+        }
+      ]
+    },
+    {
+      "type": "data",
+      "bom-ref": "propio:contracts@0.0.0+git.4c99f8414bd2",
+      "name": "contracts",
+      "version": "0.0.0+git.4c99f8414bd2",
+      "description": "Contratos: OpenAPI 3.1, esquema SQL y respuestas de ejemplo",
+      "licenses": [
+        {
+          "license": {
+            "id": "AGPL-3.0-or-later"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "cfbf45ae248501a1558b56e987bdb442c6091366b22767fa87be346864e44400"
+        }
+      ],
+      "properties": [
+        {
+          "name": "carpeta",
+          "value": "contracts/"
+        },
+        {
+          "name": "archivos",
+          "value": "37"
+        },
+        {
+          "name": "bytes",
+          "value": "164595"
+        },
+        {
+          "name": "hash",
+          "value": "SHA-256 de la lista \"<sha256>  <ruta>\\n\" de sus archivos en orden (ver hashes-sha256.txt)"
+        },
+        {
+          "name": "package.json",
+          "value": "(no tiene; versión derivada del commit)"
+        }
+      ]
+    },
+    {
+      "type": "data",
+      "bom-ref": "propio:deploy@0.0.0+git.4c99f8414bd2",
+      "name": "deploy",
+      "version": "0.0.0+git.4c99f8414bd2",
+      "description": "Unidad systemd y guía de despliegue institucional",
+      "licenses": [
+        {
+          "license": {
+            "id": "AGPL-3.0-or-later"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "194978b8b3ae2d684f3494f53133129356099f9a706de22d4730640bf64ca4e6"
+        }
+      ],
+      "properties": [
+        {
+          "name": "carpeta",
+          "value": "deploy/"
+        },
+        {
+          "name": "archivos",
+          "value": "14"
+        },
+        {
+          "name": "bytes",
+          "value": "89607"
+        },
+        {
+          "name": "hash",
+          "value": "SHA-256 de la lista \"<sha256>  <ruta>\\n\" de sus archivos en orden (ver hashes-sha256.txt)"
+        },
+        {
+          "name": "package.json",
+          "value": "(no tiene; versión derivada del commit)"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "servicio-soberano-autenticacion-totp@0.1.0",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1",
+        "propio:backend@0.1.0",
+        "propio:authenticator-app@0.0.0+git.4c99f8414bd2",
+        "propio:admin-console@0.0.0+git.4c99f8414bd2",
+        "propio:sdk@1.0.0",
+        "propio:demo-portal-tramites@1.0.0",
+        "propio:attack-lab@1.0.0",
+        "propio:contracts@0.0.0+git.4c99f8414bd2",
+        "propio:deploy@0.0.0+git.4c99f8414bd2"
+      ]
+    },
+    {
+      "ref": "propio:backend@0.1.0",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1",
+        "nodejs-builtin:node:assert/strict",
+        "nodejs-builtin:node:child_process",
+        "nodejs-builtin:node:crypto",
+        "nodejs-builtin:node:fs",
+        "nodejs-builtin:node:fs/promises",
+        "nodejs-builtin:node:http",
+        "nodejs-builtin:node:https",
+        "nodejs-builtin:node:net",
+        "nodejs-builtin:node:os",
+        "nodejs-builtin:node:path",
+        "nodejs-builtin:node:perf_hooks",
+        "nodejs-builtin:node:sqlite",
+        "nodejs-builtin:node:test",
+        "nodejs-builtin:node:url",
+        "nodejs-builtin:node:util",
+        "herramienta:openssl"
+      ]
+    },
+    {
+      "ref": "propio:authenticator-app@0.0.0+git.4c99f8414bd2",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1",
+        "nodejs-builtin:node:assert/strict",
+        "nodejs-builtin:node:test"
+      ]
+    },
+    {
+      "ref": "propio:admin-console@0.0.0+git.4c99f8414bd2",
+      "dependsOn": []
+    },
+    {
+      "ref": "propio:sdk@1.0.0",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1",
+        "nodejs-builtin:node:assert/strict",
+        "nodejs-builtin:node:crypto",
+        "nodejs-builtin:node:http",
+        "nodejs-builtin:node:https",
+        "nodejs-builtin:node:net",
+        "nodejs-builtin:node:test",
+        "nodejs-builtin:node:url",
+        "nodejs-builtin:node:util"
+      ]
+    },
+    {
+      "ref": "propio:demo-portal-tramites@1.0.0",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1",
+        "nodejs-builtin:node:assert/strict",
+        "nodejs-builtin:node:async_hooks",
+        "nodejs-builtin:node:crypto",
+        "nodejs-builtin:node:fs",
+        "nodejs-builtin:node:http",
+        "nodejs-builtin:node:https",
+        "nodejs-builtin:node:os",
+        "nodejs-builtin:node:path",
+        "nodejs-builtin:node:test",
+        "nodejs-builtin:node:url"
+      ]
+    },
+    {
+      "ref": "propio:attack-lab@1.0.0",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1",
+        "nodejs-builtin:node:assert/strict",
+        "nodejs-builtin:node:child_process",
+        "nodejs-builtin:node:crypto",
+        "nodejs-builtin:node:fs",
+        "nodejs-builtin:node:http",
+        "nodejs-builtin:node:https",
+        "nodejs-builtin:node:net",
+        "nodejs-builtin:node:os",
+        "nodejs-builtin:node:path",
+        "nodejs-builtin:node:test",
+        "nodejs-builtin:node:timers/promises",
+        "nodejs-builtin:node:tls",
+        "nodejs-builtin:node:url"
+      ]
+    },
+    {
+      "ref": "propio:contracts@0.0.0+git.4c99f8414bd2",
+      "dependsOn": []
+    },
+    {
+      "ref": "propio:deploy@0.0.0+git.4c99f8414bd2",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1",
+        "nodejs-builtin:node:child_process",
+        "nodejs-builtin:node:crypto",
+        "nodejs-builtin:node:fs",
+        "nodejs-builtin:node:https",
+        "nodejs-builtin:node:os",
+        "nodejs-builtin:node:path",
+        "nodejs-builtin:node:sqlite",
+        "nodejs-builtin:node:url"
+      ]
+    },
+    {
+      "ref": "nodejs-builtin:node:assert/strict",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1"
+      ]
+    },
+    {
+      "ref": "nodejs-builtin:node:async_hooks",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1"
+      ]
+    },
+    {
+      "ref": "nodejs-builtin:node:child_process",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1"
+      ]
+    },
+    {
+      "ref": "nodejs-builtin:node:crypto",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1"
+      ]
+    },
+    {
+      "ref": "nodejs-builtin:node:fs",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1"
+      ]
+    },
+    {
+      "ref": "nodejs-builtin:node:fs/promises",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1"
+      ]
+    },
+    {
+      "ref": "nodejs-builtin:node:http",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1"
+      ]
+    },
+    {
+      "ref": "nodejs-builtin:node:https",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1"
+      ]
+    },
+    {
+      "ref": "nodejs-builtin:node:net",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1"
+      ]
+    },
+    {
+      "ref": "nodejs-builtin:node:os",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1"
+      ]
+    },
+    {
+      "ref": "nodejs-builtin:node:path",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1"
+      ]
+    },
+    {
+      "ref": "nodejs-builtin:node:perf_hooks",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1"
+      ]
+    },
+    {
+      "ref": "nodejs-builtin:node:sqlite",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1"
+      ]
+    },
+    {
+      "ref": "nodejs-builtin:node:test",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1"
+      ]
+    },
+    {
+      "ref": "nodejs-builtin:node:timers/promises",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1"
+      ]
+    },
+    {
+      "ref": "nodejs-builtin:node:tls",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1"
+      ]
+    },
+    {
+      "ref": "nodejs-builtin:node:url",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1"
+      ]
+    },
+    {
+      "ref": "nodejs-builtin:node:util",
+      "dependsOn": [
+        "runtime:nodejs@22.22.1"
+      ]
+    },
+    {
+      "ref": "runtime:nodejs@22.22.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "herramienta:openssl",
+      "dependsOn": []
+    }
+  ]
+}

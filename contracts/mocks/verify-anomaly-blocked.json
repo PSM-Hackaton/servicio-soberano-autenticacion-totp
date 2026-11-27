@@ -1,0 +1,5 @@
+{
+  "error": "TOO_MANY_REQUESTS",
+  "message": "Demasiados intentos. Intente más tarde.",
+  "retry_after_seconds": 300
+}

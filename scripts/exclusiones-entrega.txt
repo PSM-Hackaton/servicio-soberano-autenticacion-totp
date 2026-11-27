@@ -1,0 +1,88 @@
+# Exclusiones de la entrega pública (GitLab del evento).
+# Las usa scripts/preparar-entrega.sh sobre la copia exportada con `git archive`; el repositorio no se toca.
+#
+# Sintaxis (parecida a .gitignore, evaluada archivo por archivo):
+#   nombre        coincide con ese nombre en cualquier carpeta        (p. ej. *.db)
+#   ruta/con/barra  anclada a la raíz del proyecto                    (p. ej. attack-lab/resultados/*)
+#   carpeta/      todo lo que haya dentro de esa carpeta, en cualquier nivel
+#   *  no cruza "/";  **  sí cruza carpetas;  !patrón  vuelve a incluir
+#   La última regla que coincide decide. Las líneas vacías y las que empiezan por # se ignoran.
+
+# --- Material interno de coordinación del equipo --------------------------------
+# Pizarrón de tareas, guía interna de contribución entre ramas, auditoría de la fase 0
+# y grafo de trabajo: sirven para organizar el desarrollo, no describen el producto.
+# README.md y ARCHITECTURE.md ya documentan la solución; ninguno enlaza al grafo,
+# así que no hace falta una versión pública de SYSTEM_GRAPH.md.
+AGENTS.md
+TASKS.md
+ANALISIS_FASE0.md
+SYSTEM_GRAPH.md
+
+# --- Herramientas de preparación de la entrega -------------------------------------
+# Son de uso interno del equipo y contienen la lista de cadenas que se buscan.
+scripts/preparar-entrega.sh
+scripts/exclusiones-entrega.txt
+scripts/entrega-herramientas.mjs
+scripts/entrega-comun.sh
+scripts/README-entrega.md
+scripts/permitidos-entrega.txt
+scripts/etapas-entrega.txt
+scripts/subir-por-etapas.sh
+scripts/sincronizar-gitlab.sh
+# Ganchos de git del equipo: importan entrega-herramientas.mjs (excluido) y se instalan desde el
+# repositorio de trabajo también en la copia de la entrega (sh scripts/instalar-hooks.sh --repo DIR).
+scripts/hooks/
+scripts/instalar-hooks.sh
+
+# --- Carpetas locales de editores y herramientas ------------------------------------
+.claude/
+.vscode/
+.idea/
+
+# --- Resultados del laboratorio de ataques ---------------------------------------
+# Se regeneran en cada ejecución (pueden llevar rutas y datos de la máquina local).
+# El informe de la verificación de la entrega se publica aparte en docs/evidencias/.
+attack-lab/resultados/*
+!attack-lab/resultados/.gitkeep
+
+# --- Variables de entorno reales --------------------------------------------------
+# Contienen llaves maestras y peppers. Solo se publican las plantillas .env.example.
+.env
+*.env
+.env.*
+!.env.example
+
+# --- Bases de datos locales -------------------------------------------------------
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# --- Certificados y llaves --------------------------------------------------------
+# La CA local y los certificados del servidor se generan en cada instalación
+# (backend/scripts/certificados.js); nunca se publican.
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+*.jks
+certs/
+id_rsa*
+id_ecdsa*
+id_ed25519*
+
+# --- Dependencias y artefactos de compilación --------------------------------------
+# El proyecto no tiene dependencias externas; por si alguien instaló algo localmente.
+node_modules/
+coverage/
+dist/
+build/
+
+# --- Basura del sistema operativo y registros --------------------------------------
+.DS_Store
+Thumbs.db
+*.log

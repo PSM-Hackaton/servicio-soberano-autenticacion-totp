@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Servicio Soberano de Autenticación TOTP — Inicio</title>
+  <link rel="stylesheet" href="/sitio/css/sitio.css" />
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido principal</a>
+  <div class="cintillo">
+    <div class="cintillo-inner">
+      <div class="cintillo-marca">
+        <img src="/sitio/img/bandera.svg" alt="Bandera nacional de Venezuela" width="28" height="19" />
+        <span>República Bolivariana de Venezuela</span>
+      </div>
+      <span>Servicio Público de Demostración · Software Libre AGPL-3.0</span>
+    </div>
+  </div>
+  <div class="tricolor" aria-hidden="true"></div>
+
+  <header class="cabecera">
+    <div class="cabecera-inner">
+      <h1 class="titulo-sitio">Servicio Soberano de Autenticación (TOTP)</h1>
+      <nav class="nav" aria-label="Navegación principal">
+        <a href="/" aria-current="page">Inicio</a>
+        <a href="/app/">Mi autenticador</a>
+        <a href="/instalar-certificado">Instalar certificado</a>
+        <a href="/estado">Estado del servicio</a>
+        <a href="/consola/">Administración</a>
+        <button type="button" id="btn-tema" class="btn-tema">Modo oscuro</button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" class="contenedor">
+    <div class="aviso-demo" role="note">
+      <strong>Aviso de demostración:</strong> Esta plataforma es un prototipo de servicio público soberano desarrollado para el Hackatón Venezuela INNOVA 2026. No representa a un organismo específico ni almacena datos personales reales.
+    </div>
+
+    <section class="hero" aria-labelledby="hero-titulo">
+      <h2 id="hero-titulo">Protege tus trámites digitales con códigos temporales soberanos</h2>
+      <p>
+        El <strong>Servicio Soberano de Autenticación Multifactorial (TOTP)</strong> genera códigos temporales de 6 u 8 dígitos cada 30 segundos en tu propio dispositivo para confirmar tu identidad al acceder a portales públicos, sin depender de aplicaciones comerciales extranjeras ni de conexión a Internet.
+      </p>
+      <div class="acciones">
+        <a class="btn btn-primario" href="/app/">Abrir Mi Autenticador (PWA)</a>
+        <a class="btn btn-secundario" href="/instalar-certificado">Instalar certificado del servicio</a>
+        <a class="btn btn-secundario" href="/estado">Consultar estado del servicio</a>
+        <a class="btn btn-secundario" href="/consola/">Consola de Administración</a>
+      </div>
+    </section>
+
+    <section aria-labelledby="como-titulo">
+      <h2 id="como-titulo">¿Cómo funciona en 3 pasos?</h2>
+      <div class="grid grid-3">
+        <article class="tarjeta">
+          <h3>1. Activa tu autenticador</h3>
+          <p>Abre <strong>Mi autenticador</strong> en tu teléfono o computadora, define un PIN personal y vincúlalo mediante código QR, enlace seguro o clave manual.</p>
+        </article>
+        <article class="tarjeta">
+          <h3>2. Genera tu código sin conexión</h3>
+          <p>Tu dispositivo calcula un código irrepetible cada 30 segundos usando criptografía estándar abierta (RFC 6238, HMAC-SHA256/SHA-512), incluso en modo avión.</p>
+        </article>
+        <article class="tarjeta">
+          <h3>3. Confirma tu trámite</h3>
+          <p>Ingresa el código en el portal institucional. El servicio verifica el factor y emite un comprobante firmado con Ed25519 válido por un solo uso.</p>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="soberania-titulo">
+      <h2 id="soberania-titulo">Soberanía y protección ciudadana</h2>
+      <div class="grid grid-3">
+        <article class="tarjeta">
+          <h3>Datos en infraestructura propia</h3>
+          <p>Las semillas criptográficas permanecen cifradas en territorio nacional con AES-256-GCM y nunca se sincronizan con nubes de terceros.</p>
+        </article>
+        <article class="tarjeta">
+          <h3>Software libre y auditable</h3>
+          <p>Código abierto bajo licencia GNU AGPL-3.0 con cero dependencias externas, verificable mediante inventario SBOM CycloneDX.</p>
+        </article>
+        <article class="tarjeta">
+          <h3>Funciona sin Internet</h3>
+          <p>La app autenticadora se instala directamente desde el servidor institucional y genera códigos temporales sin telemetría ni rastreo.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="pie">
+    Servicio Soberano de Autenticación Multifactorial (TOTP) · Software Libre GNU AGPL-3.0 · Cero dependencias externas
+  </footer>
+
+  <script type="module" src="/sitio/js/sitio.js"></script>
+</body>
+</html>

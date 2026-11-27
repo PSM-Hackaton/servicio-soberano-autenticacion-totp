@@ -1,0 +1,44 @@
+{
+  "eventos": [
+    {
+      "id": 1,
+      "ts": "2026-11-26T16:51:31.636Z",
+      "actor": "admin:semilla",
+      "accion": "app.registrada",
+      "objetivo": "e23bbcdf-b078-4c41-ba1f-4ba494d7eb23",
+      "detalle": {
+        "client_id": "app_92ac25d65219ee26d26e83847b010007",
+        "nombre": "Portal de Trámites"
+      },
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "hash": "3a8990930992e99cca03334226d5816cd25caca505c293acbdd298d61a8b742e"
+    },
+    {
+      "id": 2,
+      "ts": "2026-11-26T16:51:31.669Z",
+      "actor": "admin:semilla",
+      "accion": "app.registrada",
+      "objetivo": "1d32551b-e8e0-4251-af70-034e4ea06a43",
+      "detalle": {
+        "client_id": "app_a4a7ef37fab67c4200fe2e75830fbeb5",
+        "nombre": "Agente Evaluador (Reto 3)"
+      },
+      "prev_hash": "3a8990930992e99cca03334226d5816cd25caca505c293acbdd298d61a8b742e",
+      "hash": "a0de55a51f94a9d4f7557da737ba92d791e131612495ba3dafaecad00670f29d"
+    },
+    {
+      "id": 3,
+      "ts": "2026-11-26T16:51:31.702Z",
+      "actor": "admin:semilla",
+      "accion": "app.registrada",
+      "objetivo": "acfbd78f-b2a2-4b01-a499-1411bee8236c",
+      "detalle": {
+        "client_id": "app_11f5e2b10da6d79c115e36a9aea08177",
+        "nombre": "Consola Administrativa"
+      },
+      "prev_hash": "a0de55a51f94a9d4f7557da737ba92d791e131612495ba3dafaecad00670f29d",
+      "hash": "2ac8550465aff008dc8841ec9fdeb32a096e55f5abe4b567f25d81691a03d31e"
+    }
+  ],
+  "siguiente": 3
+}

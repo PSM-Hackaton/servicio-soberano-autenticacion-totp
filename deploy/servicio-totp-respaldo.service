@@ -1,0 +1,27 @@
+# Respaldo cifrado (AES-256-GCM) de la base SQLite y de la configuración, en modo sistema.
+# Lo lanza servicio-totp-respaldo.timer una vez al día; también: sudo systemctl start servicio-totp-respaldo
+# Las copias quedan en /var/backups/servicio-totp (0700 root) y se conservan las 7 más recientes.
+
+[Unit]
+Description=Respaldo cifrado del Servicio Soberano TOTP
+Documentation=file:///opt/servicio-totp/deploy/README.md
+After=servicio-totp.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh /opt/servicio-totp/deploy/operar.sh respaldo
+UMask=0077
+Nice=10
+IOSchedulingClass=idle
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/backups/servicio-totp /var/lib/servicio-totp
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX
+RestrictRealtime=true
+LockPersonality=true

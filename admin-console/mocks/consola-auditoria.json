@@ -1,0 +1,644 @@
+{
+  "eventos": [
+    {
+      "id": 1,
+      "ts": "2026-11-26T07:03:01.471Z",
+      "actor": "sistema",
+      "accion": "servicio.arranque",
+      "objetivo": null,
+      "detalle": "{\"dbDriver\":\"sqlite\",\"heuristicsMode\":\"local\"}",
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "hash": "6e289d0ff85962a787fb5f4c4b65643cda74df5d77cb93b0be374bd0d82e28a0"
+    },
+    {
+      "id": 2,
+      "ts": "2026-11-26T07:10:42.582Z",
+      "actor": "admin",
+      "accion": "admin.login",
+      "objetivo": "admin",
+      "detalle": "{\"resultado\":\"ok\"}",
+      "prev_hash": "6e289d0ff85962a787fb5f4c4b65643cda74df5d77cb93b0be374bd0d82e28a0",
+      "hash": "1193854f974ac5a44f3bf8b5c3f2d1790f10018c035c533b12219947ce8b9496"
+    },
+    {
+      "id": 3,
+      "ts": "2026-11-26T07:26:20.870Z",
+      "actor": "admin",
+      "accion": "app.crear",
+      "objetivo": "portal-tramites",
+      "detalle": "{\"algoritmo\":\"SHA256\",\"digitos\":6}",
+      "prev_hash": "1193854f974ac5a44f3bf8b5c3f2d1790f10018c035c533b12219947ce8b9496",
+      "hash": "c7e090c888674acb5b924ead647d48395c3a5a4efd6177b087c0c155a420a561"
+    },
+    {
+      "id": 4,
+      "ts": "2026-11-26T07:29:00.111Z",
+      "actor": "admin",
+      "accion": "app.crear",
+      "objetivo": "reto3-evaluador",
+      "detalle": "{\"algoritmo\":\"SHA512\",\"digitos\":8}",
+      "prev_hash": "c7e090c888674acb5b924ead647d48395c3a5a4efd6177b087c0c155a420a561",
+      "hash": "c6dd19af2aa6be374b87fd8bdf28621e1314d3143253248170edd1c40eb087d5"
+    },
+    {
+      "id": 5,
+      "ts": "2026-11-26T07:30:36.534Z",
+      "actor": "portal-tramites",
+      "accion": "enrolamiento.crear",
+      "objetivo": "9aaa830a-e067-4478-aa2b-29cf36fb088a",
+      "detalle": "{\"estado\":\"pendiente\"}",
+      "prev_hash": "c6dd19af2aa6be374b87fd8bdf28621e1314d3143253248170edd1c40eb087d5",
+      "hash": "6b45066ee92a5b1421e574e5ddc39180a1b5e20768cc5a36cbb8d250349ed797"
+    },
+    {
+      "id": 6,
+      "ts": "2026-11-26T07:45:01.711Z",
+      "actor": "portal-tramites",
+      "accion": "enrolamiento.activar",
+      "objetivo": "d2c60408-4ea2-4033-a73c-51467935dac8",
+      "detalle": "{\"codigos_recuperacion\":10}",
+      "prev_hash": "6b45066ee92a5b1421e574e5ddc39180a1b5e20768cc5a36cbb8d250349ed797",
+      "hash": "d9e80842aa3d0090d6645ea9be8362ea8191daf3d9d2ff4d31e3b920abea8e42"
+    },
+    {
+      "id": 7,
+      "ts": "2026-11-26T07:47:41.900Z",
+      "actor": "reto3-evaluador",
+      "accion": "enrolamiento.crear",
+      "objetivo": "886a592a-8ee3-431e-ad49-3afb843c37c2",
+      "detalle": "{\"estado\":\"pendiente\"}",
+      "prev_hash": "d9e80842aa3d0090d6645ea9be8362ea8191daf3d9d2ff4d31e3b920abea8e42",
+      "hash": "b3f0a3146ef4af899591b3f6e567235947d4255cef0ddfe39828af9d63a1f83c"
+    },
+    {
+      "id": 8,
+      "ts": "2026-11-26T08:02:40.131Z",
+      "actor": "reto3-evaluador",
+      "accion": "enrolamiento.activar",
+      "objetivo": "8975b4aa-6356-450c-a0ec-1833e9d62445",
+      "detalle": "{\"codigos_recuperacion\":10}",
+      "prev_hash": "b3f0a3146ef4af899591b3f6e567235947d4255cef0ddfe39828af9d63a1f83c",
+      "hash": "757ffbc9689612c9754e017fbb953e3a08d276d9bb1c3cd8a3a13fab139d94b3"
+    },
+    {
+      "id": 9,
+      "ts": "2026-11-26T08:15:56.584Z",
+      "actor": "detector",
+      "accion": "anomalia.bloqueo",
+      "objetivo": "hmac_685e5298d122",
+      "detalle": "{\"level\":\"HIGH\",\"riskScore\":79.3}",
+      "prev_hash": "757ffbc9689612c9754e017fbb953e3a08d276d9bb1c3cd8a3a13fab139d94b3",
+      "hash": "1d9ed09ef3433edc4fd0ac647ef145f468ea42b2f33a7d608c0c51b51a581067"
+    },
+    {
+      "id": 10,
+      "ts": "2026-11-26T08:25:06.514Z",
+      "actor": "operador",
+      "accion": "admin.login",
+      "objetivo": "operador",
+      "detalle": "{\"resultado\":\"ok\"}",
+      "prev_hash": "1d9ed09ef3433edc4fd0ac647ef145f468ea42b2f33a7d608c0c51b51a581067",
+      "hash": "ff9c3f8e25943789324c44a207f0c50f7d23dbb1724506918e7957b5368e0a1c"
+    },
+    {
+      "id": 11,
+      "ts": "2026-11-26T08:37:08.174Z",
+      "actor": "operador",
+      "accion": "enrolamiento.suspender",
+      "objetivo": "57c4cac0-60d1-45a8-af5d-9e4f3a32ec24",
+      "detalle": "{\"motivo\":\"intentos fallidos\"}",
+      "prev_hash": "ff9c3f8e25943789324c44a207f0c50f7d23dbb1724506918e7957b5368e0a1c",
+      "hash": "b4e219d511e01a873f8959f71ceb164a5e76395134190fcd6200af65c082ae40"
+    },
+    {
+      "id": 12,
+      "ts": "2026-11-26T08:39:27.217Z",
+      "actor": "admin",
+      "accion": "app.politica",
+      "objetivo": "registro-investigadores",
+      "detalle": "{\"modo_heuristica\":\"monitorizacion\"}",
+      "prev_hash": "b4e219d511e01a873f8959f71ceb164a5e76395134190fcd6200af65c082ae40",
+      "hash": "9f46e0d7394169047093ff1c3cf7d5252ef8331141484ac6e5c01423e6980a6c"
+    },
+    {
+      "id": 13,
+      "ts": "2026-11-26T08:54:52.135Z",
+      "actor": "portal-tramites",
+      "accion": "verificacion.replay",
+      "objetivo": null,
+      "detalle": "{\"resultado\":\"replay\"}",
+      "prev_hash": "9f46e0d7394169047093ff1c3cf7d5252ef8331141484ac6e5c01423e6980a6c",
+      "hash": "2f11361fa9738b2880c89108d0229ea2b84f486e39e029e8a44818ef8982c966"
+    },
+    {
+      "id": 14,
+      "ts": "2026-11-26T09:01:13.325Z",
+      "actor": "detector",
+      "accion": "anomalia.bloqueo",
+      "objetivo": "hmac_b90e8fac8a4f",
+      "detalle": "{\"level\":\"HIGH\",\"riskScore\":88}",
+      "prev_hash": "2f11361fa9738b2880c89108d0229ea2b84f486e39e029e8a44818ef8982c966",
+      "hash": "9243adff304da6510c831b3fc0f14eab90ed9307a14842fa7698520948605083"
+    },
+    {
+      "id": 15,
+      "ts": "2026-11-26T09:03:20.909Z",
+      "actor": "admin",
+      "accion": "llave.rotar",
+      "objetivo": "key-20261126-01",
+      "detalle": "{\"previous_kid\":\"key-20261124-01\"}",
+      "prev_hash": "9243adff304da6510c831b3fc0f14eab90ed9307a14842fa7698520948605083",
+      "hash": "a210bcb0dd530c14bf956518d367072895448dd1a2b7846e91641b2edf0b0d32"
+    },
+    {
+      "id": 16,
+      "ts": "2026-11-26T09:13:27.177Z",
+      "actor": "auditor",
+      "accion": "admin.login",
+      "objetivo": "auditor",
+      "detalle": "{\"resultado\":\"ok\"}",
+      "prev_hash": "a210bcb0dd530c14bf956518d367072895448dd1a2b7846e91641b2edf0b0d32",
+      "hash": "72aab0caef2e6426bb491d147fc55fc397d35b54d24b684645ec953e9124ea66"
+    },
+    {
+      "id": 17,
+      "ts": "2026-11-26T09:24:01.360Z",
+      "actor": "auditor",
+      "accion": "auditoria.verificar",
+      "objetivo": null,
+      "detalle": "{\"intact\":true}",
+      "prev_hash": "72aab0caef2e6426bb491d147fc55fc397d35b54d24b684645ec953e9124ea66",
+      "hash": "61459750e024aa7bf2cbbec6e6f52fa0bf636680998dedde3bc7f4e71a339b4c"
+    },
+    {
+      "id": 18,
+      "ts": "2026-11-26T09:30:17.626Z",
+      "actor": "portal-tramites",
+      "accion": "enrolamiento.revocar",
+      "objetivo": "25bd7c05-0a46-4d4e-ac7d-4a2c9037786c",
+      "detalle": "{\"estado\":\"revocado\"}",
+      "prev_hash": "61459750e024aa7bf2cbbec6e6f52fa0bf636680998dedde3bc7f4e71a339b4c",
+      "hash": "54de225252976b25732dbd344b602a0acec7faba9f2cd9e3742a9e9d21f2d9b8"
+    },
+    {
+      "id": 19,
+      "ts": "2026-11-26T09:35:47.521Z",
+      "actor": "detector",
+      "accion": "anomalia.alerta",
+      "objetivo": "hmac_91b60b870226",
+      "detalle": "{\"level\":\"MEDIUM\",\"riskScore\":68.7}",
+      "prev_hash": "54de225252976b25732dbd344b602a0acec7faba9f2cd9e3742a9e9d21f2d9b8",
+      "hash": "c404dd3bba2be0858adeeaa312af1e5ce5421ca3cb42111d8b29fca5085e8673"
+    },
+    {
+      "id": 20,
+      "ts": "2026-11-26T09:49:04.835Z",
+      "actor": "detector",
+      "accion": "anomalia.bloqueo",
+      "objetivo": "hmac_cbfd3f157f31",
+      "detalle": "{\"level\":\"CRITICAL\",\"riskScore\":91.5}",
+      "prev_hash": "c404dd3bba2be0858adeeaa312af1e5ce5421ca3cb42111d8b29fca5085e8673",
+      "hash": "693bc69530427c83d04137b677048c37be76a3c98512d64d42a12a61c96e7b4e"
+    },
+    {
+      "id": 21,
+      "ts": "2026-11-26T09:52:56.178Z",
+      "actor": "operador",
+      "accion": "enrolamiento.suspender",
+      "objetivo": "06369793-ba66-4e91-aa6c-277f9abd2183",
+      "detalle": "{\"motivo\":\"intentos fallidos\"}",
+      "prev_hash": "693bc69530427c83d04137b677048c37be76a3c98512d64d42a12a61c96e7b4e",
+      "hash": "957db48c1f01f07c8910f3ee48518c58cee26bbf2f840bb3831e29e64c92fb0f"
+    },
+    {
+      "id": 22,
+      "ts": "2026-11-26T09:59:23.416Z",
+      "actor": "auditor",
+      "accion": "auditoria.verificar",
+      "objetivo": null,
+      "detalle": "{\"intact\":true}",
+      "prev_hash": "957db48c1f01f07c8910f3ee48518c58cee26bbf2f840bb3831e29e64c92fb0f",
+      "hash": "62ff4e7d47685b2457872781c730397401b4f9f1d65b1f1c184ece5be1969c58"
+    },
+    {
+      "id": 23,
+      "ts": "2026-11-26T10:08:15.992Z",
+      "actor": "admin",
+      "accion": "app.politica",
+      "objetivo": "registro-investigadores",
+      "detalle": "{\"modo_heuristica\":\"monitorizacion\"}",
+      "prev_hash": "62ff4e7d47685b2457872781c730397401b4f9f1d65b1f1c184ece5be1969c58",
+      "hash": "7c6a3f038f690b132eac36ad964a87e714a96f032edc8f110f02f13777d29b9d"
+    },
+    {
+      "id": 24,
+      "ts": "2026-11-26T10:16:16.840Z",
+      "actor": "reto3-evaluador",
+      "accion": "enrolamiento.crear",
+      "objetivo": "4d624389-ff24-482f-ad2e-cebce339ba6b",
+      "detalle": "{\"estado\":\"pendiente\"}",
+      "prev_hash": "7c6a3f038f690b132eac36ad964a87e714a96f032edc8f110f02f13777d29b9d",
+      "hash": "ad0a5c843e7de52e3d9eaf912b2208dd43d81fa52b1e0217c471f237ebea1769"
+    },
+    {
+      "id": 25,
+      "ts": "2026-11-26T10:21:12.497Z",
+      "actor": "operador",
+      "accion": "enrolamiento.suspender",
+      "objetivo": "67c49508-0786-4e9d-acf2-a9cd256ce329",
+      "detalle": "{\"motivo\":\"intentos fallidos\"}",
+      "prev_hash": "ad0a5c843e7de52e3d9eaf912b2208dd43d81fa52b1e0217c471f237ebea1769",
+      "hash": "571117094e63eb924cc7e0d35ab5ea2ee5450d161b122d131a522843040c9f4d"
+    },
+    {
+      "id": 26,
+      "ts": "2026-11-26T10:30:33.100Z",
+      "actor": "admin",
+      "accion": "app.politica",
+      "objetivo": "registro-investigadores",
+      "detalle": "{\"modo_heuristica\":\"monitorizacion\"}",
+      "prev_hash": "571117094e63eb924cc7e0d35ab5ea2ee5450d161b122d131a522843040c9f4d",
+      "hash": "1df0e7b5707eb197abf95e578270a3ec18b8431c1cbf477ec725d64ab86645ad"
+    },
+    {
+      "id": 27,
+      "ts": "2026-11-26T10:45:30.976Z",
+      "actor": "portal-tramites",
+      "accion": "enrolamiento.activar",
+      "objetivo": "3612f343-da99-48c9-a0b6-c99bd51674d9",
+      "detalle": "{\"codigos_recuperacion\":10}",
+      "prev_hash": "1df0e7b5707eb197abf95e578270a3ec18b8431c1cbf477ec725d64ab86645ad",
+      "hash": "7a312709608c41c347511a308482ffc65ad6458d08084be96d1056641ea79720"
+    },
+    {
+      "id": 28,
+      "ts": "2026-11-26T10:58:06.258Z",
+      "actor": "detector",
+      "accion": "anomalia.bloqueo",
+      "objetivo": "hmac_1d1101256a1e",
+      "detalle": "{\"level\":\"HIGH\",\"riskScore\":88}",
+      "prev_hash": "7a312709608c41c347511a308482ffc65ad6458d08084be96d1056641ea79720",
+      "hash": "5852c344692e1704dfb66c38c1f636c2ac7417338f6551bce4820b3ea04ce2ab"
+    },
+    {
+      "id": 29,
+      "ts": "2026-11-26T10:59:23.334Z",
+      "actor": "detector",
+      "accion": "anomalia.bloqueo",
+      "objetivo": "hmac_1bc609747e03",
+      "detalle": "{\"level\":\"HIGH\",\"riskScore\":79.3}",
+      "prev_hash": "5852c344692e1704dfb66c38c1f636c2ac7417338f6551bce4820b3ea04ce2ab",
+      "hash": "0a8fc6e424d532401565f3e6daccca6e422b5cdec1c2c266715d4017da78a38d"
+    },
+    {
+      "id": 30,
+      "ts": "2026-11-26T11:03:35.531Z",
+      "actor": "admin",
+      "accion": "llave.rotar",
+      "objetivo": "key-20261126-01",
+      "detalle": "{\"previous_kid\":\"key-20261124-01\"}",
+      "prev_hash": "0a8fc6e424d532401565f3e6daccca6e422b5cdec1c2c266715d4017da78a38d",
+      "hash": "496254c1f5adc823492de3baae73bd5c1535f180b9bf0befac1f0c20679ab1aa"
+    },
+    {
+      "id": 31,
+      "ts": "2026-11-26T11:19:15.112Z",
+      "actor": "admin",
+      "accion": "llave.rotar",
+      "objetivo": "key-20261126-01",
+      "detalle": "{\"previous_kid\":\"key-20261124-01\"}",
+      "prev_hash": "496254c1f5adc823492de3baae73bd5c1535f180b9bf0befac1f0c20679ab1aa",
+      "hash": "4c0859920266716e325eed811a5c1808762b344f697d36539751867c2362c2e1"
+    },
+    {
+      "id": 32,
+      "ts": "2026-11-26T11:30:16.474Z",
+      "actor": "reto3-evaluador",
+      "accion": "enrolamiento.activar",
+      "objetivo": "d3803304-aacf-4189-a906-b436aa409168",
+      "detalle": "{\"codigos_recuperacion\":10}",
+      "prev_hash": "4c0859920266716e325eed811a5c1808762b344f697d36539751867c2362c2e1",
+      "hash": "8bc1b1d083ec7ac909de84d740b13cbde03dc14eb5845e2f38148a30ae62d343"
+    },
+    {
+      "id": 33,
+      "ts": "2026-11-26T11:41:49.599Z",
+      "actor": "reto3-evaluador",
+      "accion": "enrolamiento.crear",
+      "objetivo": "a03a2796-de93-4632-a945-cb8d1e441896",
+      "detalle": "{\"estado\":\"pendiente\"}",
+      "prev_hash": "8bc1b1d083ec7ac909de84d740b13cbde03dc14eb5845e2f38148a30ae62d343",
+      "hash": "35a28908c1c34a2a01357ff26cfe2272ef80a8bb6d80baf2effc621b06f8d7b0"
+    },
+    {
+      "id": 34,
+      "ts": "2026-11-26T11:56:47.326Z",
+      "actor": "auditor",
+      "accion": "admin.login",
+      "objetivo": "auditor",
+      "detalle": "{\"resultado\":\"ok\"}",
+      "prev_hash": "35a28908c1c34a2a01357ff26cfe2272ef80a8bb6d80baf2effc621b06f8d7b0",
+      "hash": "a552a5cd17f6ea8f95813b0c634fd569a03cf0debd17a95d3e3d2dc36af49247"
+    },
+    {
+      "id": 35,
+      "ts": "2026-11-26T12:06:57.501Z",
+      "actor": "operador",
+      "accion": "admin.login",
+      "objetivo": "operador",
+      "detalle": "{\"resultado\":\"ok\"}",
+      "prev_hash": "a552a5cd17f6ea8f95813b0c634fd569a03cf0debd17a95d3e3d2dc36af49247",
+      "hash": "cb02cf2f2fd915c458f3a57b47c2cb0510ffa24272dcbcb550a43557953b7237"
+    },
+    {
+      "id": 36,
+      "ts": "2026-11-26T12:12:01.956Z",
+      "actor": "admin",
+      "accion": "app.politica",
+      "objetivo": "registro-investigadores",
+      "detalle": "{\"modo_heuristica\":\"monitorizacion\"}",
+      "prev_hash": "cb02cf2f2fd915c458f3a57b47c2cb0510ffa24272dcbcb550a43557953b7237",
+      "hash": "178cdf647475138df14543203e12ec44c86307816c98c4da16ca320ff90492d7"
+    },
+    {
+      "id": 37,
+      "ts": "2026-11-26T12:27:12.514Z",
+      "actor": "detector",
+      "accion": "anomalia.bloqueo",
+      "objetivo": "hmac_555195968fbc",
+      "detalle": "{\"level\":\"HIGH\",\"riskScore\":79.3}",
+      "prev_hash": "178cdf647475138df14543203e12ec44c86307816c98c4da16ca320ff90492d7",
+      "hash": "1eda0c7541d3f581db82e63a7c4a799d976a2c1fcf06f4504869dc8dd90f8121"
+    },
+    {
+      "id": 38,
+      "ts": "2026-11-26T12:29:49.796Z",
+      "actor": "detector",
+      "accion": "anomalia.bloqueo",
+      "objetivo": "hmac_3fa61ecdf583",
+      "detalle": "{\"level\":\"CRITICAL\",\"riskScore\":91.5}",
+      "prev_hash": "1eda0c7541d3f581db82e63a7c4a799d976a2c1fcf06f4504869dc8dd90f8121",
+      "hash": "ad383c5b14478bac49dd80e570a86a1059b14cece6225b905c9995a26705cc71"
+    },
+    {
+      "id": 39,
+      "ts": "2026-11-26T12:45:20.039Z",
+      "actor": "reto3-evaluador",
+      "accion": "enrolamiento.activar",
+      "objetivo": "df865282-275a-42dd-a795-027fb94c0a1e",
+      "detalle": "{\"codigos_recuperacion\":10}",
+      "prev_hash": "ad383c5b14478bac49dd80e570a86a1059b14cece6225b905c9995a26705cc71",
+      "hash": "0e58b24bb201a43c54d713c36d153e109cc5e38effc02b80054a80482ab65e3b"
+    },
+    {
+      "id": 40,
+      "ts": "2026-11-26T12:54:10.095Z",
+      "actor": "operador",
+      "accion": "enrolamiento.suspender",
+      "objetivo": "95260ea0-7a15-404e-a097-5ea02db6b545",
+      "detalle": "{\"motivo\":\"intentos fallidos\"}",
+      "prev_hash": "0e58b24bb201a43c54d713c36d153e109cc5e38effc02b80054a80482ab65e3b",
+      "hash": "87a365859da722df65182dd7fe1366fc400d2981a1316ec8d744327e440953d6"
+    },
+    {
+      "id": 41,
+      "ts": "2026-11-26T12:55:10.225Z",
+      "actor": "auditor",
+      "accion": "admin.login",
+      "objetivo": "auditor",
+      "detalle": "{\"resultado\":\"ok\"}",
+      "prev_hash": "87a365859da722df65182dd7fe1366fc400d2981a1316ec8d744327e440953d6",
+      "hash": "5c5e077a86b80475e7a40af10f92e96ec0ca300a1a4389846d1f49b3ccff0eed"
+    },
+    {
+      "id": 42,
+      "ts": "2026-11-26T13:00:43.707Z",
+      "actor": "auditor",
+      "accion": "admin.login",
+      "objetivo": "auditor",
+      "detalle": "{\"resultado\":\"ok\"}",
+      "prev_hash": "5c5e077a86b80475e7a40af10f92e96ec0ca300a1a4389846d1f49b3ccff0eed",
+      "hash": "4d3c466ede7accfc36dfc314fddb3bf2071a09093bd998c2b7d9af19452d3b15"
+    },
+    {
+      "id": 43,
+      "ts": "2026-11-26T13:06:16.446Z",
+      "actor": "reto3-evaluador",
+      "accion": "enrolamiento.crear",
+      "objetivo": "9daf39ab-632a-432a-a412-fbb7fb4c4e70",
+      "detalle": "{\"estado\":\"pendiente\"}",
+      "prev_hash": "4d3c466ede7accfc36dfc314fddb3bf2071a09093bd998c2b7d9af19452d3b15",
+      "hash": "09374aa3581fecdc7afcf8cbb84b33b3c9aa283c523da557f003f87a130aac22"
+    },
+    {
+      "id": 44,
+      "ts": "2026-11-26T13:10:21.536Z",
+      "actor": "portal-tramites",
+      "accion": "enrolamiento.revocar",
+      "objetivo": "8ab0ec94-4a82-49e6-a232-6b17648d816c",
+      "detalle": "{\"estado\":\"revocado\"}",
+      "prev_hash": "09374aa3581fecdc7afcf8cbb84b33b3c9aa283c523da557f003f87a130aac22",
+      "hash": "bf3175a851b3b30be5e1fc64e2df95a9c08d3e6791fc6f0924480acca54ab37e"
+    },
+    {
+      "id": 45,
+      "ts": "2026-11-26T13:14:55.353Z",
+      "actor": "detector",
+      "accion": "anomalia.bloqueo",
+      "objetivo": "hmac_8db006251047",
+      "detalle": "{\"level\":\"HIGH\",\"riskScore\":88}",
+      "prev_hash": "bf3175a851b3b30be5e1fc64e2df95a9c08d3e6791fc6f0924480acca54ab37e",
+      "hash": "2693886b5f222ee29f69d0fba95f4ab47cafb5b85707b46f278d6cedf8766e4a"
+    },
+    {
+      "id": 46,
+      "ts": "2026-11-26T13:24:17.254Z",
+      "actor": "detector",
+      "accion": "anomalia.alerta",
+      "objetivo": "hmac_f56423cb6194",
+      "detalle": "{\"level\":\"MEDIUM\",\"riskScore\":68.7}",
+      "prev_hash": "2693886b5f222ee29f69d0fba95f4ab47cafb5b85707b46f278d6cedf8766e4a",
+      "hash": "7014f058663e56e528d5ed8f6c985b5e15375af55aac422d28bc182e2db8a16a"
+    },
+    {
+      "id": 47,
+      "ts": "2026-11-26T13:31:41.286Z",
+      "actor": "detector",
+      "accion": "anomalia.alerta",
+      "objetivo": "hmac_91252897cd2d",
+      "detalle": "{\"level\":\"MEDIUM\",\"riskScore\":68.7}",
+      "prev_hash": "7014f058663e56e528d5ed8f6c985b5e15375af55aac422d28bc182e2db8a16a",
+      "hash": "549d5305764d0df7c8d7005f45ee9d8258f0ec0c453d51990f62ad59916b5012"
+    },
+    {
+      "id": 48,
+      "ts": "2026-11-26T13:43:41.959Z",
+      "actor": "portal-tramites",
+      "accion": "enrolamiento.crear",
+      "objetivo": "b66b51ae-ecf8-41d7-a5ce-248c032c18d9",
+      "detalle": "{\"estado\":\"pendiente\"}",
+      "prev_hash": "549d5305764d0df7c8d7005f45ee9d8258f0ec0c453d51990f62ad59916b5012",
+      "hash": "6f7dd95bbc893dfa498e3b177cbf3241a76cc270921b62fa6a4124e6f9e4033c"
+    },
+    {
+      "id": 49,
+      "ts": "2026-11-26T13:56:13.824Z",
+      "actor": "portal-tramites",
+      "accion": "verificacion.replay",
+      "objetivo": null,
+      "detalle": "{\"resultado\":\"replay\"}",
+      "prev_hash": "6f7dd95bbc893dfa498e3b177cbf3241a76cc270921b62fa6a4124e6f9e4033c",
+      "hash": "c99e7d724355871b3caa1b98fbdf27a3e5a50f45a3950b9070cd37583c2e0e9c"
+    },
+    {
+      "id": 50,
+      "ts": "2026-11-26T14:06:01.067Z",
+      "actor": "admin",
+      "accion": "llave.rotar",
+      "objetivo": "key-20261126-01",
+      "detalle": "{\"previous_kid\":\"key-20261124-01\"}",
+      "prev_hash": "c99e7d724355871b3caa1b98fbdf27a3e5a50f45a3950b9070cd37583c2e0e9c",
+      "hash": "57794cb611e60828c90314a72d3897382defa85c405b09279a8a29bce595378e"
+    },
+    {
+      "id": 51,
+      "ts": "2026-11-26T14:14:08.302Z",
+      "actor": "portal-tramites",
+      "accion": "enrolamiento.crear",
+      "objetivo": "405e9e5a-26dc-4b3e-ab41-a99a68acd120",
+      "detalle": "{\"estado\":\"pendiente\"}",
+      "prev_hash": "57794cb611e60828c90314a72d3897382defa85c405b09279a8a29bce595378e",
+      "hash": "c720e236d9ad0948556406cd7fc5af40a7c22be582d11cf8b65e2c8c6836620e"
+    },
+    {
+      "id": 52,
+      "ts": "2026-11-26T14:26:52.976Z",
+      "actor": "admin",
+      "accion": "llave.rotar",
+      "objetivo": "key-20261126-01",
+      "detalle": "{\"previous_kid\":\"key-20261124-01\"}",
+      "prev_hash": "c720e236d9ad0948556406cd7fc5af40a7c22be582d11cf8b65e2c8c6836620e",
+      "hash": "e892cfa30a279b33548f0ac1b236d877c3a1658329986a2459c4cc5084c342df"
+    },
+    {
+      "id": 53,
+      "ts": "2026-11-26T14:32:55.366Z",
+      "actor": "reto3-evaluador",
+      "accion": "enrolamiento.crear",
+      "objetivo": "f87cdb06-1a56-4155-a310-7410c1e4ecea",
+      "detalle": "{\"estado\":\"pendiente\"}",
+      "prev_hash": "e892cfa30a279b33548f0ac1b236d877c3a1658329986a2459c4cc5084c342df",
+      "hash": "b124d62ec9be9c60b6c5346fb1d17ce565aed76ec8d8f261ddda605929cb87e3"
+    },
+    {
+      "id": 54,
+      "ts": "2026-11-26T14:40:12.390Z",
+      "actor": "portal-tramites",
+      "accion": "enrolamiento.activar",
+      "objetivo": "cfb82834-7e21-4576-a294-2a8fd058b8de",
+      "detalle": "{\"codigos_recuperacion\":10}",
+      "prev_hash": "b124d62ec9be9c60b6c5346fb1d17ce565aed76ec8d8f261ddda605929cb87e3",
+      "hash": "5fce13fb6bc1e84f0a260fab2080c20f510b061ced3538f0b30172c5e86184f4"
+    },
+    {
+      "id": 55,
+      "ts": "2026-11-26T14:48:26.612Z",
+      "actor": "reto3-evaluador",
+      "accion": "enrolamiento.activar",
+      "objetivo": "554f6778-be95-42e1-a93e-97a07e1f9a2b",
+      "detalle": "{\"codigos_recuperacion\":10}",
+      "prev_hash": "5fce13fb6bc1e84f0a260fab2080c20f510b061ced3538f0b30172c5e86184f4",
+      "hash": "fcf9b9db1ba81b709667e3d269471b2da6776dae1914728209d9165b644c6d18"
+    },
+    {
+      "id": 56,
+      "ts": "2026-11-26T14:58:30.549Z",
+      "actor": "reto3-evaluador",
+      "accion": "enrolamiento.activar",
+      "objetivo": "646bc162-4f75-4988-af58-67091883c1d4",
+      "detalle": "{\"codigos_recuperacion\":10}",
+      "prev_hash": "fcf9b9db1ba81b709667e3d269471b2da6776dae1914728209d9165b644c6d18",
+      "hash": "a7fa3dca4cbb7962ce3bd2a3830620e1740c7f7f8281ad239962b599effa1318"
+    },
+    {
+      "id": 57,
+      "ts": "2026-11-26T15:00:08.852Z",
+      "actor": "detector",
+      "accion": "anomalia.bloqueo",
+      "objetivo": "hmac_4a290a7a92dd",
+      "detalle": "{\"level\":\"HIGH\",\"riskScore\":79.3}",
+      "prev_hash": "a7fa3dca4cbb7962ce3bd2a3830620e1740c7f7f8281ad239962b599effa1318",
+      "hash": "2b2e4fab4cfd4f08e9ea638246e418af293ea56ece75af1c58618c52e8e70915"
+    },
+    {
+      "id": 58,
+      "ts": "2026-11-26T15:05:16.117Z",
+      "actor": "reto3-evaluador",
+      "accion": "enrolamiento.crear",
+      "objetivo": "9e181de9-db68-4049-ac72-c5052f160d09",
+      "detalle": "{\"estado\":\"pendiente\"}",
+      "prev_hash": "2b2e4fab4cfd4f08e9ea638246e418af293ea56ece75af1c58618c52e8e70915",
+      "hash": "62363794c9a19847673786cf5e047e63589f05eb2d660059ae8cef1280f1c607"
+    },
+    {
+      "id": 59,
+      "ts": "2026-11-26T15:16:55.786Z",
+      "actor": "detector",
+      "accion": "anomalia.bloqueo",
+      "objetivo": "hmac_67658b3812af",
+      "detalle": "{\"level\":\"HIGH\",\"riskScore\":88}",
+      "prev_hash": "62363794c9a19847673786cf5e047e63589f05eb2d660059ae8cef1280f1c607",
+      "hash": "a555b71c0ef3c237e314b018514bd858646bbc684a58fe07af05469c71c20843"
+    },
+    {
+      "id": 60,
+      "ts": "2026-11-26T15:26:24.393Z",
+      "actor": "auditor",
+      "accion": "auditoria.verificar",
+      "objetivo": null,
+      "detalle": "{\"intact\":true}",
+      "prev_hash": "a555b71c0ef3c237e314b018514bd858646bbc684a58fe07af05469c71c20843",
+      "hash": "2bb146bafde64b3bde4cf51d775eb4ac60bc0905d2e01168ab0da2d82d7c7635"
+    },
+    {
+      "id": 61,
+      "ts": "2026-11-26T15:38:26.971Z",
+      "actor": "auditor",
+      "accion": "admin.login",
+      "objetivo": "auditor",
+      "detalle": "{\"resultado\":\"ok\"}",
+      "prev_hash": "2bb146bafde64b3bde4cf51d775eb4ac60bc0905d2e01168ab0da2d82d7c7635",
+      "hash": "45f7e6e056d3e170c0d914e5b3eced615e4eb946143e2ba80457294f33791e36"
+    },
+    {
+      "id": 62,
+      "ts": "2026-11-26T15:40:50.774Z",
+      "actor": "auditor",
+      "accion": "auditoria.verificar",
+      "objetivo": null,
+      "detalle": "{\"intact\":true}",
+      "prev_hash": "45f7e6e056d3e170c0d914e5b3eced615e4eb946143e2ba80457294f33791e36",
+      "hash": "cd71d4e3cf0deb5f0828d6027cb2e5281c241c2d16a7840098c8f4fe37583736"
+    },
+    {
+      "id": 63,
+      "ts": "2026-11-26T15:46:02.683Z",
+      "actor": "portal-tramites",
+      "accion": "enrolamiento.revocar",
+      "objetivo": "5fe55a12-dfcf-428b-ab53-d6325f388ff4",
+      "detalle": "{\"estado\":\"revocado\"}",
+      "prev_hash": "cd71d4e3cf0deb5f0828d6027cb2e5281c241c2d16a7840098c8f4fe37583736",
+      "hash": "1ba31daa0e03a466aff4e69ec0754e7bfaec0ce1b62e50bcf735d63e5add7496"
+    },
+    {
+      "id": 64,
+      "ts": "2026-11-26T15:55:30.057Z",
+      "actor": "auditor",
+      "accion": "admin.login",
+      "objetivo": "auditor",
+      "detalle": "{\"resultado\":\"ok\"}",
+      "prev_hash": "1ba31daa0e03a466aff4e69ec0754e7bfaec0ce1b62e50bcf735d63e5add7496",
+      "hash": "afccbde4f138c809bf914e43975918c40a37e5e18d64fe9d35a1c36cf0bcc716"
+    }
+  ]
+}

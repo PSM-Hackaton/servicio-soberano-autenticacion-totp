@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 60" role="img" aria-label="Bandera nacional de Venezuela">
+  <rect width="90" height="20" y="0" fill="#FFCC00"/>
+  <rect width="90" height="20" y="20" fill="#00247D"/>
+  <rect width="90" height="20" y="40" fill="#CF142B"/>
+  <g fill="#FFFFFF">
+    <circle cx="24" cy="35.5" r="1.7"/>
+    <circle cx="29.2" cy="31.5" r="1.7"/>
+    <circle cx="35.6" cy="28.8" r="1.7"/>
+    <circle cx="41.8" cy="27.4" r="1.7"/>
+    <circle cx="48.2" cy="27.4" r="1.7"/>
+    <circle cx="54.4" cy="28.8" r="1.7"/>
+    <circle cx="60.8" cy="31.5" r="1.7"/>
+    <circle cx="66" cy="35.5" r="1.7"/>
+  </g>
+</svg>

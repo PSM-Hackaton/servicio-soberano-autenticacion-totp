@@ -1,0 +1,80 @@
+[
+  {
+    "nombre": "TOTP: verificar código (ventana ±1, 3 HMAC-SHA256)",
+    "n": 50000,
+    "usPorOp": 7.8,
+    "opsPorSegundo": 128070
+  },
+  {
+    "nombre": "AES-256-GCM: descifrar semilla",
+    "n": 50000,
+    "usPorOp": 3.5,
+    "opsPorSegundo": 284611
+  },
+  {
+    "nombre": "HMAC-SHA256: anonimizar user_ref",
+    "n": 50000,
+    "usPorOp": 1.8,
+    "opsPorSegundo": 546699
+  },
+  {
+    "nombre": "Ed25519: firmar JWT",
+    "n": 20000,
+    "usPorOp": 36.3,
+    "opsPorSegundo": 27529
+  },
+  {
+    "nombre": "Ed25519: verificar JWT",
+    "n": 20000,
+    "usPorOp": 85.8,
+    "opsPorSegundo": 11657
+  },
+  {
+    "nombre": "Detector local: evaluar intento (100 eventos de historial)",
+    "n": 5000,
+    "usPorOp": 23.3,
+    "opsPorSegundo": 42838
+  },
+  {
+    "nombre": "scrypt N=16384: verificar client_secret o código (1 hilo)",
+    "n": 40,
+    "usPorOp": 28810.6,
+    "opsPorSegundo": 35
+  },
+  {
+    "nombre": "SQLite FULL: transacción con 1 intento (attempts)",
+    "n": 3000,
+    "usPorOp": 1075.8,
+    "opsPorSegundo": 930
+  },
+  {
+    "nombre": "SQLite FULL: evento de bitácora encadenada",
+    "n": 3000,
+    "usPorOp": 1079.7,
+    "opsPorSegundo": 926
+  },
+  {
+    "nombre": "SQLite FULL: historial del detector (2 consultas de 50 filas)",
+    "n": 3000,
+    "usPorOp": 72.4,
+    "opsPorSegundo": 13822
+  },
+  {
+    "nombre": "SQLite NORMAL: transacción con 1 intento (attempts)",
+    "n": 3000,
+    "usPorOp": 55.8,
+    "opsPorSegundo": 17915
+  },
+  {
+    "nombre": "SQLite NORMAL: evento de bitácora encadenada",
+    "n": 3000,
+    "usPorOp": 49.4,
+    "opsPorSegundo": 20250
+  },
+  {
+    "nombre": "SQLite NORMAL: historial del detector (2 consultas de 50 filas)",
+    "n": 3000,
+    "usPorOp": 70.9,
+    "opsPorSegundo": 14108
+  }
+]

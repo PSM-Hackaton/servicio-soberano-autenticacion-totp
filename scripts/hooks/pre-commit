@@ -1,0 +1,8 @@
+#!/bin/sh
+# Gancho pre-commit del equipo (se instala con: sh scripts/instalar-hooks.sh).
+# Rápido: revisa solo lo preparado para el commit. Bloquea .env reales, llaves y certificados, bases .db,
+# archivos de más de 5 MB, secretos, rutas /home/ y menciones a herramientas de generación o coautoría.
+# Reglas: scripts/entrega-herramientas.mjs (las mismas de la entrega). Detalle en scripts/hooks/revisar.mjs.
+DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+command -v node >/dev/null 2>&1 || { echo 'pre-commit: se necesita Node.js 22 en el PATH' >&2; exit 1; }
+exec node "$DIR/revisar.mjs" confirmacion

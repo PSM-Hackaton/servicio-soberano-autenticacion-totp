@@ -34,8 +34,8 @@
 <body>
 
 <h1>Servicio Soberano de Autenticación TOTP</h1>
-<div class="sub">Análisis técnico, arquitectura y plan de trabajo · Reto Grupal 3 · Hackatón 2026</div>
-<div class="meta">Equipo PSM-Hackaton · Autor: Diego Landaeta · 26 de noviembre de 2026 · Versión 1.0 · Repositorio: PSM-Hackaton/servicio-soberano-autenticacion-totp</div>
+<div class="sub">Análisis técnico, arquitectura y plan de trabajo · Reto Grupal 1 · Hackatón 2026</div>
+<div class="meta">Equipo PSM-Hackaton · Autor: Diego Landaeta · 26 de noviembre de 2026 · Versión 1.2 · Repositorio: PSM-Hackaton/servicio-soberano-autenticacion-totp</div>
 
 <h2>1. Qué pide el reto, en una frase</h2>
 <p>Un <b>segundo factor de autenticación (MFA) basado en códigos de 6–8 dígitos que cambian cada 30 segundos (TOTP)</b>, funcionando entero en infraestructura propia: nosotros generamos y guardamos las semillas, nosotros validamos los códigos, nosotros emitimos el comprobante firmado de que el usuario pasó el desafío y nosotros damos la app donde el usuario ve sus códigos. Ningún paso depende de Google, Microsoft, Authy, Twilio ni de ninguna nube externa.</p>
@@ -50,7 +50,7 @@
   <tr><td>Almacenamiento cifrado y consola admin</td><td>AES-256 en reposo, TLS en tránsito, metadatos anonimizados, políticas, revocación, rotación de claves, auditoría y métricas.</td></tr>
 </table>
 
-<h2>2. Qué significa “propio” (y qué NO significa)</h2>
+<h2>2. Soberanía: qué significa “propio” (y qué NO significa)</h2>
 <div class="warn"><b>No vamos a inventar un algoritmo criptográfico.</b> El reto pide expresamente “algoritmos estándar abiertos” (RFC 6238, HMAC-SHA256/512). Inventar cripto propia es la forma más rápida de perder puntos de seguridad. La soberanía no está en el algoritmo —que es público y auditable— sino en <b>quién controla las semillas, el código y la infraestructura</b>.</div>
 
 <table>
@@ -66,6 +66,21 @@
 </table>
 
 <div class="box"><b>Argumento clave para el jurado:</b> el reto exige HMAC-SHA256/SHA512, y muchas de las apps autenticadoras populares solo funcionan bien con SHA-1. Por eso la app propia no es un “extra”: es la única forma de cumplir el estándar pedido de punta a punta. Ofreceremos además un <i>modo de compatibilidad</i> (SHA-1, desactivado por defecto y controlado por política) para apps estándar, y lo declararemos como menos seguro.</div>
+
+<h3>Los ocho pilares de soberanía de la solución</h3>
+<table>
+  <tr><th style="width:24%">Pilar</th><th>Cómo lo garantizamos</th></tr>
+  <tr><td>1. Código abierto y auditable</td><td>Todo el código, incluido el motor criptográfico, es público y está bajo licencia libre. Cualquier institución puede auditarlo, compilarlo y desplegarlo sin pedir permiso a nadie.</td></tr>
+  <tr><td>2. Datos en territorio propio</td><td>Semillas, registros y copias de seguridad viven solo en el servidor de la institución. No hay respaldos en nubes extranjeras ni sincronización con cuentas de terceros.</td></tr>
+  <tr><td>3. Llaves generadas y custodiadas localmente</td><td>La llave maestra (AES-256) y las llaves de firma (Ed25519) se generan en nuestro servidor y nunca salen de él. Preparado para HSM o TPM institucional.</td></tr>
+  <tr><td>4. Reloj soberano</td><td>TOTP depende de la hora exacta. El servidor se sincroniza con un servidor NTP institucional o nacional (chrony), no con servidores de hora de empresas extranjeras. La consola muestra el estado del reloj y alerta si se desvía.</td></tr>
+  <tr><td>5. Distribución propia de la app</td><td>La app autenticadora es una PWA que se instala desde el servidor de la institución. No depende de Google Play ni de App Store, que pueden retirarla o bloquearla.</td></tr>
+  <tr><td>6. Cero llamadas externas</td><td>Sin CDNs, sin fuentes web externas, sin analítica ni telemetría, sin servicios de SMS o correo de terceros. Todo recurso se sirve desde nuestro servidor.</td></tr>
+  <tr><td>7. Construcción sin Internet</td><td>Dependencias mínimas, fijadas por versión y respaldadas en un espejo local de paquetes. Las imágenes de contenedor se construyen en local. El sistema se puede reconstruir sin acceso a Internet.</td></tr>
+  <tr><td>8. Sin dependencia de un proveedor</td><td>Formatos abiertos en todas las interfaces (URI <code>otpauth://</code>, JWT, JWKS, JSON) y exportación cifrada de enrolamientos. La institución puede migrar o ampliar el sistema sin depender de nosotros.</td></tr>
+</table>
+
+<div class="box"><b>Prueba de soberanía en la demo:</b> desconectamos el servidor de Internet delante del jurado (red de Docker en modo aislado) y repetimos el flujo completo: enrolar, generar código, verificar y entrar al Portal de Trámites. Si todo funciona sin Internet, la soberanía queda demostrada, no solo declarada.</div>
 
 <h2>3. Cómo funciona TOTP (lo que implementaremos)</h2>
 <pre>
@@ -130,7 +145,26 @@
   <tr><td>Dependencias</td><td>Mínimas y auditadas</td><td>SBOM CycloneDX + <code>npm audit</code> en la entrega (exigido por “trazabilidad”).</td></tr>
 </table>
 
-<h2>5. Seguridad: cómo cumplimos cada exigencia</h2>
+<h2 class="pb">5. Seguridad</h2>
+
+<h3>5.1 Modelo de amenazas</h3>
+<p>Antes de elegir controles definimos contra qué nos defendemos:</p>
+<table>
+  <tr><th style="width:26%">Amenaza</th><th style="width:30%">Ejemplo</th><th>Mitigación</th></tr>
+  <tr><td>Adivinar el código</td><td>Probar códigos hasta acertar, desde una o muchas IP</td><td>Bloqueos progresivos por cuenta, límites por IP y por app, detector de anomalías para ataques distribuidos</td></tr>
+  <tr><td>Reutilizar un código</td><td>Capturar un código válido y usarlo de nuevo</td><td>Solo se aceptan pasos de tiempo posteriores al último usado; JWT de un solo uso</td></tr>
+  <tr><td>Robo de la base de datos</td><td>Copia de la base de datos o de un respaldo</td><td>Semillas cifradas con AES-256-GCM; la llave maestra está fuera de la base; usuarios e IP solo como HMAC</td></tr>
+  <tr><td>Robo de la llave maestra</td><td>Acceso al servidor</td><td>Archivo con permisos mínimos, contenedor sin root, rotación de llave y recifrado; HSM o TPM en producción</td></tr>
+  <tr><td>Intercepción en la red</td><td>Hombre en el medio en la red institucional</td><td>TLS 1.3 obligatorio, HSTS; la semilla solo viaja una vez, en el alta</td></tr>
+  <tr><td>Phishing en tiempo real</td><td>Página falsa que reenvía el código al sistema real</td><td>JWT de 5 minutos ligado a la app destino (<code>aud</code>); alerta por origen o ritmo anómalo; lo declaramos como límite propio de TOTP</td></tr>
+  <tr><td>Enumeración de usuarios</td><td>Deducir qué usuarios existen por los mensajes de error</td><td>Errores genéricos y tiempos de respuesta uniformes</td></tr>
+  <tr><td>Denegación de servicio</td><td>Inundar el endpoint de verificación</td><td>Límites en el borde y en la API, tamaño máximo de petición, rechazo antes de hacer cálculos criptográficos</td></tr>
+  <tr><td>Abuso interno</td><td>Un administrador que revoca o altera registros</td><td>Roles separados (RBAC), consola protegida con nuestro TOTP, bitácora encadenada que delata borrados</td></tr>
+  <tr><td>Manipulación del reloj</td><td>Adelantar o atrasar la hora del servidor</td><td>NTP institucional, límite de deriva por usuario, alerta en la consola</td></tr>
+  <tr><td>Teléfono perdido o robado</td><td>Un tercero abre la app</td><td>PIN en la app (semillas cifradas en el dispositivo), revocación inmediata desde la consola, códigos de recuperación</td></tr>
+</table>
+
+<h3>5.2 Controles: cómo cumplimos cada exigencia</h3>
 <table>
   <tr><th style="width:27%">Exigencia</th><th>Diseño</th></tr>
   <tr><td>Cifrado en reposo AES-256</td><td>Cada semilla se cifra con AES-256-GCM, nonce aleatorio de 96 bits y datos asociados (AAD) = <code>id_enrolamiento + versión_de_llave</code>, de modo que un cifrado no se puede copiar a otra fila. La llave maestra vive fuera de la base de datos (archivo con permisos 0400 o variable de entorno) y está versionada para poder rotarla y recifrar en lote.</td></tr>
@@ -143,7 +177,59 @@
   <tr><td>Anonimización</td><td>No guardamos nombres ni correos: la app integradora nos envía un identificador opaco y nosotros guardamos <code>HMAC-SHA256(id, pepper)</code>. Las IP se guardan como HMAC con pepper rotativo diario (permite correlacionar ataques del día sin poder reconstruir la IP).</td></tr>
   <tr><td>Auditoría y trazabilidad</td><td>Bitácora en la que cada evento incluye el hash del anterior (cadena de hashes): si alguien borra o modifica un registro, la cadena se rompe y la consola lo detecta.</td></tr>
   <tr><td>Códigos de recuperación</td><td>10 códigos de un solo uso al activar, guardados como hash (scrypt); se muestran una sola vez.</td></tr>
+  <tr><td>Endurecimiento del servidor</td><td>Contenedores sin root y con sistema de archivos de solo lectura; la base de datos sin puerto expuesto y con un usuario de permisos mínimos; respaldos cifrados en local.</td></tr>
 </table>
+
+<h3>5.3 Referencia: OWASP ASVS</h3>
+<p>Tomamos como guía el estándar OWASP ASVS nivel 2, en especial los controles de verificadores de un solo uso (OTP), gestión de sesiones, validación de entrada, criptografía almacenada y registro de eventos. En la documentación final entregaremos una tabla que relaciona cada control con el archivo de código que lo implementa.</p>
+
+<h3>5.4 Desarrollo seguro (cómo trabaja el equipo)</h3>
+<ul>
+  <li><b>Ramas:</b> cada integrante trabaja en su rama (<code>diego</code>, <code>laya</code>). Los cambios pasan a <code>staging</code> y luego a <code>main</code> solo por pull request aprobado por otra persona. No se permite subir directamente a esas ramas, forzar la subida ni borrarlas.</li>
+  <li><b>Secretos:</b> GitHub bloquea cualquier subida que contenga claves o tokens. Las llaves del sistema se generan en el servidor y nunca se versionan.</li>
+  <li><b>Dependencias:</b> alertas automáticas de vulnerabilidades, <code>npm audit</code> antes de cada fusión y SBOM CycloneDX en la entrega.</li>
+  <li><b>Repositorio en producción:</b> para el hackatón usamos GitHub. Para una institución, el repositorio se replica en un servidor Git propio (Forgejo o Gitea), coherente con la soberanía.</li>
+</ul>
+
+<h3>5.5 Pruebas de seguridad</h3>
+<table>
+  <tr><th style="width:30%">Prueba</th><th>Qué demuestra</th></tr>
+  <tr><td>Vectores del RFC 6238</td><td>El motor propio calcula exactamente lo que dice el estándar (SHA-1, SHA-256, SHA-512).</td></tr>
+  <tr><td>Replay</td><td>Un código aceptado es rechazado si se envía otra vez dentro de su ventana.</td></tr>
+  <tr><td>Fuerza bruta</td><td>Tras 5 fallos se aplica el bloqueo progresivo, también si el atacante rota de IP.</td></tr>
+  <tr><td>Manipulación de tokens</td><td>Un JWT alterado, caducado, con otra audiencia o ya usado es rechazado.</td></tr>
+  <tr><td>Entradas malformadas</td><td>Campos extra, tipos incorrectos o cuerpos enormes se rechazan sin errores internos.</td></tr>
+  <tr><td>Integridad de la bitácora</td><td>Si se modifica o borra un registro, la verificación de la cadena lo detecta.</td></tr>
+  <tr><td>Escaneo OWASP ZAP local</td><td>Sin vulnerabilidades altas en la API ni en la consola (escaneo ejecutado en nuestra propia máquina).</td></tr>
+  <tr><td>Modo aislado</td><td>Todo el flujo funciona con el servidor desconectado de Internet.</td></tr>
+</table>
+
+<h3>5.6 Resiliencia ante caídas de conexión</h3>
+<p>Regla base: <b>si el servicio no puede verificar, no concede acceso</b> (falla cerrado). Nunca se deja pasar a un usuario porque “el MFA no respondió”.</p>
+<table>
+  <tr><th style="width:26%">Escenario</th><th>Comportamiento esperado</th></tr>
+  <tr><td>Teléfono sin conexión</td><td>Sin impacto: la app genera los códigos sin red. Solo necesita la hora del teléfono.</td></tr>
+  <tr><td>Se corta la red entre el sistema institucional y el servicio</td><td>El SDK usa tiempo de espera corto (3 s), un reintento con la misma clave de idempotencia y luego muestra “servicio no disponible, intente de nuevo”. Un JWT ya emitido se valida sin red con las claves JWKS guardadas en caché.</td></tr>
+  <tr><td>Se cae la base de datos</td><td>La API responde 503 sin revelar detalles; <code>/health/ready</code> pasa a “no listo” y el proxy deja de enviarle tráfico. Al volver, se reconecta sola.</td></tr>
+  <tr><td>Corte a mitad de una verificación</td><td>La actualización del último paso usado es atómica: un código nunca queda aceptado dos veces ni a medias. Un reintento con la misma clave de idempotencia devuelve el mismo resultado.</td></tr>
+  <tr><td>Se pierde la sincronización de hora (NTP)</td><td>El servidor sigue con su reloj local; la consola alerta si el desfase supera 2 s y la compensación de deriva absorbe desvíos pequeños.</td></tr>
+  <tr><td>Reinicio o caída del contenedor de la API</td><td>Docker lo reinicia solo; los límites y bloqueos se guardan en PostgreSQL, así que un reinicio no los borra.</td></tr>
+  <tr><td>Red lenta o inestable</td><td>Tiempos de espera en cada capa (proxy, API, base de datos) para que las peticiones no se acumulen y tumben el servicio.</td></tr>
+</table>
+
+<h3>5.7 Qué medimos</h3>
+<table>
+  <tr><th style="width:34%">Métrica</th><th>Para qué</th></tr>
+  <tr><td>Disponibilidad (% de chequeos de salud correctos)</td><td>Tiempo que el servicio estuvo operativo.</td></tr>
+  <tr><td>Latencia de verificación (p50 y p95)</td><td>Rapidez percibida por el usuario; objetivo p95 &lt; 200 ms.</td></tr>
+  <tr><td>Errores 5xx y tiempos de espera agotados</td><td>Detectar caídas parciales y cuellos de botella.</td></tr>
+  <tr><td>Desconexiones y reconexiones a la base de datos</td><td>Estabilidad de la persistencia.</td></tr>
+  <tr><td>Tiempo de recuperación tras una caída</td><td>Cuánto tarda en volver a responder (objetivo &lt; 30 s).</td></tr>
+  <tr><td>Desfase del reloj del servidor y deriva media de los usuarios</td><td>Salud de la base de tiempo de TOTP.</td></tr>
+  <tr><td>Fallos, bloqueos y alertas del detector</td><td>Presión de ataques y efectividad de las defensas.</td></tr>
+</table>
+<p>Se recogen en local (endpoint <code>/metrics</code> y panel de la consola), sin enviarlas a terceros.</p>
+<p><b>Pruebas de caos para la demo:</b> durante una ráfaga de verificaciones apagamos la base de datos, cortamos la red de la API y añadimos latencia artificial (<code>tc netem</code>). Medimos el tiempo de recuperación y comprobamos que ningún acceso se concedió de forma indebida.</p>
 
 <h2 class="pb">6. Contratos de la API (v1)</h2>
 <p class="small">Las aplicaciones integradoras se autentican con <code>client_id</code> + <code>client_secret</code> (secreto guardado como hash) sobre TLS. Todas las respuestas de error usan un formato genérico.</p>
@@ -247,7 +333,7 @@ servicio-soberano-autenticacion-totp/
   <tr><td>Impacto y viabilidad (15 %)</td><td>Un comando para desplegar en cualquier institución; SDK para integrar en sistemas existentes; cero costos de licencia y cero dependencia extranjera.</td></tr>
   <tr><td>Innovación y creatividad (10 %)</td><td>App propia con SHA-512 y 8 dígitos, auditoría encadenada por hashes, anonimización con pepper rotativo, respuesta adaptativa al riesgo.</td></tr>
   <tr><td>Diseño y UX (15 %)</td><td>Enrolamiento en 3 pasos, PWA offline con PIN, consola clara con métricas.</td></tr>
-  <tr><td>Presentación (10 %)</td><td>Demo en vivo con ataque simulado bloqueado en pantalla, y la comparación de la sección 2.</td></tr>
+  <tr><td>Presentación (10 %)</td><td>Demo en vivo: ataque simulado bloqueado en pantalla y flujo completo con el servidor desconectado de Internet.</td></tr>
 </table>
 
 <h2>13. Riesgos y decisiones abiertas</h2>
@@ -255,7 +341,7 @@ servicio-soberano-autenticacion-totp/
   <li><b>Tiempo:</b> prioridad absoluta al flujo completo (motor → API → PWA → demo). La heurística y el asistente de auditoría van después.</li>
   <li><b>Cámara en la PWA:</b> leer QR desde el navegador requiere HTTPS; con la CA interna de Caddy hay que instalar su certificado en el teléfono de demo. Alternativa: alta por clave manual.</li>
   <li><b>Llave maestra:</b> para la demo vive en un archivo protegido; en producción se recomienda un HSM o TPM. Lo declararemos como hoja de ruta.</li>
-  <li><b>Por decidir en equipo:</b> número de dígitos por defecto (6 u 8), ventana por defecto (±1) y si se incluye el modo de compatibilidad SHA-1.</li>
+  <li><b>Por decidir en equipo:</b> número de dígitos por defecto (6 u 8), ventana por defecto (±1), si se incluye el modo de compatibilidad SHA-1 y la licencia libre del proyecto (propuesta: AGPL-3.0, que obliga a que cualquier versión modificada que se ofrezca como servicio siga siendo abierta).</li>
 </ul>
 
 </body>

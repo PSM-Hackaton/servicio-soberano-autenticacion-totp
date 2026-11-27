@@ -1,0 +1,12 @@
+# Temporizador del respaldo diario cifrado del Servicio Soberano TOTP (modo usuario).
+# Persistent=true: si el equipo estaba apagado (o la sesión cerrada sin «linger»), se ejecuta al volver.
+[Unit]
+Description=Respaldo diario del Servicio Soberano TOTP (modo usuario)
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
