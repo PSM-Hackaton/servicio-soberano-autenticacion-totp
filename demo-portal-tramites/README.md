@@ -55,3 +55,38 @@ Estilo de portal institucional: cintillo blanco con la bandera nacional (SVG pro
 ## Seguridad
 
 Cookie `__Host-` HttpOnly; Secure; SameSite=Strict, rotada al validar la contraseña y el segundo factor; CSRF por sesión + comprobación de `Origin`; CSP `default-src 'none'` sin nada en línea; HSTS con TLS; `Referrer-Policy: same-origin`; freno de contraseñas por cédula; sesiones de 15 min de inactividad.
+
+## Verificación humana (Reto 2) en el ingreso
+
+El portal exige la verificación humana del Servicio de Verificación Humana del equipo (Reto 2) antes de comprobar
+la contraseña, usando **sus SDK oficiales**, instalados en `vendor/` desde los paquetes que entrega su consola
+(sin registro npm ni servicios externos; el Reto 1 sigue con 0 dependencias de terceros):
+
+| Paquete | Uso en el portal |
+| :--- | :--- |
+| `@pow-captcha/client` | Widget «No soy un robot» en `/ingresar` (`publico/captcha.js`); deja el token en `captcha_token` |
+| `@pow-captcha/server` | `CaptchaVerifier` valida y consume el token con la clave secreta antes de la contraseña |
+
+**Instalar o actualizar los SDK** (paquetes descargados de la consola del Reto 2, sección Integración):
+
+```bash
+node scripts/instalar-sdk-captcha.js pow-captcha-client-1.0.0.tgz pow-captcha-server-1.0.0.tgz
+```
+
+Queda registrado en `vendor/sdk-captcha.json` (versión y sha256 de cada paquete).
+
+**Configurar** (todo en la misma PC): en la consola del Reto 2 se crea una cuenta local, se registra el sitio
+«Portal de Trámites» con dominio `localhost` y se copian sus claves al `.env` del portal:
+
+| Variable | Uso |
+| :--- | :--- |
+| `PORTAL_CAPTCHA_URL` | URL del servicio de verificación humana, por ejemplo `http://127.0.0.1:3000` |
+| `PORTAL_CAPTCHA_SITE_KEY` | Clave pública del sitio (`site_…`) |
+| `PORTAL_CAPTCHA_SECRETO` | Clave secreta del sitio (nunca llega al navegador) |
+| `PORTAL_CAPTCHA_TIMEOUT_MS` | Tiempo máximo por llamada (3000 por defecto) |
+
+Sin `PORTAL_CAPTCHA_URL` el portal funciona igual que antes. El widget habla con el intermediario de mismo origen
+del portal (`/captcha/api/challenge` y `/captcha/api/verify`, solo JSON y con comprobación de origen), de modo que
+el servicio de verificación puede quedar escuchando solo en `127.0.0.1`. Únicamente la página de ingreso permite
+los estilos en línea y el Web Worker `blob:` que usa el widget; el resto del portal conserva la CSP estricta.
+Pruebas: `tests/captcha.test.js`.

@@ -1,0 +1,21 @@
+{
+  "name": "@pow-captcha/client",
+  "version": "1.0.0",
+  "description": "SDK Frontend para integración de CAPTCHA Proof-of-Work con soporte de Site Key",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "scripts": {
+    "test": "echo \"Client SDK tests run via browser/e2e\""
+  },
+  "keywords": [
+    "captcha",
+    "proof-of-work",
+    "pow",
+    "hashcash",
+    "security",
+    "sdk"
+  ],
+  "author": "PoW CAPTCHA Team",
+  "license": "MIT"
+}

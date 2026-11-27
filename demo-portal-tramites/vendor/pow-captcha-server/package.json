@@ -1,0 +1,21 @@
+{
+  "name": "@pow-captcha/server",
+  "version": "1.0.0",
+  "description": "SDK Backend para validación segura de tokens CAPTCHA Proof-of-Work con Secret Key",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "scripts": {
+    "test": "node --test tests/**/*.test.js"
+  },
+  "keywords": [
+    "captcha",
+    "verification",
+    "security",
+    "secret-key",
+    "pow",
+    "middleware"
+  ],
+  "author": "PoW CAPTCHA Team",
+  "license": "MIT"
+}
