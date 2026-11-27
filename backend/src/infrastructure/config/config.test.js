@@ -252,5 +252,7 @@ describe('generar-env', () => {
     const v = parsearEnv(generarContenido(readFileSync(new URL('../../../../.env.example', import.meta.url), 'utf8')));
     const c = validarConfig(v, { base: '/srv/backend' });
     assert.equal(c.emisorTotp, 'ServicioSoberanoTOTP');
+    assert.equal(v.TLS_CA_PUBLIC_PATH, './certs/ca.crt');
+    assert.equal(c.tls.caPublica, '/srv/backend/certs/ca.crt');
   });
 });
