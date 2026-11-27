@@ -56,13 +56,14 @@ jobs:
           echo "## Tamaño de APKs generadas" >> "$GITHUB_STEP_SUMMARY"
           ls -lh app/build/outputs/apk/release/*.apk app/build/outputs/apk/debug/*.apk | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload APK artifacts
+      - name: Upload APK and test report artifacts
         uses: actions/upload-artifact@v4
         with:
           name: totp-soberano-apks
           path: |
             mobile-android/app/build/outputs/apk/release/*.apk
             mobile-android/app/build/outputs/apk/debug/*.apk
+            mobile-android/app/build/reports/tests/testDebugUnitTest/
           if-no-files-found: error
 
       - name: Clean temporary keystore
