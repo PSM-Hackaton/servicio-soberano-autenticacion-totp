@@ -73,7 +73,7 @@ admin-console/          Consola administrativa (servida en /consola/)
 sdk/                    SDK para integradores + servicio falso de pruebas + guía Reto 3
 demo-portal-tramites/   Portal de Trámites de demostración (puerto 8444)
 attack-lab/             Ataques simulados, escaneo dinámico (DAST) y pruebas de caos
-contracts/              OpenAPI 3.1 (las 31 rutas del servidor), esquema SQLite y respuestas reales de ejemplo
+contracts/              OpenAPI 3.1 (las 33 rutas del servidor), esquema SQLite y respuestas reales de ejemplo
 deploy/                 Instalador, operación, unidades systemd y guía de despliegue institucional
 sitio-publico/          Páginas ciudadanas: inicio, guía del certificado de la CA y estado del servicio
 mobile-android/         Base de la app Android nativa (ADR-004, Kotlin sin dependencias)
@@ -107,14 +107,14 @@ docs/                   Reto, análisis, API, SBOM, cumplimiento, manual, presen
 
 - **Motor criptográfico propio** (RFC 4226/6238): HMAC-SHA256 y HMAC-SHA512, 6 u 8 dígitos, periodo de 15 a 60 s, ventana configurable (0–3 pasos), compensación de deriva, resincronización con dos códigos consecutivos (±10 pasos) y anti replay atómico. Probado con los vectores oficiales del RFC 6238 (Apéndice B) y del RFC 4226 (Apéndice D).
 - **Semillas CSPRNG** (32 bytes para SHA-256, 64 para SHA-512) cifradas con **AES-256-GCM** y datos asociados `enrollment_id:versión`; llave maestra versionada fuera de la base y rotación con recifrado en lote (`npm run rotar-llave-maestra`).
-- **API completa en el contrato** ([`contracts/openapi.yaml`](contracts/openapi.yaml)): las **31 rutas** que monta el servidor (7 de integración v1, 5 de sistema y 19 de la consola) están documentadas y validadas sin claves duplicadas ni `$ref` rotas. API v1 de integración: enrolamiento con QR SVG y URI `otpauth://`, activación con 10 códigos de recuperación, verificación, validación de token con consumo del `jti`, resincronización, recuperación y revocación; idempotencia con `Idempotency-Key` y `client_ip` opcional para que el detector y los límites distingan a cada ciudadano detrás del servidor del integrador.
+- **API completa en el contrato** ([`contracts/openapi.yaml`](contracts/openapi.yaml)): las **33 rutas** que monta el servidor (9 de integración v1, 5 de sistema y 19 de la consola) están documentadas y validadas sin claves duplicadas ni `$ref` rotas. API v1 de integración: enrolamiento con QR SVG y URI `otpauth://`, activación con 10 códigos de recuperación, verificación, validación de token con consumo del `jti`, resincronización, recuperación y revocación; idempotencia con `Idempotency-Key` y `client_ip` opcional para que el detector y los límites distingan a cada ciudadano detrás del servidor del integrador.
 - **Tokens firmados**: JWT EdDSA (Ed25519) con `sub` seudónimo, `aud` = app, `amr: ["otp"]`, `jti` de un solo uso y 300 s de vida; JWKS pública y rotación sin invalidar tokens emitidos.
 - **Seguridad**: TLS 1.3 mínimo, esquemas de entrada cerrados, errores genéricos sin enumeración de usuarios, límites de tasa global, por app y por origen, bloqueo progresivo por cuenta (30 s, 2 min, 10 min, 1 h), límites de tamaño y tiempo de cuerpo, cabeceras OWASP, CORS por lista blanca y sesión de consola con CSRF y caducidad (30 min deslizantes, 8 h máximo).
 - **Detector local de anomalías** (sin telemetría): Isolation Forest implementado desde cero + reglas explicables; modos `local`, `monitorizacion` y `mock`; respuesta adaptativa (429 genérico, sin revelar puntuación ni razones) según la política de cada app.
 - **Anonimización**: `user_ref` solo como HMAC-SHA256 con *pepper*; IP solo como HMAC con *pepper* diario; la bitácora filtra campos sensibles.
 - **Auditoría y métricas** locales: bitácora encadenada verificable desde la consola; métricas JSON y formato de texto estilo Prometheus.
 - **Clientes propios** (HTML + CSS + JS, sin frameworks, empaquetadores ni CDN): app autenticadora, consola y Portal de Trámites; **SDK** y **laboratorio de ataques y caos**.
-- **Pruebas automatizadas y cobertura (CI sin dependencias):** **325 pruebas** con `node:test` (backend 223 con **93,7 %** de cobertura de líneas, app 26 con **83,3 %**, SDK 28 con **96,4 %**, portal 20 con **93,1 %**, laboratorio + DAST 28 con **87,5 %**), todas en verde el 26-11-2026 ([`docs/evidencias/cobertura-2026-11-26.txt`](docs/evidencias/cobertura-2026-11-26.txt)); automatizadas en `.gitlab-ci.yml` y `.github/workflows/pruebas.yml` mediante `node scripts/verificar-todo.js` (0 `npm install`).
+- **Pruebas automatizadas y cobertura (CI sin dependencias):** **340 pruebas** con `node:test` (backend 237 con **93,7 %** de cobertura de líneas, app 26 con **83,3 %**, SDK 29 con **96,4 %**, portal 20 con **93,1 %**, laboratorio + DAST 28 con **87,5 %**), todas en verde el 27-11-2026; cobertura medida el 26-11-2026 ([`docs/evidencias/cobertura-2026-11-26.txt`](docs/evidencias/cobertura-2026-11-26.txt)); automatizadas en `.gitlab-ci.yml` y `.github/workflows/pruebas.yml` mediante `node scripts/verificar-todo.js` (0 `npm install`).
 - **Compatibilidad abierta y app móvil:** formato Key URI (`otpauth://`) verificado por pruebas automatizadas para clientes libres ([`docs/evidencias/compatibilidad-clientes-totp.md`](docs/evidencias/compatibilidad-clientes-totp.md)); decisión arquitectónica ADR-004 y base Kotlin nativa en [`mobile-android/`](mobile-android/); páginas ciudadanas de inicio, certificado y estado en [`sitio-publico/`](sitio-publico/).
 
 ### Límites de la entrega
@@ -251,7 +251,7 @@ npm run seed     # apps "Portal de Trámites" y "Agente Evaluador (Reto 3)" + ad
 ### Paso 4 — Ejecutar el servicio
 
 ```bash
-npm start        # en backend/ → «Servicio escuchando en https://0.0.0.0:8443 (31 rutas API)»
+npm start        # en backend/ → «Servicio escuchando en https://0.0.0.0:8443 (33 rutas API)»
 ```
 
 Comprobación desde otra terminal, en `backend/`:
@@ -314,15 +314,15 @@ Comprobado de punta a punta contra el backend real.
 ### Paso 8 — Pruebas automatizadas
 
 ```bash
-cd backend && npm test && cd ..                            # 223
+cd backend && npm test && cd ..                            # 237
 node --test authenticator-app/tests/*.test.mjs             # 26
-cd sdk && npm test && cd ..                                # 28
+cd sdk && npm test && cd ..                                # 29
 cd demo-portal-tramites && npm test && cd ..               # 20
 cd attack-lab && npm test && cd ..                         # 28
 node scripts/verificar-todo.js                             # todo lo anterior + OpenAPI estricto, SBOM e higiene
 ```
 
-Resultado el 26-11-2026: **325 pruebas, 0 fallos** (cobertura en [`docs/evidencias/cobertura-2026-11-26.txt`](docs/evidencias/cobertura-2026-11-26.txt)).
+Resultado el 27-11-2026: **340 pruebas, 0 fallos** (cobertura en [`docs/evidencias/cobertura-2026-11-26.txt`](docs/evidencias/cobertura-2026-11-26.txt)).
 
 ### Paso 9 — Laboratorio de ataques y caos contra el servicio real
 
@@ -335,7 +335,7 @@ node attack-lab/ejecutar-todo.js --comando-arranque "node src/main.js" --pid-bac
 #   → 12/12 escenarios OK · 127/127 verificaciones · 0 hallazgos (incluye el reinicio: los bloqueos
 #     sobreviven); informe HTML y JSON en attack-lab/resultados/
 node attack-lab/escenarios/dast.js --admin-user admin_seguridad --admin-pass … --admin-totp …
-#   → escaneo dinámico: 12/12 verificaciones, 34 sondas (31 rutas + /app/ + /consola/ + ruta inexistente)
+#   → escaneo dinámico: 12/12 verificaciones, 34 sondas del informe del 26-11-2026 (31 rutas + /app/ + /consola/ + ruta inexistente)
 ```
 
 Informe de la ejecución de verificación: [`docs/evidencias/`](docs/evidencias/).

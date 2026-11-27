@@ -1,4 +1,4 @@
-package ve.gob.totpsoberano.core
+package ve.psmhackaton.totpsoberano.core
 
 /**
  * Validación y formateo de cédula de identidad venezolana (Issue #40 · M1).

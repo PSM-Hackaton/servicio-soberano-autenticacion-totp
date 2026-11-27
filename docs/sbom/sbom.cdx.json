@@ -2,10 +2,10 @@
   "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:77ca6700-b081-4520-9944-4869909ac846",
+  "serialNumber": "urn:uuid:b4828b5a-884e-4af3-b6d7-c39157c4efe8",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-11-26T21:06:17.330Z",
+    "timestamp": "2026-11-27T14:18:46.213Z",
     "lifecycles": [
       {
         "phase": "build"
@@ -48,7 +48,7 @@
       "properties": [
         {
           "name": "git:commit",
-          "value": "6d56f39bf4274825d526404bcb06ff846c3da844"
+          "value": "9f3acb4e5d89b6c14378e4dd6adb4c9e89a29b3e"
         }
       ]
     },
@@ -67,7 +67,7 @@
       },
       {
         "name": "sbom:archivos-js-escaneados",
-        "value": "154"
+        "value": "159"
       },
       {
         "name": "sbom:node-usado-al-generar",
@@ -135,7 +135,7 @@
       "properties": [
         {
           "name": "usado-en-archivos",
-          "value": "25"
+          "value": "28"
         }
       ]
     },
@@ -165,7 +165,7 @@
       "properties": [
         {
           "name": "usado-en-archivos",
-          "value": "11"
+          "value": "12"
         }
       ]
     },
@@ -180,7 +180,7 @@
       "properties": [
         {
           "name": "usado-en-archivos",
-          "value": "38"
+          "value": "44"
         }
       ]
     },
@@ -195,7 +195,7 @@
       "properties": [
         {
           "name": "usado-en-archivos",
-          "value": "37"
+          "value": "39"
         }
       ]
     },
@@ -225,7 +225,7 @@
       "properties": [
         {
           "name": "usado-en-archivos",
-          "value": "10"
+          "value": "11"
         }
       ]
     },
@@ -270,7 +270,7 @@
       "properties": [
         {
           "name": "usado-en-archivos",
-          "value": "10"
+          "value": "12"
         }
       ]
     },
@@ -285,7 +285,7 @@
       "properties": [
         {
           "name": "usado-en-archivos",
-          "value": "33"
+          "value": "34"
         }
       ]
     },
@@ -330,7 +330,7 @@
       "properties": [
         {
           "name": "usado-en-archivos",
-          "value": "25"
+          "value": "28"
         }
       ]
     },
@@ -345,7 +345,7 @@
       "properties": [
         {
           "name": "usado-en-archivos",
-          "value": "1"
+          "value": "2"
         }
       ]
     },
@@ -410,7 +410,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "a31f12b3fcfce164898b4cf045b3339087f63babea9e1be62abf5b0bf70603ba"
+          "content": "399ca7a589d385f0e763b8e1bf7fa11edca67927dadf5ccbe4620a482f5cd653"
         }
       ],
       "properties": [
@@ -420,11 +420,11 @@
         },
         {
           "name": "archivos",
-          "value": "67"
+          "value": "73"
         },
         {
           "name": "bytes",
-          "value": "597477"
+          "value": "643497"
         },
         {
           "name": "hash",
@@ -442,9 +442,9 @@
     },
     {
       "type": "application",
-      "bom-ref": "propio:authenticator-app@0.0.0+git.6d56f39bf427",
+      "bom-ref": "propio:authenticator-app@0.0.0+git.9f3acb4e5d89",
       "name": "authenticator-app",
-      "version": "0.0.0+git.6d56f39bf427",
+      "version": "0.0.0+git.9f3acb4e5d89",
       "description": "App autenticadora PWA (HTML/CSS/JS propios, sin conexión, PIN)",
       "licenses": [
         {
@@ -456,7 +456,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "bd5bee4af4de5f316a6a7083aa0dd932920483ff09a4a20885d83f3c76c22590"
+          "content": "11224c1a07624b121e50b974e56ee4a07fc6eeb3fb0986d0f0e185d6e7647a27"
         }
       ],
       "properties": [
@@ -470,7 +470,7 @@
         },
         {
           "name": "bytes",
-          "value": "201800"
+          "value": "201821"
         },
         {
           "name": "hash",
@@ -484,9 +484,9 @@
     },
     {
       "type": "application",
-      "bom-ref": "propio:admin-console@0.0.0+git.6d56f39bf427",
+      "bom-ref": "propio:admin-console@0.0.0+git.9f3acb4e5d89",
       "name": "admin-console",
-      "version": "0.0.0+git.6d56f39bf427",
+      "version": "0.0.0+git.9f3acb4e5d89",
       "description": "Consola administrativa (HTML/CSS/JS propios, RBAC, auditoría)",
       "licenses": [
         {
@@ -498,7 +498,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "433247089fc4c6d71791aec550d6ca0bdb23245a158b9e71cddd92e5cbe2c91e"
+          "content": "4445bfc1976b681dbd9efb06ce7f1df1eebad90f33d4c307d5fcf8878a43450a"
         }
       ],
       "properties": [
@@ -512,7 +512,7 @@
         },
         {
           "name": "bytes",
-          "value": "370205"
+          "value": "382375"
         },
         {
           "name": "hash",
@@ -540,7 +540,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "6b783e70d3fb79cf61f32d3cbbd4c483f319fd1f732e77f9768bb6ff683b46fd"
+          "content": "1c84524f50ea2683993818c62e60a61bf245f44d31b9d475906f01dc81c12982"
         }
       ],
       "properties": [
@@ -554,7 +554,7 @@
         },
         {
           "name": "bytes",
-          "value": "89958"
+          "value": "98258"
         },
         {
           "name": "hash",
@@ -586,7 +586,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "a47fbed8cda05b724bd28464d5bb7377dad9806d14b7c100f3295f2ecec8fba2"
+          "content": "da05fc3935a36b6491656fe6aa7798c8e8d97099953cef727d65f62214371804"
         }
       ],
       "properties": [
@@ -600,7 +600,7 @@
         },
         {
           "name": "bytes",
-          "value": "180501"
+          "value": "180511"
         },
         {
           "name": "hash",
@@ -632,7 +632,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "aee03c7b122eb2a37ba0007095e3128dc0ba22600d3842a7e3004db32c4f6323"
+          "content": "4cf28cbf950af3c14e7a4f0ef13635e9f94d72c605e6021ef130d912608781f8"
         }
       ],
       "properties": [
@@ -646,7 +646,7 @@
         },
         {
           "name": "bytes",
-          "value": "197423"
+          "value": "200294"
         },
         {
           "name": "hash",
@@ -664,9 +664,9 @@
     },
     {
       "type": "data",
-      "bom-ref": "propio:contracts@0.0.0+git.6d56f39bf427",
+      "bom-ref": "propio:contracts@0.0.0+git.9f3acb4e5d89",
       "name": "contracts",
-      "version": "0.0.0+git.6d56f39bf427",
+      "version": "0.0.0+git.9f3acb4e5d89",
       "description": "Contratos: OpenAPI 3.1, esquema SQL y respuestas de ejemplo",
       "licenses": [
         {
@@ -678,7 +678,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "c64d2f14169885a0a7f62601c9e79b22bb99bb274b004f620dc65c09ab9357e7"
+          "content": "cfbf45ae248501a1558b56e987bdb442c6091366b22767fa87be346864e44400"
         }
       ],
       "properties": [
@@ -688,11 +688,11 @@
         },
         {
           "name": "archivos",
-          "value": "34"
+          "value": "37"
         },
         {
           "name": "bytes",
-          "value": "142733"
+          "value": "164595"
         },
         {
           "name": "hash",
@@ -706,9 +706,9 @@
     },
     {
       "type": "data",
-      "bom-ref": "propio:deploy@0.0.0+git.6d56f39bf427",
+      "bom-ref": "propio:deploy@0.0.0+git.9f3acb4e5d89",
       "name": "deploy",
-      "version": "0.0.0+git.6d56f39bf427",
+      "version": "0.0.0+git.9f3acb4e5d89",
       "description": "Unidad systemd y guía de despliegue institucional",
       "licenses": [
         {
@@ -720,7 +720,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "7eeb72c79c7ea5b49d9dd30193396646744a2e057fdef23b107e61428be86004"
+          "content": "194978b8b3ae2d684f3494f53133129356099f9a706de22d4730640bf64ca4e6"
         }
       ],
       "properties": [
@@ -734,7 +734,7 @@
         },
         {
           "name": "bytes",
-          "value": "89330"
+          "value": "89607"
         },
         {
           "name": "hash",
@@ -753,13 +753,13 @@
       "dependsOn": [
         "runtime:nodejs@22.22.1",
         "propio:backend@0.1.0",
-        "propio:authenticator-app@0.0.0+git.6d56f39bf427",
-        "propio:admin-console@0.0.0+git.6d56f39bf427",
+        "propio:authenticator-app@0.0.0+git.9f3acb4e5d89",
+        "propio:admin-console@0.0.0+git.9f3acb4e5d89",
         "propio:sdk@1.0.0",
         "propio:demo-portal-tramites@1.0.0",
         "propio:attack-lab@1.0.0",
-        "propio:contracts@0.0.0+git.6d56f39bf427",
-        "propio:deploy@0.0.0+git.6d56f39bf427"
+        "propio:contracts@0.0.0+git.9f3acb4e5d89",
+        "propio:deploy@0.0.0+git.9f3acb4e5d89"
       ]
     },
     {
@@ -785,7 +785,7 @@
       ]
     },
     {
-      "ref": "propio:authenticator-app@0.0.0+git.6d56f39bf427",
+      "ref": "propio:authenticator-app@0.0.0+git.9f3acb4e5d89",
       "dependsOn": [
         "runtime:nodejs@22.22.1",
         "nodejs-builtin:node:assert/strict",
@@ -793,7 +793,7 @@
       ]
     },
     {
-      "ref": "propio:admin-console@0.0.0+git.6d56f39bf427",
+      "ref": "propio:admin-console@0.0.0+git.9f3acb4e5d89",
       "dependsOn": []
     },
     {
@@ -840,16 +840,17 @@
         "nodejs-builtin:node:os",
         "nodejs-builtin:node:path",
         "nodejs-builtin:node:test",
+        "nodejs-builtin:node:timers/promises",
         "nodejs-builtin:node:tls",
         "nodejs-builtin:node:url"
       ]
     },
     {
-      "ref": "propio:contracts@0.0.0+git.6d56f39bf427",
+      "ref": "propio:contracts@0.0.0+git.9f3acb4e5d89",
       "dependsOn": []
     },
     {
-      "ref": "propio:deploy@0.0.0+git.6d56f39bf427",
+      "ref": "propio:deploy@0.0.0+git.9f3acb4e5d89",
       "dependsOn": [
         "runtime:nodejs@22.22.1",
         "nodejs-builtin:node:child_process",

@@ -54,7 +54,7 @@ La comprobación automática de la entrega verifica estos seis encabezados y su 
 ### 2.1 Alcance general (plataforma modular, auditable y de código abierto)
 
 - [x] Motor criptográfico TOTP y backend: `backend/src/core/totp/`, `backend/src/core/vault/`, `backend/src/api/`.
-- [x] APIs de integración institucional: `contracts/openapi.yaml` (las **31 rutas** del servidor), `sdk/`,
+- [x] APIs de integración institucional: `contracts/openapi.yaml` (las **33 rutas** del servidor), `sdk/`,
   `docs/api/README.md` y `docs/api/guia-integracion.pdf`.
 - [x] Cliente y flujo de enrolamiento: PWA `authenticator-app/` (QR, enlace, URI, clave manual y cámara con
   `camera=(self)` solo en `/app/`), Portal de Trámites con ingreso por cédula; compatibilidad con clientes
@@ -79,7 +79,7 @@ Cada requisito, citado textualmente, con código y prueba: `docs/cumplimiento/ma
 
 | Criterio (peso) | Evidencia | Estado |
 | --- | --- | --- |
-| 1. Buenas prácticas, limpieza y seguridad (15 %) | 309 pruebas en verde; `node scripts/verificar-todo.js` (OpenAPI estricto, 5 suites, SBOM, higiene); CI en `.gitlab-ci.yml`; cobertura en `docs/evidencias/cobertura-2026-11-26.txt` | [x] |
+| 1. Buenas prácticas, limpieza y seguridad (15 %) | 340 pruebas en verde (`docs/evidencias/cifras.json`); `node scripts/verificar-todo.js` (OpenAPI estricto, 5 suites, SBOM, higiene); CI en `.gitlab-ci.yml`; cobertura en `docs/evidencias/cobertura-2026-11-26.txt` | [x] |
 | 2. Ejecución técnica y funcionalidad (25 %) | Flujo completo en vivo; instalación probada (README §6); `docs/evidencias/prueba-despliegue-systemd.md` (10/10) | [x] |
 | 3. Uso e integración de IA (10 %) | Detector local Isolation Forest + reglas explicables (`backend/src/heuristics/`); spraying bloqueado en el laboratorio | [x] |
 | 4. Impacto y viabilidad (15 %) | `docs/escalabilidad/`, `deploy/`, SDK y guía para el Reto 3 | [x] parcial: falta el modo sistema en un servidor real |
@@ -89,13 +89,13 @@ Cada requisito, citado textualmente, con código y prueba: `docs/cumplimiento/ma
 
 ---
 
-## 3. Cifras vigentes (26-11-2026)
+## 3. Cifras vigentes (27-11-2026)
 
 | Medida | Resultado | Evidencia |
 | --- | --- | --- |
-| Pruebas automatizadas | **309**, 0 fallos: backend 211, app 26, SDK 28, portal 16, laboratorio 28 | `node scripts/verificar-todo.js` |
+| Pruebas automatizadas | **340**, 0 fallos: backend 237, app 26, SDK 29, portal 20, laboratorio 28 | `node scripts/verificar-todo.js`, `docs/evidencias/cifras.json` |
 | Rutas del servidor en el contrato | **31 de 31** (7 de integración v1, 5 de sistema, 19 de la consola) | `contracts/openapi.yaml` |
-| Laboratorio de ataques y caos | **11/11** escenarios, **116/116** verificaciones, 0 hallazgos | `docs/evidencias/attack-lab-informe-2026-11-26.pdf` |
+| Laboratorio de ataques y caos | **12/12** escenarios, **127/127** verificaciones, 0 hallazgos | `docs/evidencias/attack-lab-informe-2026-11-26.pdf` |
 | Escaneo dinámico (DAST propio) | **12/12** verificaciones, 34 sondas, 0 hallazgos | `docs/evidencias/dast-informe-2026-11-26.html` |
 | Verificación del despliegue `systemd` | **10/10** controles | `docs/evidencias/prueba-despliegue-systemd.md` |
 | Dependencias npm | **0** | `docs/sbom/` |

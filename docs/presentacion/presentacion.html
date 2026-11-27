@@ -210,7 +210,7 @@
     <!-- Servicio -->
     <rect class="cajaA" x="334" y="0" width="560" height="430" rx="14"/>
     <text class="t" x="354" y="32">Servicio Soberano TOTP</text>
-    <text class="s" x="354" y="54">Node.js 22 · HTTPS TLS 1.3 · 31 rutas (API v1 + consola) · /app/ · /consola/</text>
+    <text class="s" x="354" y="54">Node.js 22 · HTTPS TLS 1.3 · 33 rutas (API v1 + consola) · /app/ · /consola/</text>
 
     <rect class="mod" x="354" y="72" width="252" height="70" rx="8"/>
     <text class="m" x="368" y="98">1. Seguridad de entrada</text>
@@ -388,7 +388,7 @@
   </table>
   <div class="pie"><span>Servicio Soberano TOTP · Fuentes: matriz de cumplimiento §3, informe del laboratorio (26-11-2026)</span><b>7</b></div>
 </section>
-<aside class="notas"><b>Notas (40 s).</b> No leer la tabla: elegir dos filas (anti replay y bitácora) y decir «todo esto está probado: 309 pruebas automatizadas en verde (README §4) y el laboratorio de ataques de la siguiente diapositiva». Si preguntan por robo de la base: semillas y claves privadas cifradas con una llave maestra que no está en la base; usuarios e IP solo como HMAC.</aside>
+<aside class="notas"><b>Notas (40 s).</b> No leer la tabla: elegir dos filas (anti replay y bitácora) y decir «todo esto está probado: 340 pruebas automatizadas en verde (README §4) y el laboratorio de ataques de la siguiente diapositiva». Si preguntan por robo de la base: semillas y claves privadas cifradas con una llave maestra que no está en la base; usuarios e IP solo como HMAC.</aside>
 
 <!-- ============ 8. LABORATORIO ============ -->
 <section class="diapo">
@@ -413,8 +413,8 @@
     </table>
     <div style="display: flex; flex-direction: column; gap: 12px;">
       <div class="rejilla" style="grid-template-columns: 1fr 1fr; gap: 10px;">
-        <div class="tarjeta" style="padding: 12px 14px;"><div class="cifra" style="font-size: 36px;">11/11</div><div class="etq" style="font-size: 15px;">escenarios OK</div></div>
-        <div class="tarjeta" style="padding: 12px 14px;"><div class="cifra" style="font-size: 36px;">116/116</div><div class="etq" style="font-size: 15px;">verificaciones OK</div></div>
+        <div class="tarjeta" style="padding: 12px 14px;"><div class="cifra" style="font-size: 36px;">12/12</div><div class="etq" style="font-size: 15px;">escenarios OK</div></div>
+        <div class="tarjeta" style="padding: 12px 14px;"><div class="cifra" style="font-size: 36px;">127/127</div><div class="etq" style="font-size: 15px;">verificaciones OK</div></div>
       </div>
       <div class="tarjeta" style="background: var(--azul); border: 0; color: #fff; padding: 16px 18px;">
         <div style="font-size: 20px; font-weight: 800; margin-bottom: 6px;">Falla cerrado</div>
@@ -428,7 +428,7 @@
   </div>
   <div class="pie"><span>Servicio Soberano TOTP · Fuente: docs/evidencias/attack-lab-informe-2026-11-26 (0 hallazgos, 123 s)</span><b>8</b></div>
 </section>
-<aside class="notas"><b>Notas (50 s).</b> En vivo (guion 3:00–4:30): replay.js, jwt.js y spraying.js. Decir: «robamos un código válido y lo reenviamos: rechazado; diez envíos simultáneos: exactamente uno entra». Para el caos: «800 ms de latencia: el usuario entra, más lento; cortamos la red 10 s: nadie entra; restauramos: se recupera en milisegundos». Los bloqueos persisten tras el reinicio porque viven en la base. El escaneo dinámico propio suma 12/12 verificaciones sobre las 31 rutas.</aside>
+<aside class="notas"><b>Notas (50 s).</b> En vivo (guion 3:00–4:30): replay.js, jwt.js y spraying.js. Decir: «robamos un código válido y lo reenviamos: rechazado; diez envíos simultáneos: exactamente uno entra». Para el caos: «800 ms de latencia: el usuario entra, más lento; cortamos la red 10 s: nadie entra; restauramos: se recupera en milisegundos». Los bloqueos persisten tras el reinicio porque viven en la base. El escaneo dinámico propio suma 12/12 verificaciones sobre las 33 rutas.</aside>
 
 <!-- ============ 9. IA LOCAL ============ -->
 <section class="diapo">
@@ -584,13 +584,13 @@
   <div class="comando"><span class="p">$</span> cd backend &amp;&amp; npm run env &amp;&amp; npm run certs &amp;&amp; npm run seed &amp;&amp; npm start</div>
   <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 30px;">
     <div><div class="cifra" style="color: #FFCC00;">0</div><div class="etq" style="color: #D6E0F7;">dependencias npm</div></div>
-    <div><div class="cifra" style="color: #FFCC00;">309</div><div class="etq" style="color: #D6E0F7;">pruebas automatizadas en verde</div></div>
-    <div><div class="cifra" style="color: #FFCC00;">116/116</div><div class="etq" style="color: #D6E0F7;">verificaciones de ataque</div></div>
+    <div><div class="cifra" style="color: #FFCC00;">340</div><div class="etq" style="color: #D6E0F7;">pruebas automatizadas en verde</div></div>
+    <div><div class="cifra" style="color: #FFCC00;">127/127</div><div class="etq" style="color: #D6E0F7;">verificaciones de ataque</div></div>
     <div><div class="cifra" style="color: #FFCC00;">$0</div><div class="etq" style="color: #D6E0F7;">en licencias · AGPL-3.0</div></div>
   </div>
   <div class="pie"><span>Repositorio: servicio-soberano-autenticacion-totp · Producción: deploy/README.md (systemd, CA y NTP institucionales)</span><b>14</b></div>
 </section>
-<aside class="notas"><b>Notas (30 s).</b> Cerrar con la frase: «Cualquier sistema se integra con nuestro SDK o con cuatro llamadas HTTPS; lo hicimos con el Portal de Trámites y lo ofrecemos al equipo del Reto 3». Fuentes de las cifras: README §4 y §6 (309 pruebas, instalación), informe del laboratorio (116/116), docs/sbom (0 dependencias). Agradecer y abrir preguntas.</aside>
+<aside class="notas"><b>Notas (30 s).</b> Cerrar con la frase: «Cualquier sistema se integra con nuestro SDK o con cuatro llamadas HTTPS; lo hicimos con el Portal de Trámites y lo ofrecemos al equipo del Reto 3». Fuentes de las cifras: README §4 y §6 (340 pruebas, instalación), informe del laboratorio (127/127), docs/sbom (0 dependencias). Agradecer y abrir preguntas.</aside>
 
 </body>
 </html>

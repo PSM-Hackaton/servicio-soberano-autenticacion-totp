@@ -1,0 +1,40 @@
+{
+  "fecha": "2026-11-27",
+  "runtime": "Node.js 22.22.1",
+  "dependenciasNpm": 0,
+  "pruebas": {
+    "total": 340,
+    "fallos": 0,
+    "suites": {
+      "backend": 237,
+      "authenticatorApp": 26,
+      "sdk": 29,
+      "portalDemo": 20,
+      "attackLab": 28
+    }
+  },
+  "openapi": {
+    "rutasTotal": 33,
+    "integracionV1": 9,
+    "sistema": 5,
+    "consola": 19,
+    "referenciasResueltas": 256
+  },
+  "attackLab": {
+    "escenariosOk": 12,
+    "escenariosTotal": 12,
+    "verificacionesOk": 127,
+    "verificacionesTotal": 127,
+    "hallazgos": 0
+  },
+  "dast": {
+    "verificacionesOk": 12,
+    "verificacionesTotal": 12,
+    "sondas": 34,
+    "hallazgos": 0
+  },
+  "despliegueSystemd": {
+    "controlesOk": 10,
+    "controlesTotal": 10
+  }
+}
