@@ -2,8 +2,10 @@ package ve.psmhackaton.totpsoberano.security
 
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
 import android.security.keystore.StrongBoxUnavailableException
+import android.security.keystore.UserNotAuthenticatedException
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -14,7 +16,7 @@ import javax.crypto.spec.GCMParameterSpec
  * Bóveda hardware de semillas TOTP sobre Android Keystore / StrongBox (Issue #41 · M2).
  * - Clave AES-256-GCM no exportable generada dentro del módulo de seguridad del dispositivo.
  * - AAD obligatorio ligado al identificador de cuenta para prevenir trasplante de registros cifrados.
- * - Exige autenticación de usuario (biometría o PIN del dispositivo) para operar.
+ * - Compatible con BiometricPrompt.CryptoObject en Android 8+ y Android 11+ (API 30+).
  */
 class KeystoreVault(
     private val keyAlias: String = "totp_soberano_master_aes256_v1",
@@ -29,6 +31,13 @@ class KeystoreVault(
         val iv: ByteArray,
         val ciphertext: ByteArray,
     )
+
+    sealed class VaultResult<out T> {
+        data class Success<T>(val value: T) : VaultResult<T>()
+        data object KeyInvalidated : VaultResult<Nothing>()
+        data object UserNotAuthenticated : VaultResult<Nothing>()
+        data class Error(val message: String) : VaultResult<Nothing>()
+    }
 
     private fun getOrCreateMasterKey(): SecretKey {
         val ks = KeyStore.getInstance(KEYSTORE_PROVIDER).apply { load(null) }
@@ -47,6 +56,13 @@ class KeystoreVault(
                 .setRandomizedEncryptionRequired(true)
                 .setUserAuthenticationRequired(true)
 
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                builder.setUserAuthenticationParameters(0, KeyProperties.AUTH_BIOMETRIC_STRONG)
+            } else {
+                @Suppress("DEPRECATION")
+                builder.setUserAuthenticationValidityDurationSeconds(-1)
+            }
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && useStrongBox) {
                 builder.setIsStrongBoxBacked(true)
             }
@@ -63,22 +79,50 @@ class KeystoreVault(
         }
     }
 
-    fun encryptSeed(accountId: String, rawSeed: ByteArray): EncryptedSeed {
-        require(accountId.isNotBlank()) { "accountId obligatorio para AAD" }
+    /**
+     * Inicializa un Cipher en modo ENCRYPT listo para envolver en BiometricPrompt.CryptoObject.
+     */
+    fun createEncryptCipher(): VaultResult<Cipher> = runVaultCatching {
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, getOrCreateMasterKey())
-        cipher.updateAAD("totp-soberano:$accountId".toByteArray(Charsets.UTF_8))
-        val ct = cipher.doFinal(rawSeed)
-        return EncryptedSeed(iv = cipher.iv, ciphertext = ct)
+        cipher
     }
 
-    fun decryptSeed(accountId: String, encrypted: EncryptedSeed): ByteArray {
-        require(accountId.isNotBlank()) { "accountId obligatorio para AAD" }
+    /**
+     * Inicializa un Cipher en modo DECRYPT con el IV almacenado, listo para BiometricPrompt.CryptoObject.
+     */
+    fun createDecryptCipher(iv: ByteArray): VaultResult<Cipher> = runVaultCatching {
         val cipher = Cipher.getInstance(TRANSFORMATION)
-        val spec = GCMParameterSpec(GCM_TAG_BITS, encrypted.iv)
+        val spec = GCMParameterSpec(GCM_TAG_BITS, iv)
         cipher.init(Cipher.DECRYPT_MODE, getOrCreateMasterKey(), spec)
-        cipher.updateAAD("totp-soberano:$accountId".toByteArray(Charsets.UTF_8))
-        return cipher.doFinal(encrypted.ciphertext)
+        cipher
+    }
+
+    /**
+     * Cifra la semilla usando el Cipher autenticado devuelto por BiometricPrompt (result.cryptoObject?.cipher).
+     */
+    fun encryptSeedWithCipher(
+        authenticatedCipher: Cipher,
+        accountId: String,
+        rawSeed: ByteArray,
+    ): VaultResult<EncryptedSeed> = runVaultCatching {
+        require(accountId.isNotBlank()) { "accountId obligatorio para AAD" }
+        authenticatedCipher.updateAAD("totp-soberano:$accountId".toByteArray(Charsets.UTF_8))
+        val ct = authenticatedCipher.doFinal(rawSeed)
+        EncryptedSeed(iv = authenticatedCipher.iv, ciphertext = ct)
+    }
+
+    /**
+     * Descifra la semilla usando el Cipher autenticado devuelto por BiometricPrompt (result.cryptoObject?.cipher).
+     */
+    fun decryptSeedWithCipher(
+        authenticatedCipher: Cipher,
+        accountId: String,
+        encrypted: EncryptedSeed,
+    ): VaultResult<ByteArray> = runVaultCatching {
+        require(accountId.isNotBlank()) { "accountId obligatorio para AAD" }
+        authenticatedCipher.updateAAD("totp-soberano:$accountId".toByteArray(Charsets.UTF_8))
+        authenticatedCipher.doFinal(encrypted.ciphertext)
     }
 
     fun wipeMasterKey() {
@@ -86,5 +130,15 @@ class KeystoreVault(
         if (ks.containsAlias(keyAlias)) {
             ks.deleteEntry(keyAlias)
         }
+    }
+
+    private inline fun <T> runVaultCatching(block: () -> T): VaultResult<T> = try {
+        VaultResult.Success(block())
+    } catch (_: KeyPermanentlyInvalidatedException) {
+        VaultResult.KeyInvalidated
+    } catch (_: UserNotAuthenticatedException) {
+        VaultResult.UserNotAuthenticated
+    } catch (e: Exception) {
+        VaultResult.Error(e.message ?: "Error en Android Keystore")
     }
 }

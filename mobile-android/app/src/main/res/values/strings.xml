@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">Autenticador Soberano TOTP</string>
+    <string name="status_locked">Bóveda bloqueada. Autentícate con biometría para continuar.</string>
+    <string name="status_biometric_unavailable">Biometría fuerte no configurada en este dispositivo.</string>
+    <string name="status_key_invalidated">La clave hardware fue invalidada; vuelve a vincular tu cuenta.</string>
+    <string name="status_auth_required">Autenticación biométrica requerida.</string>
+    <string name="status_input_empty">Ingresa una URI otpauth://totp/ o una semilla Base32.</string>
+    <string name="status_invalid_input">URI o semilla Base32 inválida.</string>
+    <string name="status_account_ready">Cuenta activa. Códigos generados 100 % sin conexión.</string>
+    <string name="action_unlock">Desbloquear con biometría</string>
+    <string name="action_add_account">Agregar cuenta TOTP</string>
+    <string name="action_copy">Copiar código</string>
+    <string name="hint_otp_input">otpauth://totp/… o semilla Base32</string>
+    <string name="biometric_title">Autenticador Soberano</string>
+    <string name="biometric_subtitle">Confirma tu identidad para abrir la bóveda hardware</string>
+    <string name="biometric_cancel">Cancelar</string>
+    <string name="default_issuer">Portal Soberano</string>
+    <string name="default_account">Cuenta manual</string>
+    <string name="remaining_seconds">Expira en %1$d s</string>
+    <string name="code_copied">Código copiado al portapapeles</string>
+</resources>
