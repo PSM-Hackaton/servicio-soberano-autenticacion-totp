@@ -1,9 +1,12 @@
 package ve.psmhackaton.totpsoberano
 
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -12,6 +15,7 @@ import android.os.PersistableBundle
 import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
@@ -34,7 +38,8 @@ import javax.crypto.Cipher
  * Pantalla principal del Autenticador Soberano TOTP.
  * - Edge-to-Edge real para Android 15/16 (API 35/36) respetando statusBar y displayCutout.
  * - Protección FLAG_SECURE contra capturas de pantalla.
- * - Desbloqueo biométrico con BiometricPrompt.CryptoObject y persistencia cifrada en disco.
+ * - Desbloqueo biométrico con BiometricPrompt.CryptoObject y persistencia cifrada multi-cuenta.
+ * - Escáner QR soberano (CameraX + ZXing, 0 Google Play Services).
  * - Cero ejecución en segundo plano: el temporizador solo corre entre onResume() y onPause()/onStop().
  */
 class MainActivity : FragmentActivity() {
@@ -45,9 +50,32 @@ class MainActivity : FragmentActivity() {
     private val handler = Handler(Looper.getMainLooper())
 
     private var unlocked = false
-    private var activeAccount: OtpAuthParser.OtpAccountSpec? = null
+    private val accounts = mutableListOf<OtpAuthParser.OtpAccountSpec>()
+    private var selectedIndex = 0
     private var activeSecretBytes: ByteArray? = null
     private var lastGeneratedCode: String = ""
+
+    private val qrScannerLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val qrText = result.data?.getStringExtra(QrScannerActivity.EXTRA_QR_RESULT).orEmpty()
+            if (qrText.isNotBlank()) {
+                binding.inputOtp.setText(qrText)
+                addAccountFromInput()
+            }
+        }
+    }
+
+    private val cameraPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            qrScannerLauncher.launch(Intent(this, QrScannerActivity::class.java))
+        } else {
+            binding.txtStatus.text = getString(R.string.status_camera_denied)
+        }
+    }
 
     private val tickRunnable = object : Runnable {
         override fun run() {
@@ -74,11 +102,33 @@ class MainActivity : FragmentActivity() {
         applyEdgeToEdgeInsets()
 
         binding.btnUnlock.setOnClickListener { startBiometricUnlock() }
+        binding.btnScanQr.setOnClickListener { launchQrScanner() }
         binding.btnAddAccount.setOnClickListener { addAccountFromInput() }
         binding.btnCopyCode.setOnClickListener { copyCurrentCode() }
         binding.btnDeleteAccount.setOnClickListener { confirmDeleteAccount() }
+        binding.btnPrevAccount.setOnClickListener { switchAccount(-1) }
+        binding.btnNextAccount.setOnClickListener { switchAccount(1) }
 
         updateLockUi()
+    }
+
+    private fun launchQrScanner() {
+        val granted = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.CAMERA,
+        ) == PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            qrScannerLauncher.launch(Intent(this, QrScannerActivity::class.java))
+        } else {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    private fun switchAccount(delta: Int) {
+        if (accounts.size <= 1) return
+        selectedIndex = (selectedIndex + delta + accounts.size) % accounts.size
+        activeSecretBytes = TotpEngine.decodeBase32(accounts[selectedIndex].secretBase32)
+        renderActiveCode()
     }
 
     private fun applyEdgeToEdgeInsets() {
@@ -163,7 +213,7 @@ class MainActivity : FragmentActivity() {
         authenticateWithCipher(cipher) { authenticatedCipher ->
             unlocked = true
             if (storedIv != null) {
-                loadStoredAccountWithCipher(authenticatedCipher)
+                loadStoredAccountsWithCipher(authenticatedCipher)
             } else {
                 binding.txtStatus.text = getString(R.string.status_unlocked_empty)
             }
@@ -207,13 +257,14 @@ class MainActivity : FragmentActivity() {
         prompt.authenticate(promptInfo, BiometricPrompt.CryptoObject(cipher))
     }
 
-    private fun loadStoredAccountWithCipher(authenticatedCipher: Cipher) {
+    private fun loadStoredAccountsWithCipher(authenticatedCipher: Cipher) {
         try {
-            val accounts = repository.loadAccounts(vaultCipherAdapter(authenticatedCipher))
-            val first = accounts.firstOrNull()
-            if (first != null) {
-                activeAccount = first
-                activeSecretBytes = TotpEngine.decodeBase32(first.secretBase32)
+            val loaded = repository.loadAccounts(vaultCipherAdapter(authenticatedCipher))
+            accounts.clear()
+            accounts.addAll(loaded)
+            if (accounts.isNotEmpty()) {
+                selectedIndex = 0
+                activeSecretBytes = TotpEngine.decodeBase32(accounts[0].secretBase32)
                 binding.txtStatus.text = getString(R.string.status_account_ready)
             } else {
                 binding.txtStatus.text = getString(R.string.status_unlocked_empty)
@@ -243,8 +294,8 @@ class MainActivity : FragmentActivity() {
                 require(decoded.size >= 16) { "Semilla demasiado corta (mínimo 128 bits)" }
                 OtpAuthParser.OtpAccountSpec(
                     issuer = getString(R.string.default_issuer),
-                    account = getString(R.string.default_account),
-                    secretBase32 = raw.uppercase(),
+                    account = "${getString(R.string.default_account)} #${accounts.size + 1}",
+                    secretBase32 = raw.uppercase().replace(Regex("[\\s-]+"), "").trimEnd('='),
                     algorithm = TotpEngine.Algorithm.SHA256,
                     digits = 6,
                     periodSeconds = 30,
@@ -258,20 +309,27 @@ class MainActivity : FragmentActivity() {
             return
         }
 
+        val updatedList = accounts.toMutableList().apply {
+            removeAll { it.secretBase32 == spec.secretBase32 }
+            add(spec)
+        }
+
         val encryptResult = vault.createEncryptCipher()
         if (encryptResult is KeystoreVault.VaultResult.Success) {
             authenticateWithCipher(encryptResult.value) { authenticatedCipher ->
-                repository.saveAccounts(listOf(spec), vaultCipherAdapter(authenticatedCipher))
-                applyActiveAccount(spec)
+                repository.saveAccounts(updatedList, vaultCipherAdapter(authenticatedCipher))
+                applyAccountsList(updatedList, updatedList.lastIndex)
             }
         } else {
-            applyActiveAccount(spec)
+            applyAccountsList(updatedList, updatedList.lastIndex)
         }
     }
 
-    private fun applyActiveAccount(spec: OtpAuthParser.OtpAccountSpec) {
-        activeAccount = spec
-        activeSecretBytes = TotpEngine.decodeBase32(spec.secretBase32)
+    private fun applyAccountsList(updated: List<OtpAuthParser.OtpAccountSpec>, focusIdx: Int) {
+        accounts.clear()
+        accounts.addAll(updated)
+        selectedIndex = focusIdx.coerceIn(0, (accounts.size - 1).coerceAtLeast(0))
+        activeSecretBytes = accounts.getOrNull(selectedIndex)?.let { TotpEngine.decodeBase32(it.secretBase32) }
         binding.inputOtp.text?.clear()
         binding.inputOtpLayout.error = null
         binding.txtStatus.text = getString(R.string.status_account_ready)
@@ -281,18 +339,34 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun confirmDeleteAccount() {
+        if (accounts.isEmpty()) return
         AlertDialog.Builder(this)
             .setTitle(R.string.confirm_delete_title)
             .setMessage(R.string.confirm_delete_message)
             .setNegativeButton(R.string.biometric_cancel, null)
             .setPositiveButton(R.string.confirm_delete_yes) { _, _ ->
-                repository.clearAll()
-                activeAccount = null
-                activeSecretBytes = null
-                lastGeneratedCode = ""
-                handler.removeCallbacks(tickRunnable)
-                binding.cardCode.visibility = View.GONE
-                binding.txtStatus.text = getString(R.string.status_account_deleted)
+                val remaining = accounts.toMutableList().apply { removeAt(selectedIndex) }
+                if (remaining.isEmpty()) {
+                    repository.clearAll()
+                    accounts.clear()
+                    activeSecretBytes = null
+                    lastGeneratedCode = ""
+                    handler.removeCallbacks(tickRunnable)
+                    binding.cardCode.visibility = View.GONE
+                    binding.txtStatus.text = getString(R.string.status_account_deleted)
+                } else {
+                    val encryptResult = vault.createEncryptCipher()
+                    if (encryptResult is KeystoreVault.VaultResult.Success) {
+                        authenticateWithCipher(encryptResult.value) { authenticatedCipher ->
+                            repository.saveAccounts(remaining, vaultCipherAdapter(authenticatedCipher))
+                            applyAccountsList(remaining, 0)
+                            binding.txtStatus.text = getString(R.string.status_account_deleted)
+                        }
+                    } else {
+                        applyAccountsList(remaining, 0)
+                        binding.txtStatus.text = getString(R.string.status_account_deleted)
+                    }
+                }
             }
             .show()
     }
@@ -317,7 +391,7 @@ class MainActivity : FragmentActivity() {
         }
 
     private fun renderActiveCode() {
-        val account = activeAccount ?: return
+        val account = accounts.getOrNull(selectedIndex) ?: return
         val secret = activeSecretBytes ?: return
         val nowSec = System.currentTimeMillis() / 1000L
         val code = TotpEngine.generateTotp(
@@ -335,6 +409,8 @@ class MainActivity : FragmentActivity() {
         } else {
             account.issuer.ifEmpty { account.account }
         }
+        binding.accountNavRow.visibility = if (accounts.size > 1) View.VISIBLE else View.GONE
+        binding.txtAccountCounter.text = getString(R.string.account_counter, selectedIndex + 1, accounts.size)
         binding.txtAccountLabel.text = label
         binding.txtTotpCode.text = code.chunked(3).joinToString(" ")
         binding.txtRemaining.text = getString(R.string.remaining_seconds, remaining)

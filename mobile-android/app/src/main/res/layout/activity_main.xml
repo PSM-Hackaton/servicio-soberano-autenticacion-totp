@@ -157,6 +157,41 @@
                         android:orientation="vertical"
                         android:padding="20dp">
 
+                        <LinearLayout
+                            android:id="@+id/accountNavRow"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:visibility="gone">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnPrevAccount"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:minWidth="48dp"
+                                android:text="◀" />
+
+                            <TextView
+                                android:id="@+id/txtAccountCounter"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="center"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="13sp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnNextAccount"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:minWidth="48dp"
+                                android:text="▶" />
+                        </LinearLayout>
+
                         <TextView
                             android:id="@+id/txtAccountLabel"
                             android:layout_width="match_parent"
@@ -264,6 +299,16 @@
                                 android:inputType="textNoSuggestions"
                                 android:maxLines="3" />
                         </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnScanQr"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:minHeight="@dimen/touch_min"
+                            android:text="@string/action_scan_qr"
+                            app:cornerRadius="@dimen/radius_m" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnAddAccount"

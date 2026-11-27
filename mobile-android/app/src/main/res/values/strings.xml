@@ -26,4 +26,8 @@
     <string name="confirm_delete_title">¿Eliminar esta cuenta?</string>
     <string name="confirm_delete_message">Se borrará la semilla TOTP de este dispositivo.</string>
     <string name="confirm_delete_yes">Eliminar</string>
+    <string name="action_scan_qr">Escanear código QR</string>
+    <string name="qr_scanner_hint">Apunta la cámara al código QR del portal</string>
+    <string name="status_camera_denied">Permiso de cámara denegado. Puedes pegar la semilla Base32 manualmente.</string>
+    <string name="account_counter">Cuenta %1$d de %2$d</string>
 </resources>
