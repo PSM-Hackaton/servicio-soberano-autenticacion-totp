@@ -17,6 +17,7 @@ AGENTS.md
 TASKS.md
 ANALISIS_FASE0.md
 SYSTEM_GRAPH.md
+docs/entrega/README-flujo-entrega-gitlab.md
 
 # --- Herramientas de preparación de la entrega -------------------------------------
 # Son de uso interno del equipo y contienen la lista de cadenas que se buscan.
