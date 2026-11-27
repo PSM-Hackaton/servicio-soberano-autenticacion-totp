@@ -14,6 +14,8 @@ El Servicio Soberano emite URIs conformes al estándar abierto **Key URI (`otpau
 | **Google / Microsoft Authenticator** | Propietario | ⚠️ Ignoran `algorithm` (usan SHA-1) | ❌ Ignoran `algorithm` y/o `digits=8` | ✅ Compatible si `permitir_sha1=true` | Por esta limitación el servicio provee su propia PWA soberana |
 
 > **Prueba automatizada de formato Key URI:** `authenticator-app/tests/otpauth.test.mjs` verifica automáticamente `buildOtpauthUri` del backend en los 3 perfiles (`SHA256/6`, `SHA512/8`, `SHA1/6`), validando codificación de etiqueta `issuer:cuenta`, Base32 sin relleno y parámetros obligatorios `secret`, `issuer`, `algorithm`, `digits` y `period`.
+>
+> **Protocolo de validación en teléfono físico (Issue #67):** Ver ficha reproducible en [`docs/evidencias/prueba-telefono-real.md`](./prueba-telefono-real.md).
 
 ---
 

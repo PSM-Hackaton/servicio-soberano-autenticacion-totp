@@ -2,10 +2,10 @@
   "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:b4828b5a-884e-4af3-b6d7-c39157c4efe8",
+  "serialNumber": "urn:uuid:b14ebf04-3e06-4fe7-bafe-677783b128e6",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-11-27T14:18:46.213Z",
+    "timestamp": "2026-11-27T14:43:20.838Z",
     "lifecycles": [
       {
         "phase": "build"
@@ -48,7 +48,7 @@
       "properties": [
         {
           "name": "git:commit",
-          "value": "9f3acb4e5d89b6c14378e4dd6adb4c9e89a29b3e"
+          "value": "4c99f8414bd25c93f136baccc65d5c061d5e3670"
         }
       ]
     },
@@ -410,7 +410,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "399ca7a589d385f0e763b8e1bf7fa11edca67927dadf5ccbe4620a482f5cd653"
+          "content": "fb190c1800217cca798433ca295097d7a7395c0334841599452d2bb874a26004"
         }
       ],
       "properties": [
@@ -424,7 +424,7 @@
         },
         {
           "name": "bytes",
-          "value": "643497"
+          "value": "643664"
         },
         {
           "name": "hash",
@@ -442,9 +442,9 @@
     },
     {
       "type": "application",
-      "bom-ref": "propio:authenticator-app@0.0.0+git.9f3acb4e5d89",
+      "bom-ref": "propio:authenticator-app@0.0.0+git.4c99f8414bd2",
       "name": "authenticator-app",
-      "version": "0.0.0+git.9f3acb4e5d89",
+      "version": "0.0.0+git.4c99f8414bd2",
       "description": "App autenticadora PWA (HTML/CSS/JS propios, sin conexión, PIN)",
       "licenses": [
         {
@@ -484,9 +484,9 @@
     },
     {
       "type": "application",
-      "bom-ref": "propio:admin-console@0.0.0+git.9f3acb4e5d89",
+      "bom-ref": "propio:admin-console@0.0.0+git.4c99f8414bd2",
       "name": "admin-console",
-      "version": "0.0.0+git.9f3acb4e5d89",
+      "version": "0.0.0+git.4c99f8414bd2",
       "description": "Consola administrativa (HTML/CSS/JS propios, RBAC, auditoría)",
       "licenses": [
         {
@@ -664,9 +664,9 @@
     },
     {
       "type": "data",
-      "bom-ref": "propio:contracts@0.0.0+git.9f3acb4e5d89",
+      "bom-ref": "propio:contracts@0.0.0+git.4c99f8414bd2",
       "name": "contracts",
-      "version": "0.0.0+git.9f3acb4e5d89",
+      "version": "0.0.0+git.4c99f8414bd2",
       "description": "Contratos: OpenAPI 3.1, esquema SQL y respuestas de ejemplo",
       "licenses": [
         {
@@ -706,9 +706,9 @@
     },
     {
       "type": "data",
-      "bom-ref": "propio:deploy@0.0.0+git.9f3acb4e5d89",
+      "bom-ref": "propio:deploy@0.0.0+git.4c99f8414bd2",
       "name": "deploy",
-      "version": "0.0.0+git.9f3acb4e5d89",
+      "version": "0.0.0+git.4c99f8414bd2",
       "description": "Unidad systemd y guía de despliegue institucional",
       "licenses": [
         {
@@ -753,13 +753,13 @@
       "dependsOn": [
         "runtime:nodejs@22.22.1",
         "propio:backend@0.1.0",
-        "propio:authenticator-app@0.0.0+git.9f3acb4e5d89",
-        "propio:admin-console@0.0.0+git.9f3acb4e5d89",
+        "propio:authenticator-app@0.0.0+git.4c99f8414bd2",
+        "propio:admin-console@0.0.0+git.4c99f8414bd2",
         "propio:sdk@1.0.0",
         "propio:demo-portal-tramites@1.0.0",
         "propio:attack-lab@1.0.0",
-        "propio:contracts@0.0.0+git.9f3acb4e5d89",
-        "propio:deploy@0.0.0+git.9f3acb4e5d89"
+        "propio:contracts@0.0.0+git.4c99f8414bd2",
+        "propio:deploy@0.0.0+git.4c99f8414bd2"
       ]
     },
     {
@@ -785,7 +785,7 @@
       ]
     },
     {
-      "ref": "propio:authenticator-app@0.0.0+git.9f3acb4e5d89",
+      "ref": "propio:authenticator-app@0.0.0+git.4c99f8414bd2",
       "dependsOn": [
         "runtime:nodejs@22.22.1",
         "nodejs-builtin:node:assert/strict",
@@ -793,7 +793,7 @@
       ]
     },
     {
-      "ref": "propio:admin-console@0.0.0+git.9f3acb4e5d89",
+      "ref": "propio:admin-console@0.0.0+git.4c99f8414bd2",
       "dependsOn": []
     },
     {
@@ -846,11 +846,11 @@
       ]
     },
     {
-      "ref": "propio:contracts@0.0.0+git.9f3acb4e5d89",
+      "ref": "propio:contracts@0.0.0+git.4c99f8414bd2",
       "dependsOn": []
     },
     {
-      "ref": "propio:deploy@0.0.0+git.9f3acb4e5d89",
+      "ref": "propio:deploy@0.0.0+git.4c99f8414bd2",
       "dependsOn": [
         "runtime:nodejs@22.22.1",
         "nodejs-builtin:node:child_process",

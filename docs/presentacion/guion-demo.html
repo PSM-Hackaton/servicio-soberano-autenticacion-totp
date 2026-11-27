@@ -133,6 +133,7 @@ node attack-lab/escenarios/spraying.js
   <tr><td>Un escenario de attack-lab no responde</td><td>Comprobar <code>ATTACK_CLIENT_ID</code>/<code>SECRET</code>; mostrar la ejecución preparada en el informe HTML; plan B sin backend: <code>cd attack-lab &amp;&amp; npm test</code> (28 pruebas, incluido el proxy de caos).</td></tr>
   <tr><td>No se puede desconectar la red</td><td>Mostrar solo <code>escenario-caos.js</code> y explicar que el servicio, la app y el portal no hacen ninguna llamada externa (SBOM: 0 recursos externos).</td></tr>
   <tr><td>Falta tiempo</td><td>Saltar la sección de consola y cerrar con la diapositiva de impacto (30 s).</td></tr>
+  <tr><td>Fallo total de red o entorno en vivo</td><td>Reproducir el vídeo de respaldo grabado con <code>ffmpeg -f x11grab -framerate 25 -i :0.0 -t 360 demo-respaldo.mp4</code> (ver ensayo cronometrado en <code>docs/evidencias/ensayo-demo-2026-11-27.md</code>).</td></tr>
 </table>
 
 <h2>3. Preguntas probables del jurado</h2>

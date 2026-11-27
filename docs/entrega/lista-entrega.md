@@ -94,7 +94,7 @@ Cada requisito, citado textualmente, con código y prueba: `docs/cumplimiento/ma
 | Medida | Resultado | Evidencia |
 | --- | --- | --- |
 | Pruebas automatizadas | **340**, 0 fallos: backend 237, app 26, SDK 29, portal 20, laboratorio 28 | `node scripts/verificar-todo.js`, `docs/evidencias/cifras.json` |
-| Rutas del servidor en el contrato | **31 de 31** (7 de integración v1, 5 de sistema, 19 de la consola) | `contracts/openapi.yaml` |
+| Rutas del servidor en el contrato | **33 de 33** (9 de integración v1, 5 de sistema, 19 de la consola) | `contracts/openapi.yaml` |
 | Laboratorio de ataques y caos | **12/12** escenarios, **127/127** verificaciones, 0 hallazgos | `docs/evidencias/attack-lab-informe-2026-11-26.pdf` |
 | Escaneo dinámico (DAST propio) | **12/12** verificaciones, 34 sondas, 0 hallazgos | `docs/evidencias/dast-informe-2026-11-26.html` |
 | Verificación del despliegue `systemd` | **10/10** controles | `docs/evidencias/prueba-despliegue-systemd.md` |
