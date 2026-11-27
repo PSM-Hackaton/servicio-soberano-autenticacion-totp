@@ -68,6 +68,8 @@
   ul.lista { margin: 0; padding: 0; list-style: none; }
   ul.lista li { position: relative; padding-left: 26px; font-size: 22px; line-height: 1.35; margin-bottom: 12px; }
   ul.lista li::before { content: ""; position: absolute; left: 0; top: 11px; width: 12px; height: 12px; border-radius: 3px; background: var(--azul); }
+  .recorte { overflow: hidden; border: 1px solid #C9D2E6; border-radius: 10px; box-shadow: 0 6px 18px rgba(10,26,79,.14); background: #fff; }
+  .recorte img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
   .captura { border: 1px solid #C9D2E6; border-radius: 10px; box-shadow: 0 6px 18px rgba(10,26,79,.14); display: block; }
   .leyenda { font-size: 15px; color: var(--gris); margin-top: 8px; }
   .notas { width: 1280px; margin: 0 auto; background: #FFFBEA; border: 1px dashed #B99A2E; border-top: 0; padding: 12px 22px 14px; font-size: 15px; line-height: 1.5; color: #3B3418; }
@@ -125,7 +127,7 @@
       Giovani Marcano <span>· seguridad y laboratorio de ataques</span><br>
       Enggel Rodríguez <span>· detector local, documentación y presentación</span>
     </div>
-    <div class="der"><b>Equipo PSM-Hackaton</b><br>26 de noviembre de 2026</div>
+    <div class="der"><b>Equipo PSM-Hackaton</b><br>27 de noviembre de 2026</div>
   </div>
 </section>
 <aside class="notas"><b>Notas (20 s).</b> Presentar al equipo y el nombre del proyecto. Mensaje de una línea: «Construimos un segundo factor de autenticación que la institución controla de punta a punta, sin depender de nadie de fuera».</aside>
@@ -449,8 +451,8 @@
       </div>
     </div>
     <div>
-      <img class="captura" src="img/consola-anomalias.png" width="642" height="401" alt="Consola: panel del detector de anomalías con escala de riesgo, alertas y razones legibles">
-      <div class="leyenda">Consola en modo demostración (datos simulados): escala de riesgo y razones legibles de cada alerta.</div>
+      <img class="captura" src="img/consola-anomalias.png" width="642" height="401" alt="Consola: detector de anomalías con bloqueos preventivos, inferencia media de 4,9 ms sin red externa y escala de riesgo con respuesta adaptativa">
+      <div class="leyenda">Consola real tras el laboratorio de ataques: bloqueos preventivos, inferencia local en milisegundos y escala de riesgo con respuesta adaptativa.</div>
     </div>
   </div>
   <div class="pie"><span>Servicio Soberano TOTP · Fuentes: escalabilidad §B.4 (µs), informe del laboratorio (spraying, origen compartido), matriz §2.2 (p95)</span><b>9</b></div>
@@ -460,26 +462,59 @@
 <!-- ============ 10. UX ============ -->
 <section class="diapo">
   <div class="seccion">Experiencia de usuario</div>
-  <h1 style="margin-bottom: 8px;">Tres interfaces propias, claras y sin frameworks</h1>
+  <h1 style="margin-bottom: 8px;">Interfaces propias e institucionales, sin frameworks</h1>
   <p class="gris" style="font-size: 19px; margin-bottom: 16px;">HTML, CSS y JS propios, sin CDN. Los trámites sensibles piden un código extra (<i>step-up</i>); mensajes claros y cuenta atrás en los bloqueos.</p>
   <div style="display: grid; grid-template-columns: 220px 1fr 1fr; gap: 26px; align-items: start;">
     <div>
-      <img class="captura" src="img/app-codigos.png" width="220" height="396" alt="App autenticadora: lista de códigos con anillo de cuenta atrás, SHA-256 y SHA-512 de 8 dígitos">
-      <div class="leyenda"><b>App:</b> SHA-512, 8 dígitos, sin conexión.</div>
+      <div class="recorte" style="width:220px;height:330px"><img src="img/qa-pwa-codigos-mobile.png" alt="App Autenticador Soberano en el teléfono: código de 6 dígitos con anillo de cuenta atrás y algoritmo SHA-256"></div>
+      <div class="leyenda"><b>App:</b> códigos SHA-256/512 con cuenta atrás, bóveda cifrada con PIN, sin conexión.</div>
     </div>
     <div>
-      <img class="captura" src="img/portal-enrolar.png" width="430" height="289" alt="Portal de Trámites: vincular el autenticador con QR, botón directo a la app y traza de lo que ocurre por dentro">
-      <div class="leyenda"><b>Portal (ficticio):</b> alta guiada con QR, enlace directo a la app o clave manual; panel «Lo que ocurre por dentro».</div>
+      <div class="recorte" style="width:430px;height:300px"><img src="img/qa-portal-stepup.png" alt="Portal de Trámites del Estado: trámite sensible que pide un código nuevo (step-up) y panel «Lo que ocurre por dentro» con la validación del JWT EdDSA"></div>
+      <div class="leyenda"><b>Portal (ficticio):</b> trámite sensible con <i>step-up</i>; panel «Lo que ocurre por dentro» con la validación del JWT EdDSA.</div>
     </div>
     <div>
-      <img class="captura" src="img/consola-panel.png" width="430" height="269" alt="Consola administrativa: panel de operación con verificaciones, bloqueos, latencia y disponibilidad">
-      <div class="leyenda"><b>Consola:</b> operación, apps y políticas, enrolamientos (suspender, reactivar, revocar), cuentas, llaves y auditoría con RBAC (datos simulados).</div>
+      <div class="recorte" style="width:430px;height:300px"><img src="img/qa-consola-resumen.png" alt="Consola administrativa: panel de operación con verificaciones, tasa de éxito, bloqueos, latencia y salud del servicio"></div>
+      <div class="leyenda"><b>Consola:</b> operación, apps y políticas, enrolamientos (suspender, reactivar, revocar), llaves y auditoría con RBAC.</div>
     </div>
     
   </div>
-  <div class="pie"><span>Servicio Soberano TOTP · Capturas propias del 26-11-2026 (app y consola en modo demostración; portal con el servicio de pruebas del SDK)</span><b>10</b></div>
+  <div class="pie"><span>Servicio Soberano TOTP · Capturas del QA en navegador real contra el servicio (docs/evidencias/qa-navegador/)</span><b>10</b></div>
 </section>
 <aside class="notas"><b>Notas (40 s).</b> Mientras se habla, el compañero de teclado hace el flujo real (guion 1:30–3:00): usuario y contraseña → «Abrir en el Autenticador Soberano» → primer código → códigos de recuperación → código nuevo → panel → cambio de datos bancarios con step-up. Límite honesto: la lectura con cámara en la PWA está limitada por una cabecera del servidor; el alta funciona por enlace, URI pegada o clave manual.</aside>
+
+<!-- ============ 11. GALERÍA DE INTERFACES ============ -->
+<section class="diapo">
+  <div class="seccion">Experiencia de usuario</div>
+  <h1 style="margin-bottom: 8px;">Cuatro interfaces, una sola identidad institucional</h1>
+  <p class="gris" style="font-size: 18px; margin-bottom: 12px;">Misma franja nacional, tipografía y componentes; adaptables al teléfono; 0 recursos externos.</p>
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 150px; gap: 16px; align-items: start;">
+    <div>
+      <div class="recorte" style="height:165px"><img src="img/qa-sitio-inicio-desktop.png" alt="Sitio público del servicio: inicio para la ciudadanía"></div>
+      <div class="leyenda"><b>Sitio público:</b> inicio, guía del certificado y estado del servicio.</div>
+      <div class="recorte" style="height:165px; margin-top:8px"><img src="img/qa-portal-panel.png" alt="Portal de Trámites: panel del ciudadano tras el segundo factor"></div>
+      <div class="leyenda"><b>Portal:</b> panel del ciudadano tras el segundo factor.</div>
+    </div>
+    <div>
+      <div class="recorte" style="height:165px"><img src="img/qa-consola-enrolamientos.png" alt="Consola: enrolamientos con estados, dispositivo y acciones de suspender, reactivar o revocar"></div>
+      <div class="leyenda"><b>Consola · enrolamientos:</b> estados, dispositivo y revocación.</div>
+      <div class="recorte" style="height:165px; margin-top:8px"><img src="img/qa-consola-auditoria.png" alt="Consola: bitácora de auditoría encadenada con verificación de integridad"></div>
+      <div class="leyenda"><b>Consola · auditoría:</b> cadena de hashes verificable.</div>
+    </div>
+    <div>
+      <div class="recorte" style="height:165px"><img src="img/qa-portal-stepup.png" alt="Portal: trámite sensible con step-up"></div>
+      <div class="leyenda"><b>Step-up:</b> código nuevo para operaciones sensibles.</div>
+      <div class="recorte" style="height:165px; margin-top:8px"><img src="img/qa-consola-resumen.png" alt="Consola: panel de operación"></div>
+      <div class="leyenda"><b>Operación:</b> verificaciones, bloqueos, latencia y salud.</div>
+    </div>
+    <div>
+      <div class="recorte" style="width:150px;height:300px"><img src="img/qa-consola-mobile.png" alt="Consola administrativa en un teléfono"></div>
+      <div class="leyenda"><b>Teléfono:</b> consola adaptable.</div>
+    </div>
+  </div>
+  <div class="pie"><span>Servicio Soberano TOTP · Capturas del QA en navegador real (Chromium, HTTPS local, 0 errores de consola): docs/evidencias/qa-navegador/</span><b>11</b></div>
+</section>
+<aside class="notas"><b>Notas (30 s).</b> Recorrer de izquierda a derecha: lo que ve el ciudadano (sitio, portal, step-up), lo que ve el operador (consola: enrolamientos, auditoría, operación) y que todo funciona igual en el teléfono. Remarcar: misma identidad visual, sin frameworks ni CDN, y accesibilidad revisada.</aside>
 
 <!-- ============ 11. IMPACTO ============ -->
 <section class="diapo">
@@ -510,7 +545,7 @@
     <rect x="0" y="172" width="1152" height="18" rx="4" fill="#FFCC00"/>
     <text x="576" y="186" text-anchor="middle" style="font: 700 13px 'Noto Sans', sans-serif; fill: #0A1A4F;">6 · Continuidad en todas las etapas: copias cifradas · RPO/RTO · rotación de llaves sin corte · NTP institucional</text>
   </svg>
-  <div class="pie"><span>Servicio Soberano TOTP · Fuente: docs/escalabilidad/escalabilidad.html (Intel Core i5-12400, TLS 1.3, AES-256 y bitácora activos)</span><b>11</b></div>
+  <div class="pie"><span>Servicio Soberano TOTP · Fuente: docs/escalabilidad/escalabilidad.html (Intel Core i5-12400, TLS 1.3, AES-256 y bitácora activos)</span><b>12</b></div>
 </section>
 <aside class="notas"><b>Notas (45 s).</b> Supuestos explícitos del documento: 4 inicios por usuario al día, 20 % en la hora pico, ráfagas del doble y servidor al 50 %. También: ≈ 800 validaciones de token/s y ≈ 245 inicios completos/s; 4,0 MB por cada 1 000 usuarios enrolados. El cuello de botella es la escritura a disco, no la criptografía. La capacidad de las etapas 1 y 2 está medida; la de la etapa 4 se calcula tras medir en el hardware destino. Solo infraestructura propia o nacional y software libre.</aside>
 
@@ -537,7 +572,7 @@
       <p style="font-size: 16px; line-height: 1.45;" class="gris"><b style="color: var(--tinta)">Lo pendiente:</b> ejecutar el instalador en modo sistema (root) en un servidor institucional real y la sesión de usabilidad con 3 personas ajenas al equipo.</p>
     </div>
   </div>
-  <div class="pie"><span>Servicio Soberano TOTP · Fuente: docs/cumplimiento/matriz-cumplimiento.html (26-11-2026)</span><b>12</b></div>
+  <div class="pie"><span>Servicio Soberano TOTP · Fuente: docs/cumplimiento/matriz-cumplimiento.html (26-11-2026)</span><b>13</b></div>
 </section>
 <aside class="notas"><b>Notas (30 s).</b> Cada fila de la matriz cita textualmente el requisito y señala el archivo de código y la prueba que lo demuestran: invitar al jurado a abrirla. Ser explícitos con lo parcial: preferimos declarar los límites antes de que nos los encuentren.</aside>
 
@@ -572,7 +607,7 @@
     </div>
   </div>
   <p class="medio" style="margin-top: 34px; border-left: 6px solid var(--azul); padding-left: 18px;">En cada etapa se mantienen AES-256 en reposo, TLS 1.3, anonimización HMAC, OWASP y la bitácora encadenada, <b>solo con infraestructura propia o nacional y software libre</b>.</p>
-  <div class="pie"><span>Servicio Soberano TOTP · Fuentes: matriz de cumplimiento §6, escalabilidad §C, README §4 (límites)</span><b>13</b></div>
+  <div class="pie"><span>Servicio Soberano TOTP · Fuentes: matriz de cumplimiento §6, escalabilidad §C, README §4 (límites)</span><b>14</b></div>
 </section>
 <aside class="notas"><b>Notas (30 s).</b> Lo inmediato son tareas pequeñas y ya preparadas (protocolo de usabilidad, instalador probado en modo usuario, base Kotlin con RFC 6238). El piloto valida el punto parcial de impacto: el despliegue en un servidor real. La escala nacional sigue la escalera de la diapositiva 11, siempre con infraestructura propia o nacional.</aside>
 
@@ -582,13 +617,17 @@
   <h1>Pilotémoslo en una institución:<br>el segundo factor queda en casa</h1>
   <p style="font-size: 22px; color: #D6E0F7; margin-bottom: 14px;">Se instala en un servidor Linux con Node.js 22, sin descargar nada más:</p>
   <div class="comando"><span class="p">$</span> cd backend &amp;&amp; npm run env &amp;&amp; npm run certs &amp;&amp; npm run seed &amp;&amp; npm start</div>
-  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 30px;">
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 28px; margin-top: 16px; font-size: 17px; color: #D6E0F7;">
+    <div><b style="color:#FFE27A">Código fuente (GitLab del evento):</b><br><span style="font-family: monospace; color:#fff">gitlab.nube.gob.ve/grupo/chuao/chuao_grupo4/reto_otp</span></div>
+    <div><b style="color:#FFE27A">En la demostración (servidor local):</b><br><span style="font-family: monospace; color:#fff">https://localhost:8443/app/ · /consola/ · Portal :8444</span></div>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 20px;">
     <div><div class="cifra" style="color: #FFCC00;">0</div><div class="etq" style="color: #D6E0F7;">dependencias npm</div></div>
     <div><div class="cifra" style="color: #FFCC00;">340</div><div class="etq" style="color: #D6E0F7;">pruebas automatizadas en verde</div></div>
     <div><div class="cifra" style="color: #FFCC00;">127/127</div><div class="etq" style="color: #D6E0F7;">verificaciones de ataque</div></div>
     <div><div class="cifra" style="color: #FFCC00;">$0</div><div class="etq" style="color: #D6E0F7;">en licencias · AGPL-3.0</div></div>
   </div>
-  <div class="pie"><span>Repositorio: servicio-soberano-autenticacion-totp · Producción: deploy/README.md (systemd, CA y NTP institucionales)</span><b>14</b></div>
+  <div class="pie"><span>Repositorio: gitlab.nube.gob.ve/grupo/chuao/chuao_grupo4/reto_otp · Instalación: README §6 · Producción: deploy/README.md</span><b>15</b></div>
 </section>
 <aside class="notas"><b>Notas (30 s).</b> Cerrar con la frase: «Cualquier sistema se integra con nuestro SDK o con cuatro llamadas HTTPS; lo hicimos con el Portal de Trámites y lo ofrecemos al equipo del Reto 3». Fuentes de las cifras: README §4 y §6 (340 pruebas, instalación), informe del laboratorio (127/127), docs/sbom (0 dependencias). Agradecer y abrir preguntas.</aside>
 
