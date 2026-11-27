@@ -71,6 +71,8 @@
 - [x] `[L1 · #58]` Paquete Android renombrado a `ve.psmhackaton.totpsoberano` (sin dominios gubernamentales reales), guía de compilación OpenJDK+Gradle en `mobile-android/README.md`, estado «en desarrollo» en `docs/cumplimiento/matriz-cumplimiento.html` y rama `laya` actualizada desde `staging` (pendiente `sh scripts/instalar-hooks.sh` tras fusionar PR `#59`).
 - [x] `[F1/F2/F4/F5/F6 · #48/#49/#51/#52/#53]` `sitio-publico/` montado en el backend (`/`, `/instalar-certificado`, `/estado`, `/sitio/*`) con pruebas en `api.test.js`, Centro de ayuda `/ayuda` en `demo-portal-tramites/` con pruebas en `portal.test.js` y `scripts/capturas.js`.
 - [x] `[F7 · #54 (base)]` Guion y plantilla de observación de usabilidad en `docs/evidencias/guion-usabilidad.md` (pendiente sesión presencial con 3 personas).
+- [x] `[H1]` `.env.example` deja `TLS_CA_PUBLIC_PATH=./certs/ca.crt` por defecto para que `GET /ca.crt` funcione tras `npm run env && npm run certs` (verificado en `backend/src/infrastructure/config/config.test.js`).
+- [x] `[#71]` `mobile-android/probar-motor.sh` (script POSIX para ejecutar `TotpEngineTest` con `kotlinc`) y alcance explícito de prototipo de hoja de ruta no compilable con Gradle en `mobile-android/README.md` y `docs/cumplimiento/matriz-cumplimiento.html`.
 
 ---
 

@@ -1,7 +1,7 @@
 # Autenticador Soberano — App Móvil Android Nativa (`mobile-android/`)
 
-> **Estado:** **En desarrollo** (módulo nativo complementario a la PWA soberana en producción `/app/`).  
-> **Licencia:** GNU AGPL-3.0-or-later · **Paquete / `applicationId`:** `ve.psmhackaton.totpsoberano` · **Decisión arquitectónica:** ADR-004 en [`ARCHITECTURE.md`](../ARCHITECTURE.md) (Issues `#39`–`#43`, `#58`).  
+> **Estado:** **Prototipo de hoja de ruta (en desarrollo, no compilable con Gradle)** — módulo nativo complementario a la PWA soberana en producción `/app/`.  
+> **Licencia:** GNU AGPL-3.0-or-later · **Paquete / `applicationId`:** `ve.psmhackaton.totpsoberano` · **Decisión arquitectónica:** ADR-004 en [`ARCHITECTURE.md`](../ARCHITECTURE.md) (Issues `#39`–`#43`, `#58`, `#71`).  
 > **Soberanía:** 100 % código propio en Kotlin sobre APIs estándar de Android (`javax.crypto`, `AndroidKeyStore`/StrongBox, `Camera2`, `BiometricPrompt`). **Cero dependencias de Google Play Services, Firebase ni telemetría.**
 
 ---
@@ -67,35 +67,20 @@ sequenceDiagram
 
 ---
 
-## 4. Cómo compilar y ejecutar `TotpEngineTest` (OpenJDK + Gradle)
+## 4. Cómo ejecutar `TotpEngineTest` (prototipo sin Gradle)
 
-Las pruebas unitarias puras (`TotpEngine`, `CedulaValidator`, `OtpAuthParser` y `PinManager`) usan únicamente la biblioteca estándar de JVM (`javax.crypto`, `java.net.URI`) y no requieren emulador ni librerías externas.
+> **Alcance honesto (Issue `#71`):** Este directorio es un **prototipo de hoja de ruta no compilable con Gradle** (no incluye `settings.gradle.kts`, `build.gradle.kts` ni wrapper `gradlew` para mantener el repositorio libre de binarios/dependencias externas en esta fase).
+
+Las pruebas unitarias puras (`TotpEngine`, `CedulaValidator`, `OtpAuthParser` y `PinManager`) usan únicamente la biblioteca estándar de JVM (`javax.crypto`, `java.net.URI`) y no requieren emulador, Android SDK ni Gradle.
 
 ### Requisitos
 - **OpenJDK 17+** (`java -version`)
-- **Gradle 8.x** + **Android SDK (API 34+)** para compilar el módulo Android completo, o **`kotlinc` (Kotlin 1.9+)** sobre OpenJDK para ejecutar directamente las pruebas unitarias puras sin Android SDK.
+- **`kotlinc` (Kotlin 1.9+)** para compilar y ejecutar las pruebas unitarias puras sobre JVM.
 
-### Opción A — Proyecto Android con Gradle (cuando exista el wrapper en el entorno Android SDK)
-En `app/build.gradle.kts` declarar `namespace = "ve.psmhackaton.totpsoberano"` y `defaultConfig { applicationId = "ve.psmhackaton.totpsoberano" }`, y ejecutar:
-
-```bash
-cd mobile-android
-./gradlew :app:testDebugUnitTest --tests "ve.psmhackaton.totpsoberano.core.TotpEngineTest"
-./gradlew :app:assembleRelease
+### Ejecución rápida con `probar-motor.sh`
+```sh
+./mobile-android/probar-motor.sh
 ```
+Si `kotlinc` o `java` no están instalados en el equipo, el script informa cómo instalarlos y ejecutar la suite.
 
-### Opción B — Ejecución directa sobre OpenJDK + `kotlinc` (sin Android SDK)
-```bash
-cd mobile-android
-mkdir -p build/classes
-kotlinc \
-  app/src/main/java/ve/psmhackaton/totpsoberano/core/TotpEngine.kt \
-  app/src/main/java/ve/psmhackaton/totpsoberano/core/CedulaValidator.kt \
-  app/src/main/java/ve/psmhackaton/totpsoberano/core/OtpAuthParser.kt \
-  app/src/main/java/ve/psmhackaton/totpsoberano/security/PinManager.kt \
-  app/src/test/java/ve/psmhackaton/totpsoberano/core/TotpEngineTest.kt \
-  -include-runtime -d build/totp-tests.jar
-java -cp build/totp-tests.jar ve.psmhackaton.totpsoberano.core.TotpEngineTestKt
-```
-
-*(Nota: `KeystoreVault.kt` requiere `android.security.keystore.*` del Android SDK, por lo que se compila con la Opción A.)*
+*(Nota: `KeystoreVault.kt` depende de `android.security.keystore.*` del Android SDK, por lo que su compilación y el empaquetado APK con Gradle forman parte de la hoja de ruta.)*
