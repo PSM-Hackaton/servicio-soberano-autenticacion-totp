@@ -127,7 +127,7 @@
       Giovani Marcano <span>· seguridad y laboratorio de ataques</span><br>
       Enggel Rodríguez <span>· detector local, documentación y presentación</span>
     </div>
-    <div class="der"><b>Equipo PSM-Hackaton</b><br>26 de noviembre de 2026</div>
+    <div class="der"><b>Equipo PSM-Hackaton</b><br>27 de noviembre de 2026</div>
   </div>
 </section>
 <aside class="notas"><b>Notas (20 s).</b> Presentar al equipo y el nombre del proyecto. Mensaje de una línea: «Construimos un segundo factor de autenticación que la institución controla de punta a punta, sin depender de nadie de fuera».</aside>
@@ -451,8 +451,8 @@
       </div>
     </div>
     <div>
-      <img class="captura" src="img/consola-anomalias.png" width="642" height="401" alt="Consola: panel del detector de anomalías con escala de riesgo, alertas y razones legibles">
-      <div class="leyenda">Consola en modo demostración (datos simulados): escala de riesgo y razones legibles de cada alerta.</div>
+      <img class="captura" src="img/consola-anomalias.png" width="642" height="401" alt="Consola: detector de anomalías con bloqueos preventivos, inferencia media de 4,9 ms sin red externa y escala de riesgo con respuesta adaptativa">
+      <div class="leyenda">Consola real tras el laboratorio de ataques: bloqueos preventivos, inferencia local en milisegundos y escala de riesgo con respuesta adaptativa.</div>
     </div>
   </div>
   <div class="pie"><span>Servicio Soberano TOTP · Fuentes: escalabilidad §B.4 (µs), informe del laboratorio (spraying, origen compartido), matriz §2.2 (p95)</span><b>9</b></div>
@@ -617,13 +617,17 @@
   <h1>Pilotémoslo en una institución:<br>el segundo factor queda en casa</h1>
   <p style="font-size: 22px; color: #D6E0F7; margin-bottom: 14px;">Se instala en un servidor Linux con Node.js 22, sin descargar nada más:</p>
   <div class="comando"><span class="p">$</span> cd backend &amp;&amp; npm run env &amp;&amp; npm run certs &amp;&amp; npm run seed &amp;&amp; npm start</div>
-  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 30px;">
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 28px; margin-top: 16px; font-size: 17px; color: #D6E0F7;">
+    <div><b style="color:#FFE27A">Código fuente (GitLab del evento):</b><br><span style="font-family: monospace; color:#fff">gitlab.nube.gob.ve/grupo/chuao/chuao_grupo4/reto_otp</span></div>
+    <div><b style="color:#FFE27A">En la demostración (servidor local):</b><br><span style="font-family: monospace; color:#fff">https://localhost:8443/app/ · /consola/ · Portal :8444</span></div>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 20px;">
     <div><div class="cifra" style="color: #FFCC00;">0</div><div class="etq" style="color: #D6E0F7;">dependencias npm</div></div>
     <div><div class="cifra" style="color: #FFCC00;">340</div><div class="etq" style="color: #D6E0F7;">pruebas automatizadas en verde</div></div>
     <div><div class="cifra" style="color: #FFCC00;">127/127</div><div class="etq" style="color: #D6E0F7;">verificaciones de ataque</div></div>
     <div><div class="cifra" style="color: #FFCC00;">$0</div><div class="etq" style="color: #D6E0F7;">en licencias · AGPL-3.0</div></div>
   </div>
-  <div class="pie"><span>Repositorio: servicio-soberano-autenticacion-totp · Producción: deploy/README.md (systemd, CA y NTP institucionales)</span><b>15</b></div>
+  <div class="pie"><span>Repositorio: gitlab.nube.gob.ve/grupo/chuao/chuao_grupo4/reto_otp · Instalación: README §6 · Producción: deploy/README.md</span><b>15</b></div>
 </section>
 <aside class="notas"><b>Notas (30 s).</b> Cerrar con la frase: «Cualquier sistema se integra con nuestro SDK o con cuatro llamadas HTTPS; lo hicimos con el Portal de Trámites y lo ofrecemos al equipo del Reto 3». Fuentes de las cifras: README §4 y §6 (340 pruebas, instalación), informe del laboratorio (127/127), docs/sbom (0 dependencias). Agradecer y abrir preguntas.</aside>
 

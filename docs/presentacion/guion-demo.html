@@ -43,7 +43,12 @@
 <div class="box">Versión consolidada a partir del guion inicial de Juan Laya (<code>docs/GUION_DEMO.md</code>), con tiempos y comandos verificados el 26-11-2026. <b>Reparto sugerido.</b> Presenta: Enggel Rodríguez. Teclado (portal y app): Javier Rodríguez. Terminal de ataques: Giovani Marcano. Consola: Juan Laya. Respuestas técnicas: Diego Landaeta. Ajustar al equipo el día de la demo.</div>
 
 <h2>0. Preparación (antes de subir, 15 minutos)</h2>
+<p><b>Repositorio de la entrega (GitLab del evento):</b> <code>https://gitlab.nube.gob.ve/grupo/chuao/chuao_grupo4/reto_otp</code> (ramas <code>desarrollo</code>, <code>avance</code> y <code>terminado</code>). Direcciones durante la demo: app <code>https://localhost:8443/app/</code>, consola <code>https://localhost:8443/consola/</code>, Portal de Trámites <code>https://localhost:8444</code>.</p>
 <pre>
+# Terminal 0 — clonar la versión entregada
+git clone https://gitlab.nube.gob.ve/grupo/chuao/chuao_grupo4/reto_otp.git servicio-soberano-autenticacion-totp
+cd servicio-soberano-autenticacion-totp && node --version          # v22.5.0 o superior
+
 # Terminal 1 — servicio (instalación limpia, ver README §6)
 cd backend
 npm run env &amp;&amp; npm run certs &amp;&amp; npm run seed      # anotar client_id/secret y datos del admin
