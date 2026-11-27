@@ -32,14 +32,15 @@ const ESTATICOS = {
 };
 
 /** Cabeceras de seguridad comunes. CSP estricta: nada en línea, nada externo. */
-function cabecerasSeguridad(tls, { widgetCaptcha = false } = {}) {
+function cabecerasSeguridad(tls, { widgetCaptcha = false, origenCaptcha = '' } = {}) {
   return {
     // El widget del SDK de verificación humana dibuja con estilos en línea y resuelve la prueba de trabajo en un
     // Web Worker blob:; solo la página de ingreso con verificación humana relaja esas dos directivas.
     'Content-Security-Policy': [
-      "default-src 'none'", "script-src 'self'", widgetCaptcha ? "style-src 'self' 'unsafe-inline'" : "style-src 'self'", "img-src 'self' data:",
+      "default-src 'none'", `script-src 'self'${origenCaptcha ? ` ${origenCaptcha}` : ''}`,
+      widgetCaptcha ? "style-src 'self' 'unsafe-inline'" : "style-src 'self'", "img-src 'self' data:",
       ...(widgetCaptcha ? ["worker-src blob:"] : []),
-      "form-action 'self'", "frame-ancestors 'none'", "base-uri 'none'", "connect-src 'self'", "manifest-src 'self'",
+      "form-action 'self'", "frame-ancestors 'none'", "base-uri 'none'", `connect-src 'self'${origenCaptcha ? ` ${origenCaptcha}` : ''}`, "manifest-src 'self'",
     ].join('; '),
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
@@ -89,6 +90,10 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
   const verificadorCaptcha = config.captcha
     ? new CaptchaVerifier({ secretKey: config.captcha.secreto, apiBase: `${config.captcha.url}/api/captcha`, timeoutMs: config.captcha.timeoutMs })
     : null;
+  /** Datos del widget: SDK y API del servicio publicados (modo directo) o del intermediario del portal. */
+  const datosWidget = () => (config.captcha.publica
+    ? { siteKey: config.captcha.siteKey, sdk: `${config.captcha.publica}/sdk/client.js`, api: `${config.captcha.publica}/api/captcha` }
+    : { siteKey: config.captcha.siteKey, sdk: '/vendor/pow-captcha-client/dist/index.js', api: '/captcha/api' });
   const estaticos = Object.fromEntries(Object.keys(ESTATICOS).map((r) => [r, readFileSync(resolve(RAIZ, r.slice(1)))]));
 
   // Contexto por petición: el observador del SDK escribe las trazas en la sesión correcta.
@@ -253,7 +258,7 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
     sesion.aviso = null; // los avisos se muestran una vez
     enviar(res, status, cuerpo, {
       'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Set-Cookie': sesiones.cookie(sesion),
-    }, { widgetCaptcha });
+    }, { widgetCaptcha, origenCaptcha: widgetCaptcha && config.captcha?.publica ? new URL(config.captcha.publica).origin : '' });
   }
 
   function redirigir(res, sesion, destino) {
@@ -401,7 +406,7 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
     // ---- paso 1: contraseña
     if (ruta === '/ingresar') {
       if (etapa === 'autenticado') return redirigir(res, sesion, '/panel');
-      if (metodo === 'GET') return ver({ titulo: 'Ingresar', ancho: 'portada', widgetCaptcha: Boolean(config.captcha), contenido: V.paginaIngresar({ sesion, demo: usuarios.listar(), captcha: config.captcha ? { siteKey: config.captcha.siteKey } : null }) });
+      if (metodo === 'GET') return ver({ titulo: 'Ingresar', ancho: 'portada', widgetCaptcha: Boolean(config.captcha), contenido: V.paginaIngresar({ sesion, demo: usuarios.listar(), captcha: config.captcha ? datosWidget() : null }) });
 
       const nacionalidad = String(cuerpo.get('nacionalidad') ?? 'V').slice(0, 1);
       const escrita = String(cuerpo.get('cedula') ?? '').slice(0, 24);
@@ -417,7 +422,7 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
         if (!valido) {
           return ver({
             status: 400, titulo: 'Ingresar', ancho: 'portada', widgetCaptcha: Boolean(config.captcha),
-            contenido: V.paginaIngresar({ sesion, previo, demo: usuarios.listar(), captcha: { siteKey: config.captcha.siteKey }, error: { titulo: 'Verificación humana no superada', texto: 'Marque «No soy un robot» antes de continuar.' } }),
+            contenido: V.paginaIngresar({ sesion, previo, demo: usuarios.listar(), captcha: datosWidget(), error: { titulo: 'Verificación humana no superada', texto: 'Marque «No soy un robot» antes de continuar.' } }),
           });
         }
       }
@@ -425,7 +430,7 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
         trazar(sesion, { tipo: 'local', titulo: 'Cédula con formato no válido: se rechaza sin consultar usuarios', detalle: 'Se espera V o E y de 6 a 9 dígitos, con o sin puntos.', estado: 'error' });
         return ver({
           status: 400, titulo: 'Ingresar', ancho: 'portada', widgetCaptcha: Boolean(config.captcha),
-          contenido: V.paginaIngresar({ sesion, previo, demo: usuarios.listar(), captcha: config.captcha ? { siteKey: config.captcha.siteKey } : null, errorCedula: true, error: { titulo: 'Cédula de identidad no válida', texto: 'Escriba de 6 a 9 dígitos, con o sin puntos (por ejemplo 12.345.678), y elija V o E.' } }),
+          contenido: V.paginaIngresar({ sesion, previo, demo: usuarios.listar(), captcha: config.captcha ? datosWidget() : null, errorCedula: true, error: { titulo: 'Cédula de identidad no válida', texto: 'Escriba de 6 a 9 dígitos, con o sin puntos (por ejemplo 12.345.678), y elija V o E.' } }),
         });
       }
       const freno = intentosContrasena.get(nombre);
@@ -434,7 +439,7 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
         trazar(sesion, { tipo: 'decision', titulo: 'Demasiados intentos de contraseña: el portal frena el ingreso', detalle: `${s} s`, estado: 'error' });
         return ver({
           status: 429, titulo: 'Ingresar', ancho: 'portada', widgetCaptcha: Boolean(config.captcha),
-          contenido: V.paginaIngresar({ sesion, previo, demo: usuarios.listar(), captcha: config.captcha ? { siteKey: config.captcha.siteKey } : null, error: { tipo: 'bloqueo', titulo: 'Demasiados intentos', texto: `Espere ${s} segundos antes de volver a intentarlo.` } }),
+          contenido: V.paginaIngresar({ sesion, previo, demo: usuarios.listar(), captcha: config.captcha ? datosWidget() : null, error: { tipo: 'bloqueo', titulo: 'Demasiados intentos', texto: `Espere ${s} segundos antes de volver a intentarlo.` } }),
         });
       }
       const t0 = performance.now();
@@ -448,7 +453,7 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
         trazar(sesion, { tipo: 'local', titulo: 'Cédula o contraseña incorrectas', detalle: 'scrypt con el mismo coste exista o no la cédula (sin enumeración).', ms, estado: 'error' });
         return ver({
           status: 401, titulo: 'Ingresar', ancho: 'portada', widgetCaptcha: Boolean(config.captcha),
-          contenido: V.paginaIngresar({ sesion, previo, demo: usuarios.listar(), captcha: config.captcha ? { siteKey: config.captcha.siteKey } : null, error: { titulo: 'Cédula o contraseña incorrectas', texto: 'Revise los datos e inténtelo de nuevo.' } }),
+          contenido: V.paginaIngresar({ sesion, previo, demo: usuarios.listar(), captcha: config.captcha ? datosWidget() : null, error: { titulo: 'Cédula o contraseña incorrectas', texto: 'Revise los datos e inténtelo de nuevo.' } }),
         });
       }
       intentosContrasena.delete(nombre);

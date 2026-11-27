@@ -1,11 +1,12 @@
-// Verificación humana (Reto 2) en el ingreso: monta el widget del SDK @pow-captcha/client (instalado en
-// vendor/ desde la consola del servicio) contra el intermediario de mismo origen del portal (/captcha/api).
+// Verificación humana (Reto 2) en el ingreso: monta el widget del SDK @pow-captcha/client. En modo directo se
+// carga el SDK publicado por el servicio (/sdk/client.js, como indica su consola) y el widget le habla
+// directamente; si no, se usa la copia instalada en vendor/ con el intermediario del portal (/captcha/api).
 // El SDK deja el token en el campo oculto captcha_token; el servidor lo valida con @pow-captcha/server.
-import { PowCaptchaClient } from '/vendor/pow-captcha-client/dist/index.js';
 
 const form = document.querySelector('form[data-captcha]');
 const caja = document.getElementById('captcha-widget');
 if (form && caja) {
+  const { PowCaptchaClient } = await import(caja.dataset.sdk);
   const estado = form.querySelector('[data-captcha-estado]');
   const boton = form.querySelector('button[type="submit"]');
   const decir = (t) => { if (estado) estado.textContent = t; };

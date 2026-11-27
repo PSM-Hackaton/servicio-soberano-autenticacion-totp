@@ -301,7 +301,7 @@ export function paginaIngresar({ sesion, error, errorCedula = false, previo = {}
           <input id="contrasena" name="contrasena" type="password" autocomplete="current-password" required maxlength="128">
         </div>
         ${captcha ? html`<div class="campo">
-          <div id="captcha-widget" data-sitekey="${captcha.siteKey ?? ''}" data-api="/captcha/api"></div>
+          <div id="captcha-widget" data-sitekey="${captcha.siteKey ?? ''}" data-api="${captcha.api}" data-sdk="${captcha.sdk}"></div>
           <p class="ayuda" data-captcha-estado aria-live="polite">Verificación humana soberana del Reto 2: sin servicios externos.</p>
         </div>` : ''}
         <button type="submit" class="boton boton-primario boton-ancho">Continuar${icono('flecha', 'icono icono-chico')}</button>
