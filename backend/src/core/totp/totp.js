@@ -51,6 +51,20 @@ function igualSeguro(a, b) {
 }
 
 /**
+ * ¿Es `codigo` una cadena de exactamente `digitos` cifras ASCII (0-9)? Comparación carácter a
+ * carácter, sin construir expresiones regulares a partir de la política.
+ * @param {unknown} codigo @param {number} digitos
+ */
+export function esCodigoDeDigitos(codigo, digitos) {
+  if (typeof codigo !== 'string' || codigo.length !== digitos) return false;
+  for (let i = 0; i < codigo.length; i++) {
+    const c = codigo.charCodeAt(i);
+    if (c < 48 || c > 57) return false;
+  }
+  return true;
+}
+
+/**
  * Verifica un código con ventana, deriva y protección anti replay.
  * Recorre siempre toda la ventana (sin salir antes) para no filtrar información por tiempo.
  * `derivaMaxima` (opcional) acota la deriva resultante: un paso con |paso − actual| > derivaMaxima
@@ -65,7 +79,7 @@ export function verifyTotpWithDrift(semilla, codigo, epochMs, opciones) {
   validarPolitica(opciones);
   const { ventana, driftSteps = 0, lastStep = -1, derivaMaxima = Infinity } = opciones;
   if (!(derivaMaxima >= 0)) throw new RangeError('derivaMaxima inválida');
-  if (typeof codigo !== 'string' || !new RegExp(`^\\d{${opciones.digitos}}$`).test(codigo)) {
+  if (!esCodigoDeDigitos(codigo, opciones.digitos)) {
     return { valid: false, matchedStep: null, driftSteps, reason: 'formato' };
   }
   const actual = pasoDeTiempo(epochMs, opciones.periodo);
@@ -90,8 +104,7 @@ export function verifyTotpWithDrift(semilla, codigo, epochMs, opciones) {
 export function resyncTwoConsecutiveCodes(semilla, codigo1, codigo2, epochMs, opciones) {
   validarPolitica(opciones);
   const { rango = 10, lastStep = -1 } = opciones;
-  const formato = new RegExp(`^\\d{${opciones.digitos}}$`);
-  if (!formato.test(String(codigo1)) || !formato.test(String(codigo2))) {
+  if (!esCodigoDeDigitos(String(codigo1), opciones.digitos) || !esCodigoDeDigitos(String(codigo2), opciones.digitos)) {
     return { valid: false, matchedStep: null, driftSteps: 0 };
   }
   const actual = pasoDeTiempo(epochMs, opciones.periodo);

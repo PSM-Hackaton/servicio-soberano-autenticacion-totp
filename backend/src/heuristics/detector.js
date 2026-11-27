@@ -17,6 +17,8 @@ import { generarTraficoNormal } from './generadorTrafico.js';
  * @property {Accion} action
  * @property {string[]} reasons Razones legibles en castellano.
  * @property {number} inferenceMs Tiempo de extracción + inferencia en milisegundos.
+ * @property {true} [cedidoAlProgresivo] Solo presente si el detector cedió al bloqueo progresivo
+ *   (una cuenta y un origen por debajo del umbral de fallos): nunca debe bloquear por anomalía.
  */
 
 /**
@@ -52,6 +54,14 @@ export const REGLAS_POR_DEFECTO = Object.freeze({
   horaInusual: { umbral: 0.5, severidad: 0.25 },
   /** Peso máximo del bosque: sin reglas activas no llega a bloqueo, solo a espera o alerta. */
   pesoBosque: 0.65,
+  /**
+   * Cesión al bloqueo progresivo: con UNA cuenta y UN origen (sin dispersión de IP, sin spraying
+   * y sin volumen de fallos de la IP), el detector no bloquea mientras la cuenta tenga menos de
+   * `maxFallosCuenta` fallos en la ventana (el mismo umbral que el primer escalón de 30 s). Así un
+   * ciudadano que se equivoca tres veces rápido no queda 5 min fuera: como mucho recibe espera
+   * extra, y la fuerza bruta contra su cuenta la frena el bloqueo progresivo (30 s → 2 min → …).
+   */
+  cederAlProgresivo: { maxFallosCuenta: 5 },
 });
 
 /** Umbrales sobre riskScore: ≥ alerta → nivel medio, ≥ bloqueo → nivel alto. */
@@ -106,6 +116,21 @@ function aplicarReglas(x, reglas) {
     agregar(r.horaInusual.severidad, `Hora inusual: unas ${fmt(horasDeDesviacion(desviacionHora), 0)} h fuera del patrón horario de la cuenta`);
   }
   return activas.sort((a, b) => b.severidad - a.severidad);
+}
+
+/**
+ * ¿El intento es de una sola cuenta desde un solo origen y por debajo del umbral de fallos?
+ * Exige que no haya ninguna señal de ataque distribuido o de spraying (dispersión de IP, cuentas
+ * por IP, fallos de la IP) y que la cuenta tenga menos fallos que el umbral del bloqueo progresivo.
+ * @param {number[]} x @param {typeof REGLAS_POR_DEFECTO} r
+ */
+function cedeAlProgresivo(x, r) {
+  const [fallosCuenta, ipsCuenta, cuentasIp, fallosIp] = x;
+  const max = r.cederAlProgresivo?.maxFallosCuenta ?? 0;
+  return fallosCuenta < max
+    && ipsCuenta <= 1
+    && cuentasIp <= 1
+    && fallosIp < r.fallosIp.umbral;
 }
 
 /** Percentil simple sobre una copia ordenada. */
@@ -185,10 +210,23 @@ export function crearDetector({ modelo, reglas = {}, umbrales = {}, modo = 'bloq
     if (riesgoBosque > 0.15) {
       reasons.push(`Isolation Forest: comportamiento atípico frente al patrón aprendido (anomalía ${fmt(anomalia, 2)}, normal ≤ ${fmt(base, 2)})`);
     }
+
+    // Cesión al bloqueo progresivo (ver REGLAS_POR_DEFECTO.cederAlProgresivo): el riesgo y las
+    // razones se conservan para la auditoría, pero un intento de una sola cuenta y un solo origen
+    // por debajo del umbral de fallos no se bloquea; se degrada a espera extra.
+    const cedido = level !== 'bajo' && cedeAlProgresivo(x, r);
+    if (cedido) {
+      if (action === 'bloqueo_temporal') action = 'espera_extra';
+      reasons.push(`Una sola cuenta y un solo origen con ${x[0]} fallos (< ${r.cederAlProgresivo.maxFallosCuenta}): actúa el bloqueo progresivo, no el detector`);
+    }
     if (reasons.length === 0) reasons.push('Comportamiento dentro del patrón habitual');
 
     const inferenceMs = Number((performance.now() - inicio).toFixed(3));
-    return { riskScore, level, action, reasons, inferenceMs };
+    /** @type {Evaluacion} */
+    const evaluacion = { riskScore, level, action, reasons, inferenceMs };
+    // El caso de uso lo lee para no aplicar tampoco el umbral de riesgo propio de la app.
+    if (cedido) evaluacion.cedidoAlProgresivo = true;
+    return evaluacion;
   }
 
   return { evaluar, modelo: completo, modo, umbrales: Object.freeze(u), reglas: Object.freeze(r) };

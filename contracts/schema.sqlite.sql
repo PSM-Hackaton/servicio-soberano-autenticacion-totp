@@ -1,10 +1,11 @@
 -- ==============================================================================
 -- CONTRATO: esquema SQLite del Servicio Soberano TOTP (base de datos de esta versión).
--- Copia exacta de backend/migrations/001_esquema.sql seguida de 002_cedula_apps.sql y 003_dispositivos.sql,
+-- Copia exacta de backend/migrations/001_esquema.sql seguida de 002_cedula_apps.sql, 003_indices_detector.sql
+-- y 004_dispositivos.sql,
 -- que son la fuente de verdad: el backend aplica las migraciones al abrir la base (node:sqlite, modo WAL y
 -- foreign_keys activados por backend/src/infrastructure/persistence/db.js).
 -- Si cambia una migración, este archivo se regenera copiándolas tal cual y en orden.
--- Alineado con el código el 26-11-2026.
+-- Alineado con el código el 27-11-2026.
 -- ==============================================================================
 
 -- ==============================================================================
@@ -153,7 +154,23 @@ ALTER TABLE apps ADD COLUMN cedula_secreto_auth_tag TEXT;    -- base64 128-bit G
 ALTER TABLE apps ADD COLUMN cedula_key_version TEXT;
 
 -- ==============================================================================
--- Migración 003: vinculación de dispositivos (issue #47, M8).
+-- Migración 003: índices de cobertura para el historial del detector de anomalías.
+--   Cada verificación lee hasta 100 intentos recientes (50 por origen y 50 por cuenta) con solo
+--   id, user_ref_hash, ip_hash, resultado y ts. Con estos índices la consulta se resuelve solo con
+--   el índice (COVERING INDEX), sin leer la fila completa de attempts (ni reasons_json).
+--   Sustituyen a idx_attempts_ip_ts e idx_attempts_user_ts (mismas columnas iniciales, por lo que
+--   también sirven a los conteos de fallos y al bloqueo de cuentas inexistentes): el número de
+--   índices que se actualizan en cada inserción no cambia. `id DESC` (alias de rowid) evita el
+--   ordenamiento temporal (TEMP B-TREE) del desempate ORDER BY ts DESC, id DESC.
+-- ==============================================================================
+
+DROP INDEX IF EXISTS idx_attempts_ip_ts;
+DROP INDEX IF EXISTS idx_attempts_user_ts;
+CREATE INDEX IF NOT EXISTS idx_attempts_ip_ts_det ON attempts(ip_hash, ts DESC, id DESC, resultado, user_ref_hash);
+CREATE INDEX IF NOT EXISTS idx_attempts_user_ts_det ON attempts(user_ref_hash, ts DESC, id DESC, resultado, ip_hash);
+
+-- ==============================================================================
+-- Migración 004: vinculación de dispositivos (issue #47, M8).
 -- Cada enrolamiento puede quedar asociado a UN dispositivo (la app móvil Android, la PWA u otro
 -- autenticador estándar) para que el integrador y la consola puedan consultarlo y revocarlo.
 --   id          seudónimo aleatorio 'dev_' + 22 caracteres base64url (128 bits). No deriva de

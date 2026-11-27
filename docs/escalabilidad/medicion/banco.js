@@ -19,7 +19,7 @@ const { crearFirmas } = await m('infrastructure/config/firmas.js');
 const { abrirBaseDatos } = await m('infrastructure/persistence/db.js');
 const { crearRepositorios } = await m('infrastructure/persistence/repositorios.js');
 const { crearVault } = await m('core/vault/vault.js');
-const { crearBitacora, crearMetricas } = await m('audit/index.js');
+const { crearBitacoraSqlite, crearMetricas } = await m('audit/index.js');
 const { entrenarDetectorPorDefecto } = await m('heuristics/index.js');
 const { crearCasosDeUso, puede } = await m('application/use-cases/index.js');
 const { crearServidor } = await m('api/servidor.js');
@@ -31,17 +31,17 @@ const K = Number(process.env.ACELERACION ?? 1);
 if (!salida || !Number.isFinite(T0) || !(K >= 1)) throw new Error('Uso: T0=<ms> ACELERACION=<k> node banco.js <carpeta>');
 const reloj = () => T0 + (Date.now() - T0) * K;
 
+// SINCRONO (FULL | NORMAL) es un alias de SQLITE_SYNCHRONOUS, la variable del producto
+// (por defecto NORMAL en WAL; ver backend/src/infrastructure/persistence/db.js).
+if (process.env.SINCRONO) process.env.SQLITE_SYNCHRONOUS = process.env.SINCRONO === 'NORMAL' ? 'NORMAL' : 'FULL';
 const config = cargarConfig();
-const db = abrirBaseDatos(config.baseDatos.ruta);
-// Variante de afinado (etapa 2): SINCRONO=NORMAL evita un fsync por transacción en modo WAL.
-// Sin la variable se usa el valor por defecto de SQLite que hoy usa el producto (FULL).
-if (process.env.SINCRONO) db.exec(`PRAGMA synchronous = ${process.env.SINCRONO === 'NORMAL' ? 'NORMAL' : 'FULL'};`);
+const db = abrirBaseDatos(config.baseDatos.ruta, { sincrono: config.baseDatos.sincrono });
 const sincrono = ['OFF', 'NORMAL', 'FULL', 'EXTRA'][db.prepare('PRAGMA synchronous').get().synchronous];
 const repos = crearRepositorios(db);
 const vault = crearVault(config.vault);
 const firmas = crearFirmas({ repos, vault }).recargar();
 const detector = entrenarDetectorPorDefecto(42, { modo: config.heuristicas === 'monitorizacion' ? 'monitorizacion' : 'bloqueo' });
-const bitacora = crearBitacora({ ultimo: () => repos.auditLog.ultimo(), insertar: (f) => repos.auditLog.insertar(f).id });
+const bitacora = crearBitacoraSqlite(repos);
 const metricas = crearMetricas();
 const casos = crearCasosDeUso({ repos, vault, firmas, detector, bitacora, metricas, config: configCasosDeUso(config), reloj, db });
 

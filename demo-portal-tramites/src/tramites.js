@@ -21,7 +21,7 @@ export const TRAMITES = [
     icono: 'banco',
     campos: [
       { nombre: 'entidad', etiqueta: 'Entidad bancaria', tipo: 'select', opciones: ['Banco Ejemplo Uno', 'Banco Ejemplo Dos', 'Cooperativa Ejemplo'] },
-      { nombre: 'cuenta', etiqueta: 'Número de cuenta (20 dígitos)', tipo: 'text', patron: '[0-9]{20}', ayuda: 'Use una cuenta ficticia, p. ej. 01020304050607080900.', max: 20 },
+      { nombre: 'cuenta', etiqueta: 'Número de cuenta (20 dígitos)', tipo: 'text', patron: '[0-9]{20}', patronRe: /^[0-9]{20}$/, ayuda: 'Use una cuenta ficticia, p. ej. 01020304050607080900.', max: 20 },
     ],
     exito: (d) => `Cuenta terminada en ${d.cuenta.slice(-4)} registrada en ${d.entidad}. Los próximos pagos se abonarán allí.`,
   },
@@ -55,7 +55,7 @@ export function validarCampos(tramite, cuerpo) {
     if (!v) return { error: `Complete el campo «${c.etiqueta}».` };
     if (c.max && v.length > c.max) return { error: `«${c.etiqueta}» es demasiado largo.` };
     if (c.tipo === 'select' && !c.opciones.includes(v)) return { error: `Seleccione una opción válida en «${c.etiqueta}».` };
-    if (c.patron && !new RegExp(`^${c.patron}$`).test(v)) return { error: `«${c.etiqueta}» no tiene el formato esperado.` };
+    if (c.patronRe && !c.patronRe.test(v)) return { error: `«${c.etiqueta}» no tiene el formato esperado.` };
     datos[c.nombre] = v;
   }
   return { datos };

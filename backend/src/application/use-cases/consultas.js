@@ -26,6 +26,10 @@ export function crearConsultas({ repos, db = null }) {
   const s = {};
   if (db) {
     s.ultimosUsuario = db.prepare('SELECT * FROM attempts WHERE user_ref_hash = ? ORDER BY ts DESC, id DESC LIMIT ?');
+    s.historialIp = db.prepare(`SELECT id, user_ref_hash, ip_hash, resultado, ts FROM attempts
+      WHERE ip_hash = ? ORDER BY ts DESC, id DESC LIMIT ?`);
+    s.historialUsuario = db.prepare(`SELECT id, user_ref_hash, ip_hash, resultado, ts FROM attempts
+      WHERE user_ref_hash = ? ORDER BY ts DESC, id DESC LIMIT ?`);
     s.enrolTodos = db.prepare(`SELECT ${COLUMNAS_ENROL} FROM enrollments ORDER BY created_at DESC, id LIMIT ?`);
     s.enrolApp = db.prepare(`SELECT ${COLUMNAS_ENROL} FROM enrollments WHERE app_id = ? ORDER BY created_at DESC, id LIMIT ?`);
     s.enrolEstado = db.prepare(`SELECT ${COLUMNAS_ENROL} FROM enrollments WHERE estado = ? ORDER BY created_at DESC, id LIMIT ?`);
@@ -42,6 +46,18 @@ export function crearConsultas({ repos, db = null }) {
     ultimosPorUsuario(userRefHash, limite = 50) {
       if (typeof repos.attempts?.ultimosPorUsuario === 'function') return repos.attempts.ultimosPorUsuario(userRefHash, limite);
       return s.ultimosUsuario ? s.ultimosUsuario.all(userRefHash, limite).map(intento) : [];
+    },
+    /**
+     * Historial mínimo del detector por origen o por cuenta: solo id, user_ref_hash, ip_hash,
+     * resultado y ts (sin reasons_json ni su JSON.parse por fila; ≈ 17 % de la CPU en saturación).
+     * Orden: repositorio (historialDetector) → conexión SQLite → ultimosPorIp/ultimosPorUsuario.
+     * @param {{ ipHash?: string, userRefHash?: string }} filtro @param {number} [limite]
+     */
+    historialDetector(filtro, limite = 50) {
+      if (typeof repos.attempts?.historialDetector === 'function') return repos.attempts.historialDetector(filtro, limite);
+      if (s.historialIp) return filtro.ipHash != null ? s.historialIp.all(filtro.ipHash, limite) : s.historialUsuario.all(filtro.userRefHash, limite);
+      const filas = filtro.ipHash != null ? (repos.attempts?.ultimosPorIp?.(filtro.ipHash, limite) ?? []) : this.ultimosPorUsuario(filtro.userRefHash, limite);
+      return filas.map((f) => ({ id: f.id, user_ref_hash: f.user_ref_hash, ip_hash: f.ip_hash, resultado: f.resultado, ts: f.ts }));
     },
     /**
      * `userRefHash` (con `appId`) limita el listado a una cuenta: búsqueda de soporte por cédula o user_ref.

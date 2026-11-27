@@ -7,6 +7,7 @@
 // bloquea el origen (se ve en /metrics como resultado anomaly_blocked). Hacia fuera, el bloqueo es
 // un 429 TOO_MANY_REQUESTS genérico: sin puntuación, razones ni umbrales que guíen al atacante.
 
+import { randomInt } from 'node:crypto';
 import { crearUsuarioPrueba, esPrincipal, exigirCredenciales, nuevoUserRef, principal } from '../lib/escenario.js';
 import { codigoError, etiquetaEstado } from '../lib/http.js';
 import { codigoIncorrecto, codigoNuevo } from '../lib/totp.js';
@@ -17,6 +18,15 @@ import { deltaMetrica, leerMetricas, verificar, verificarUsuario } from '../lib/
 export const id = 'spraying';
 export const nombre = 'Spraying: un origen contra muchas cuentas';
 export const demuestra = 'Pocos intentos por cuenta no comprometen ninguna; no hay enumeración de usuarios y el detector bloquea el origen con un 429 genérico que no revela su puntuación ni sus razones.';
+
+/** Fisher-Yates con el CSPRNG del sistema: mezcla cuentas reales e inexistentes sin sesgo. */
+function barajar(lista) {
+  for (let i = lista.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [lista[i], lista[j]] = [lista[j], lista[i]];
+  }
+  return lista;
+}
 
 export async function ejecutar(ctx, res) {
   exigirCredenciales(ctx);
@@ -31,7 +41,17 @@ export async function ejecutar(ctx, res) {
   const objetivos = [
     ...reales.map((u) => ({ userRef: u.userRef, datos: u.datos, real: true })),
     ...Array.from({ length: nFalsas }, () => ({ userRef: nuevoUserRef('inexistente'), datos: null, real: false })),
-  ].sort(() => Math.random() - 0.5);
+  ];
+  barajar(objetivos);
+  // El detector bloquea el origen tras unos pocos fallos: para comparar respuestas en las mismas
+  // condiciones, los dos primeros objetivos son una cuenta real y una inexistente (en orden al azar).
+  // Antes, si las primeras cuentas eran todas inexistentes, las reales solo veían el 429 del detector
+  // y la comparación daba un falso hallazgo de enumeración.
+  const iReal = objetivos.findIndex((o) => o.real);
+  const iFalsa = objetivos.findIndex((o) => !o.real);
+  const primeros = [objetivos[iReal], objetivos[iFalsa]];
+  if (randomInt(2) === 1) primeros.reverse();
+  objetivos.splice(0, objetivos.length, ...primeros, ...objetivos.filter((_, i) => i !== iReal && i !== iFalsa));
 
   const metricasAntes = await leerMetricas(cliente);
   const porTipo = { real: [], falsa: [] };

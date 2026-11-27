@@ -19,7 +19,7 @@ export class ErrorCuenta extends Error {
 }
 
 // Caracteres de control y de reordenamiento bidireccional (evitan suplantar emisores visualmente).
-const INVISIBLES = /[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁠-⁩﻿]/g;
+const INVISIBLES = /[\u0000-\u001f\u007f-\u009f\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g;
 
 /** Limpia y acota un texto visible (emisor o cuenta). */
 export function limpiarTexto(valor, campo) {

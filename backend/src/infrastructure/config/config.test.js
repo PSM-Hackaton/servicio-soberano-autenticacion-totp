@@ -111,6 +111,16 @@ describe('validarConfig', () => {
     assert.throws(() => validarConfig({ ...VALIDAS, BLOQUEO_INEXISTENTES_VENTANA_MIN: '0' }, base), /BLOQUEO_INEXISTENTES_VENTANA_MIN/);
   });
 
+  test('SQLITE_SYNCHRONOUS: NORMAL por defecto, FULL configurable y valores desconocidos rechazados', () => {
+    const base = { base: '/srv/backend' };
+    assert.equal(validarConfig(VALIDAS, base).baseDatos.sincrono, 'NORMAL');
+    assert.equal(validarConfig({ ...VALIDAS, SQLITE_SYNCHRONOUS: 'FULL' }, base).baseDatos.sincrono, 'FULL');
+    assert.equal(validarConfig({ ...VALIDAS, SQLITE_SYNCHRONOUS: 'NORMAL' }, base).baseDatos.sincrono, 'NORMAL');
+    for (const malo of ['OFF', 'EXTRA', 'normal', '1']) {
+      assert.throws(() => validarConfig({ ...VALIDAS, SQLITE_SYNCHRONOUS: malo }, base), /SQLITE_SYNCHRONOUS debe ser uno de: FULL, NORMAL/, malo);
+    }
+  });
+
   test('ruta del QR del admin: junto a SQLITE_DB_PATH o ADMIN_QR_PATH', () => {
     const base = { base: '/srv/backend' };
     assert.equal(validarConfig({ ...VALIDAS, SQLITE_DB_PATH: '/var/lib/totp/datos.db' }, base).admin.rutaQr, '/var/lib/totp/admin-qr.svg');

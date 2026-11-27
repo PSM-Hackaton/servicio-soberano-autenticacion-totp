@@ -1,5 +1,5 @@
 -- ==============================================================================
--- Migración 003: vinculación de dispositivos (issue #47, M8).
+-- Migración 004: vinculación de dispositivos (issue #47, M8).
 -- Cada enrolamiento puede quedar asociado a UN dispositivo (la app móvil Android, la PWA u otro
 -- autenticador estándar) para que el integrador y la consola puedan consultarlo y revocarlo.
 --   id          seudónimo aleatorio 'dev_' + 22 caracteres base64url (128 bits). No deriva de

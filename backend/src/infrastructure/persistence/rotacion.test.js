@@ -155,7 +155,7 @@ describe('rotación de la llave maestra', () => {
       const segunda = ejecutar();
       assert.match(segunda, /Semillas recifradas:\s+0/);
       assert.match(segunda, /Nada que rotar/);
-      assert.doesNotMatch(primera + segunda, new RegExp(V1.toString('hex')));
+      assert.ok(!(primera + segunda).includes(V1.toString('hex')));
     } finally {
       rmSync(carpeta, { recursive: true, force: true });
     }

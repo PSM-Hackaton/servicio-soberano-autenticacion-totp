@@ -4,7 +4,8 @@
 import { scrypt, randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFileSync, writeFileSync, renameSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { normalizarCedula, formatearCedula, seudonimo } from './cedula.js';
+import { normalizarCedula, formatearCedula, seudonimo, PREFIJO_POR_DEFECTO } from './cedula.js';
+import { PATRON_SECRETO_CEDULA } from '../../sdk/src/cedula.js';
 
 const PARAMS = { N: 2 ** 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 const LONGITUD = 32;
@@ -50,21 +51,31 @@ export const USUARIOS_DEMO = [
 const VERSION = 2;
 
 /**
- * Secreto con el que se derivan los seudónimos (`user_ref`). Prioridad: el valor configurado
- * (PORTAL_SECRETO_SEUDONIMOS, al menos 32 caracteres); si no, `seudonimos.clave` junto al archivo de
- * usuarios, que se crea al azar la primera vez (0600). Cambiarlo desvincula a todos del servicio TOTP.
+ * Secreto de derivación de los seudónimos (`user_ref`). Prioridad: el valor configurado
+ * (TOTP_CEDULA_SECRETO: el `cedula_secreto` que el servicio devolvió UNA vez al registrar la app con
+ * user_ref_desde_cedula = 'hmac'; base64url de 32 a 64 bytes); si no, `seudonimos.clave` junto al
+ * archivo de usuarios, que se crea al azar la primera vez (0600). Con el secreto local el portal
+ * funciona, pero la consola no puede buscar a sus ciudadanos por cédula (el servicio no lo conoce).
+ * Cambiarlo desvincula a todos del servicio TOTP.
+ * @returns {{ secreto: string, origen: 'configurado' | 'local' }}
  */
 export function secretoSeudonimos(archivo, configurado = '') {
   if (configurado) {
-    if (configurado.length < 32) throw new Error('PORTAL_SECRETO_SEUDONIMOS debe tener al menos 32 caracteres');
-    return configurado;
+    if (!PATRON_SECRETO_CEDULA.test(configurado) || Buffer.from(configurado, 'base64url').length < 32) {
+      throw new Error('TOTP_CEDULA_SECRETO debe ser el cedula_secreto de la app (base64url de 32 a 64 bytes)');
+    }
+    return { secreto: configurado, origen: 'configurado' };
   }
   const ruta = join(dirname(archivo), 'seudonimos.clave');
-  if (existsSync(ruta)) return readFileSync(ruta, 'utf8').trim();
+  if (existsSync(ruta)) {
+    const guardado = readFileSync(ruta, 'utf8').trim();
+    if (PATRON_SECRETO_CEDULA.test(guardado)) return { secreto: guardado, origen: 'local' };
+    throw new Error(`${ruta} no contiene un secreto base64url válido (bórrelo para generar otro)`);
+  }
   mkdirSync(dirname(ruta), { recursive: true });
-  const nuevo = randomBytes(32).toString('hex');
+  const nuevo = randomBytes(32).toString('base64url');
   writeFileSync(ruta, `${nuevo}\n`, { mode: 0o600, flag: 'wx' });
-  return nuevo;
+  return { secreto: nuevo, origen: 'local' };
 }
 
 /** Genera el archivo de usuarios (sobrescribe). @returns {Promise<object[]>} */
@@ -90,21 +101,23 @@ function guardar(archivo, usuarios) {
 
 /**
  * Repositorio de usuarios sobre un JSON local, indexado por cédula normalizada (V12345678).
- * @param {string} archivo @param {{ secreto?: string }} [o]
+ * @param {string} archivo @param {{ secreto?: string, prefijo?: string }} [o]
  */
-export async function abrirUsuarios(archivo, { secreto = '' } = {}) {
-  const clave = secretoSeudonimos(archivo, secreto);
+export async function abrirUsuarios(archivo, { secreto = '', prefijo = PREFIJO_POR_DEFECTO } = {}) {
+  const { secreto: clave, origen } = secretoSeudonimos(archivo, secreto);
   // Un archivo de una versión anterior (usuarios por nombre) se regenera: son datos de demostración.
   if (!existsSync(archivo) || JSON.parse(readFileSync(archivo, 'utf8')).version !== VERSION) await generarUsuarios(archivo);
   const { usuarios } = JSON.parse(readFileSync(archivo, 'utf8'));
   for (const u of usuarios) {
     // Identificador opaco que se envía al servicio TOTP: ni la cédula ni el nombre salen del portal.
-    u.userRef = seudonimo(u.cedula, clave);
+    u.userRef = seudonimo(u.cedula, clave, prefijo);
     u.cedulaFormateada = formatearCedula(u.cedula);
   }
   const porCedula = new Map(usuarios.map((u) => [u.cedula, u]));
 
   return {
+    /** 'configurado' (secreto de la app: búsqueda por cédula en la consola) o 'local'. */
+    origenSecreto: origen,
     /** Valida cédula normalizada + contraseña; null si no coincide (mismo coste exista o no). */
     async autenticar(cedula, contrasena) {
       const u = porCedula.get(String(cedula));

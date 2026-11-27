@@ -10,7 +10,7 @@ import { crearVault } from '../../core/vault/vault.js';
 import { generateTotp } from '../../core/totp/totp.js';
 import { base32Decode } from '../../core/totp/base32.js';
 import { hashSecreto } from '../../security/index.js';
-import { crearBitacora, crearMetricas } from '../../audit/index.js';
+import { crearBitacora, crearMetricas, verificarCadena } from '../../audit/index.js';
 import { crearCasosDeUso, puede } from './index.js';
 import { crearFirmas } from '../../infrastructure/config/firmas.js';
 import { entrenarDetectorPorDefecto } from '../../heuristics/index.js';
@@ -35,6 +35,7 @@ function montar({ config: configExtra = {}, detectorReal = null } = {}) {
   const bitacora = crearBitacora({
     ultimo: () => repos.auditLog.ultimo(),
     insertar: (f) => repos.auditLog.insertar(f).id,
+    transaccion: (fn) => repos.transaccion(fn),
     ahora: () => new Date(estado.t).toISOString(),
   });
   const metricas = crearMetricas({ ahora: reloj });
@@ -702,6 +703,49 @@ describe('origen del usuario final (client_ip)', () => {
   });
 });
 
+describe('detector real y bloqueo progresivo (#65)', () => {
+  // Horas UTC: 12:00 (cerca del patrón por defecto) y 21:00 (≈ hora del laboratorio en Caracas,
+  // activa la regla de hora inusual). En ambas, pocos errores rápidos no deben dejar fuera al usuario.
+  for (const hora of ['12:00:05', '21:00:05']) {
+    test(`3 fallos rápidos de una cuenta y un origen y luego el código correcto → 200 (${hora} UTC)`, async () => {
+      const m = montar({ detectorReal: entrenarDetectorPorDefecto(42) });
+      m.estado.t = Date.parse(`2026-11-26T${hora}.000Z`);
+      const u = await enrolarYActivar(m, 'ciudadano-apurado');
+      for (let i = 0; i < 3; i++) {
+        const r = await m.casos.verificar({ user_ref: 'ciudadano-apurado', code: '000000', client_ip: '198.51.100.20' }, m.ctx);
+        assert.equal(r.status, 401, `fallo ${i + 1}: ${JSON.stringify(r.cuerpo)}`);
+        m.avanzar(300); // sin pausa: ritmo de máquina
+      }
+      const ok = await m.casos.verificar({ user_ref: 'ciudadano-apurado', code: codigo(u.semilla, m.estado.t), client_ip: '198.51.100.20' }, m.ctx);
+      assert.equal(ok.status, 200, JSON.stringify(ok.cuerpo));
+      assert.equal(contarIntentos(m, 'anomaly_blocked'), 0);
+    });
+  }
+
+  test('fuerza bruta de una cuenta y un origen: 401×5 → 429 de 30 s del bloqueo progresivo, no 300 s del detector', async () => {
+    const m = montar({ detectorReal: entrenarDetectorPorDefecto(42) });
+    m.estado.t = Date.parse('2026-11-26T21:00:05.000Z');
+    await enrolarYActivar(m, 'victima-secuencial');
+    const estados = [];
+    let ultimo;
+    for (let i = 0; i < 6; i++) {
+      ultimo = await m.casos.verificar({ user_ref: 'victima-secuencial', code: '000000', client_ip: '192.0.2.77' }, m.ctx);
+      estados.push(ultimo.status);
+      m.avanzar(200);
+    }
+    assert.deepEqual(estados, [401, 401, 401, 401, 401, 429]);
+    assert.equal(ultimo.cuerpo.error, 'TOO_MANY_REQUESTS');
+    assert.ok(ultimo.cuerpo.retry_after_seconds <= 30 && ultimo.cuerpo.retry_after_seconds >= 29, JSON.stringify(ultimo.cuerpo));
+    assert.equal(contarIntentos(m, 'anomaly_blocked'), 0);
+    // Vencido el escalón, la cuenta ya superó el umbral: en ≤ 2 intentos vuelve a bloquearse.
+    m.avanzar(31_000);
+    const tras = await m.casos.verificar({ user_ref: 'victima-secuencial', code: '000000', client_ip: '192.0.2.77' }, m.ctx);
+    const otro = tras.status === 429 ? tras : await m.casos.verificar({ user_ref: 'victima-secuencial', code: '000000', client_ip: '192.0.2.77' }, m.ctx);
+    assert.equal(otro.status, 429);
+    assert.ok(otro.cuerpo.retry_after_seconds >= 30);
+  });
+});
+
 describe('bloqueo persistente de usuarios sin enrolamiento', () => {
   test('el bloqueo se calcula desde attempts y sobrevive a un reinicio, idéntico al de una cuenta real', async () => {
     const m = montar();
@@ -745,8 +789,8 @@ describe('validación estricta de user_ref', () => {
   test('rechaza NUL, controles C0/C1, bidi, invisibles, espacios en extremos y más de 128 caracteres', async () => {
     const m = montar();
     const malos = [
-      '', 'lab\u0000x', 'a\u001b[31m', 'x\u007fy', 'x\u0085y', 'x\u009by', ' inicio', 'fin ', '\t', 'x\ny', 'a‮b', 'a⁦b',
-      'a​b', 'a‍b', '﻿a', 'a⁠b', 'a b', 'a b', 'aㅤb', 'aᅟb', 'ab', 'x'.repeat(129),
+      '', 'lab\u0000x', 'a\u001b[31m', 'x\u007fy', 'x\u0085y', 'x\u009by', ' inicio', 'fin ', '\t', 'x\ny', 'a\u202Eb', 'a\u2066b',
+      'a\u200Bb', 'a\u200Db', '\uFEFFa', 'a\u2060b', 'a\u00A0b', 'a\u2028b', 'a\u3164b', 'a\u115Fb', 'a\uE000b', 'x'.repeat(129),
     ];
     for (const user_ref of malos) {
       for (const [nombre, llamada] of [
@@ -767,5 +811,70 @@ describe('validación estricta de user_ref', () => {
     for (const user_ref of ['a', 'x'.repeat(128), 'ciudadano 12', 'ñandú-Ü', 'rut:12.345.678-9', 'usuario@dominio.cl', '用户', 'áb']) {
       assert.equal((await m.casos.enrolar({ user_ref }, m.ctx)).status, 201, JSON.stringify(user_ref));
     }
+  });
+});
+
+describe('una sola transacción por verificación (G.2)', () => {
+  /**
+   * Cuenta las transacciones de primer nivel (BEGIN IMMEDIATE) y comprueba que cada escritura de
+   * la verificación (paso aceptado, intento, bitácora, fallo) ocurre dentro de una transacción.
+   */
+  function espiar(m) {
+    const exec = m.db.exec.bind(m.db);
+    const espia = { begins: 0, fuera: [] };
+    m.db.exec = (sql) => { if (/^BEGIN IMMEDIATE/.test(sql)) espia.begins++; return exec(sql); };
+    const vigilar = (obj, nombre, etiqueta) => {
+      const original = obj[nombre].bind(obj);
+      obj[nombre] = (...a) => { if (!m.db.isTransaction) espia.fuera.push(etiqueta); return original(...a); };
+    };
+    vigilar(m.repos.attempts, 'registrar', 'attempts');
+    vigilar(m.repos.auditLog, 'insertar', 'audit_log');
+    vigilar(m.repos.enrollments, 'registrarPasoAceptado', 'paso');
+    vigilar(m.repos.enrollments, 'registrarFallo', 'fallo');
+    return espia;
+  }
+  const eventos = (m) => m.db.prepare('SELECT accion FROM audit_log ORDER BY id').all().map((f) => f.accion);
+
+  test('éxito, código incorrecto, replay y bloqueo: exactamente una transacción y ninguna escritura fuera', async () => {
+    const m = montar();
+    const { semilla } = await enrolarYActivar(m);
+    const espia = espiar(m);
+    const verificar = (code) => m.casos.verificar({ user_ref: 'ciudadano-1', code }, m.ctx);
+
+    const ok = await verificar(codigo(semilla, m.estado.t));
+    assert.equal(ok.status, 200);
+    assert.equal(espia.begins, 1, 'éxito: una transacción');
+    assert.equal(eventos(m).at(-1), 'verificacion.exitosa');
+    const exito = m.db.prepare("SELECT detalle FROM audit_log WHERE accion = 'verificacion.exitosa'").get();
+    assert.equal(JSON.parse(exito.detalle).jti, ok.cuerpo.jti, 'el evento lleva el jti del token firmado antes');
+
+    assert.equal((await verificar(codigo(semilla, m.estado.t))).status, 401);
+    assert.equal(espia.begins, 2, 'replay: una transacción');
+    assert.equal(eventos(m).at(-1), 'verificacion.replay');
+
+    for (let i = 0; i < 4; i++) await verificar('000000');
+    assert.equal(espia.begins, 6, 'cada fallo: una transacción, incluido el que bloquea');
+    assert.equal(eventos(m).at(-1), 'enrolamiento.bloqueado');
+
+    for (let i = 0; i < 5; i++) await m.casos.verificar({ user_ref: 'nadie', code: '123456' }, m.ctx);
+    assert.equal(espia.begins, 11, 'usuario inexistente: una transacción por intento');
+    assert.equal(eventos(m).at(-1), 'verificacion.bloqueo');
+    assert.deepEqual(espia.fuera, [], 'ninguna escritura fuera de transacción');
+  });
+
+  test('si la bitácora falla, la verificación se deshace entera: sin token, sin intento y el paso sigue libre', async () => {
+    const m = montar();
+    const { semilla } = await enrolarYActivar(m);
+    const intentos = () => m.db.prepare('SELECT COUNT(*) AS n FROM attempts').get().n;
+    const antes = intentos();
+    const insertar = m.repos.auditLog.insertar;
+    m.repos.auditLog.insertar = () => { throw new Error('disco lleno'); };
+    const code = codigo(semilla, m.estado.t);
+    await assert.rejects(m.casos.verificar({ user_ref: 'ciudadano-1', code }, m.ctx), /disco lleno/);
+    assert.equal(intentos(), antes, 'el intento no quedó a medias');
+    m.repos.auditLog.insertar = insertar;
+    const r = await m.casos.verificar({ user_ref: 'ciudadano-1', code }, m.ctx);
+    assert.equal(r.status, 200, 'el paso no se consumió: el mismo código vale');
+    assert.equal(verificarCadena([...m.repos.auditLog.recorrerTodo()]).intact, true);
   });
 });

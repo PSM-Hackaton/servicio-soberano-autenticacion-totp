@@ -282,3 +282,20 @@ test('métricas: no exponen IP ni identificadores de usuario', () => {
   assert.ok(!salida.includes('10.0.0.7'));
   assert.ok(!salida.includes('usr-42'));
 });
+
+test('crearBitacora con transaccion: el último hash se lee y la fila se inserta dentro de la misma transacción', () => {
+  const almacen = almacenEnMemoria();
+  let abierta = false;
+  const registro = [];
+  const bitacora = crearBitacora({
+    ultimo: () => { registro.push(['ultimo', abierta]); return almacen.ultimo(); },
+    insertar: (f) => { registro.push(['insertar', abierta]); return almacen.insertar(f); },
+    transaccion: (fn) => { abierta = true; try { return fn(); } finally { abierta = false; } },
+    ahora: relojFijo(),
+  });
+  bitacora.registrar({ actor: 'a', accion: 'x' });
+  bitacora.registrar({ actor: 'a', accion: 'y' });
+  assert.deepEqual(registro, [['ultimo', true], ['insertar', true], ['ultimo', true], ['insertar', true]]);
+  assert.equal(verificarCadena(almacen.filas).intact, true);
+  assert.throws(() => crearBitacora({ ...almacenEnMemoria(), transaccion: 'no' }));
+});

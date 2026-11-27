@@ -13,7 +13,7 @@ import { crearFirmas } from './infrastructure/config/firmas.js';
 import { abrirBaseDatos } from './infrastructure/persistence/db.js';
 import { crearRepositorios } from './infrastructure/persistence/repositorios.js';
 import { crearVault } from './core/vault/vault.js';
-import { crearBitacora, crearMetricas } from './audit/index.js';
+import { crearBitacoraSqlite, crearMetricas } from './audit/index.js';
 import { entrenarDetectorPorDefecto } from './heuristics/index.js';
 import { crearCasosDeUso, puede } from './application/use-cases/index.js';
 import { crearServidor } from './api/servidor.js';
@@ -56,9 +56,9 @@ async function medirDesfase(url) {
 export async function iniciar({ config = cargarConfig(), registro = crearRegistro(), senales = true } = {}) {
   // Base de datos
   if (config.baseDatos.ruta !== ':memory:') mkdirSync(dirname(config.baseDatos.ruta), { recursive: true });
-  const db = abrirBaseDatos(config.baseDatos.ruta);
+  const db = abrirBaseDatos(config.baseDatos.ruta, { sincrono: config.baseDatos.sincrono });
   const repos = crearRepositorios(db);
-  registro.info('Base de datos SQLite abierta y migrada');
+  registro.info(`Base de datos SQLite abierta y migrada (synchronous=${config.baseDatos.sincrono})`);
 
   // Bóveda y firmas
   const vault = crearVault(config.vault);
@@ -94,7 +94,8 @@ export async function iniciar({ config = cargarConfig(), registro = crearRegistr
   }
 
   // Auditoría, métricas y casos de uso
-  const bitacora = crearBitacora({ ultimo: () => repos.auditLog.ultimo(), insertar: (fila) => repos.auditLog.insertar(fila).id });
+  // Último hash + inserción en una sola transacción (cadena sin bifurcaciones con varios procesos).
+  const bitacora = crearBitacoraSqlite(repos);
   const metricas = crearMetricas();
   const casos = crearCasosDeUso({
     repos, vault, firmas, detector, bitacora, metricas, config: { ...configCasosDeUso(config), caHuellaSha256: huellaCa }, reloj: () => Date.now(), db,

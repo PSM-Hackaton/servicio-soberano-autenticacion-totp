@@ -115,6 +115,38 @@ test('detector: nivel bajo para un usuario legítimo (un fallo y luego acierto)'
   assert.deepEqual(aRiesgoContrato(r).action, 'ALLOW');
 });
 
+test('detector: cede al bloqueo progresivo con una cuenta y un origen por debajo de 5 fallos (#65)', () => {
+  const cuenta = hashCuenta(2);
+  const ip = hashIp('casa', 2);
+  const tarde = INICIO_POR_DEFECTO + 21 * 3600 * 1000; // hora inusual: suma riesgo
+  const fallos = (n) => Array.from({ length: n }, (_, i) => ({ user_ref_hash: cuenta, ip_hash: ip, resultado: 'invalid_code', ts: tarde - (n - i) * 400 }));
+  for (const n of [1, 2, 3, 4]) {
+    const r = detector.evaluar({ user_ref_hash: cuenta, ip_hash: ip, ts: tarde }, fallos(n), tarde);
+    assert.notEqual(r.action, 'bloqueo_temporal', `${n} fallos: ${JSON.stringify(r)}`);
+    if (r.level !== 'bajo') {
+      assert.equal(r.cedidoAlProgresivo, true);
+      assert.ok(r.reasons.some((s) => s.includes('bloqueo progresivo')));
+    }
+  }
+  // Con 3 fallos rápidos y hora inusual el riesgo es alto, pero solo se retrasa.
+  const tres = detector.evaluar({ user_ref_hash: cuenta, ip_hash: ip, ts: tarde }, fallos(3), tarde);
+  assert.equal(tres.level, 'alto', JSON.stringify(tres));
+  assert.equal(tres.action, 'espera_extra');
+  assert.equal(aRiesgoContrato(tres).action, 'DELAY');
+  // Desde el umbral (5 fallos) el detector vuelve a poder bloquear.
+  const cinco = detector.evaluar({ user_ref_hash: cuenta, ip_hash: ip, ts: tarde }, fallos(5), tarde);
+  assert.equal(cinco.action, 'bloqueo_temporal');
+  assert.equal(cinco.cedidoAlProgresivo, undefined);
+  // Con una segunda IP o una segunda cuenta en juego no hay cesión.
+  const otraIp = [...fallos(3), { user_ref_hash: cuenta, ip_hash: hashIp('otra', 9), resultado: 'invalid_code', ts: tarde - 100 }];
+  assert.equal(detector.evaluar({ user_ref_hash: cuenta, ip_hash: ip, ts: tarde }, otraIp, tarde).cedidoAlProgresivo, undefined);
+  const otraCuenta = [...fallos(3), { user_ref_hash: hashCuenta(3), ip_hash: ip, resultado: 'invalid_code', ts: tarde - 100 }];
+  assert.equal(detector.evaluar({ user_ref_hash: cuenta, ip_hash: ip, ts: tarde }, otraCuenta, tarde).cedidoAlProgresivo, undefined);
+  // Se puede desactivar (maxFallosCuenta 0): vuelve el comportamiento anterior.
+  const sinCesion = crearDetector({ modelo: detector.modelo, reglas: { cederAlProgresivo: { maxFallosCuenta: 0 } } });
+  assert.equal(sinCesion.evaluar({ user_ref_hash: cuenta, ip_hash: ip, ts: tarde }, fallos(3), tarde).action, 'bloqueo_temporal');
+});
+
 test('modo monitorización nunca bloquea, solo alerta', () => {
   const monitor = crearDetector({ modelo: detector.modelo, modo: 'monitorizacion' });
   const acciones = new Set();

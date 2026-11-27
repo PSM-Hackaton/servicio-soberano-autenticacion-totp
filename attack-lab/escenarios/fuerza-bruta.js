@@ -2,8 +2,11 @@
 // Escenario: fuerza bruta secuencial contra UNA cuenta desde un origen.
 // Esperado: tras max_intentos fallos (5) → 429 con bloqueo de 30 s; durante el bloqueo ni siquiera
 // el código correcto pasa; al vencer, el contador NO se reinicia: el siguiente fallo vuelve a bloquear
-// de inmediato (fallos 5–9 → 30 s, 10–14 → 2 min, 15–19 → 10 min, 20+ → 1 h), salvo que antes actúe
-// el detector local de anomalías (bloqueo de 300 s). Ambos responden el mismo 429 genérico.
+// de inmediato (fallos 5–9 → 30 s, 10–14 → 2 min, 15–19 → 10 min, 20+ → 1 h). Con una sola cuenta y un
+// solo origen el detector local de anomalías cede al bloqueo progresivo hasta el 5.º fallo; a partir de
+// ahí puede adelantarse (bloqueo de 300 s). Ambos responden el mismo 429 genérico.
+// Antes del ataque, un ciudadano legítimo (otro origen) falla 3 códigos sin pausa y teclea el correcto:
+// debe entrar (200), no quedar 5 min fuera.
 // Opciones: --rapido (no espera los 30 s del primer escalón), --intentos-bloqueados N.
 
 import { crearUsuarioPrueba, esPrincipal, exigirCredenciales, principal } from '../lib/escenario.js';
@@ -15,7 +18,7 @@ import { verificar } from '../lib/servicio.js';
 
 export const id = 'fuerza-bruta';
 export const nombre = 'Fuerza bruta secuencial';
-export const demuestra = 'Tras 5 fallos la cuenta se bloquea (429, 30 s); al vencer, el siguiente fallo vuelve a bloquear (escala 30 s → 2 min → 10 min → 1 h); un código correcto tampoco pasa durante el bloqueo.';
+export const demuestra = 'Un ciudadano que falla 3 códigos rápido y teclea el correcto entra; tras 5 fallos la cuenta se bloquea (429, 30 s); al vencer, el siguiente fallo vuelve a bloquear (escala 30 s → 2 min → 10 min → 1 h); un código correcto tampoco pasa durante el bloqueo.';
 
 export async function ejecutar(ctx, res) {
   exigirCredenciales(ctx);
@@ -26,6 +29,24 @@ export async function ejecutar(ctx, res) {
   const usuario = await crearUsuarioPrueba(ctx);
   const todas = [];
   const op = {}; // el contexto del escenario ya sale por su propia IP de loopback
+
+  // 0. Ciudadano legítimo apurado: 3 fallos sin pausa y luego el código correcto, desde otro origen
+  //    (no comparte historial con el atacante). El detector no debe adelantarse al bloqueo progresivo.
+  const ciudadano = await crearUsuarioPrueba(ctx);
+  const opCiudadano = await ctx.opOrigen(ctx.ip(200));
+  const trazaCiudadano = [];
+  for (let i = 0; i < 3; i++) {
+    const r = await verificar(cliente, ciudadano.userRef, codigoIncorrecto(ciudadano.datos), opCiudadano);
+    todas.push(r);
+    trazaCiudadano.push(etiquetaEstado(r));
+  }
+  const bueno = await codigoNuevo(ciudadano, { ventana: config.ventana });
+  const rCiudadano = await verificar(cliente, ciudadano.userRef, bueno.codigo, opCiudadano);
+  trazaCiudadano.push(etiquetaEstado(rCiudadano));
+  res.metrica('ciudadano legítimo (3 fallos rápidos + correcto)', trazaCiudadano.join(' → '));
+  res.verificar('Ciudadano: 3 fallos rápidos y luego el código correcto', '401 ×3 → 200 (sin bloqueo de 5 min)',
+    trazaCiudadano.join(' → '), rCiudadano.status === 200 && trazaCiudadano.slice(0, 3).every((e) => e.startsWith('401')));
+  if (rCiudadano.status === 429) res.hallazgo('El detector bloqueó a un ciudadano legítimo tras 3 fallos rápidos (se adelanta al bloqueo progresivo).');
 
   // 1. Ráfaga de códigos incorrectos hasta el primer 429.
   let primer429 = null;
@@ -40,8 +61,15 @@ export async function ejecutar(ctx, res) {
   res.metrica('secuencia de respuestas', traza.join(' → '));
   res.verificar(`Bloqueo tras ${maxIntentos} fallos`, `429 en el intento ${maxIntentos + 1}`,
     primer429 ? `429 en el intento ${primer429.intento}` : 'sin 429', primer429 !== null && primer429.intento <= maxIntentos + 1);
-  res.verificar('Primer escalón de bloqueo', '≈30 s (Retry-After)', primer429?.segundos ?? '—',
-    primer429?.segundos !== null && primer429?.segundos !== undefined && primer429.segundos >= 20 && primer429.segundos <= 31);
+  // Con una sola cuenta y un solo origen el detector cede al bloqueo progresivo por debajo de 5 fallos
+  // (REGLAS_POR_DEFECTO.cederAlProgresivo), así que el primer escalón es siempre el de 30 s, sea cual
+  // sea la hora del día. Si aun así apareciera el de 300 s, se informa como fallo: el detector se
+  // habría adelantado al bloqueo progresivo.
+  const s1 = primer429?.segundos;
+  const porDetector = typeof s1 === 'number' && s1 >= 290 && s1 <= 300;
+  res.verificar('Primer escalón de bloqueo', '≈30 s (bloqueo progresivo; el detector no se adelanta)',
+    s1 === undefined || s1 === null ? '—' : `${s1}${porDetector ? ' (detector de anomalías)' : ''}`,
+    typeof s1 === 'number' && s1 >= 20 && s1 <= 31 && codigoError(primer429.r) === 'TOO_MANY_REQUESTS');
   if (!primer429) res.hallazgo(`Sin bloqueo tras ${maxIntentos + 3} códigos incorrectos consecutivos contra una cuenta.`);
 
   // 2. Durante el bloqueo: el atacante insiste y además prueba el código CORRECTO.

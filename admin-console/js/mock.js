@@ -101,14 +101,19 @@ async function huellaDemo(texto) {
 }
 const conflicto = (mensaje) => error(409, 'CONFLICT', mensaje);
 
+/** Número aleatorio en [0, 1) del CSPRNG del navegador (datos simulados del modo demostración). */
+function azar() {
+  return crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
+}
+
 /** Avanza las métricas simuladas para que el refresco periódico muestre actividad. */
 function avanzarMetricas(m) {
   estado.tick++;
   const ultimo = m.serie[m.serie.length - 1];
-  const ok = 16 + Math.round(Math.random() * 14);
-  const fallido = 1 + Math.round(Math.random() * 3);
-  const bloqueado = Math.random() < 0.3 ? 1 : 0;
-  m.serie.push({ ts: new Date(Date.parse(ultimo.ts) + 75000).toISOString(), ok, fallido, bloqueado, p95Ms: Math.round((18 + Math.random() * 12) * 10) / 10, p50Ms: Math.round((6 + Math.random() * 4) * 10) / 10 });
+  const ok = 16 + Math.round(azar() * 14);
+  const fallido = 1 + Math.round(azar() * 3);
+  const bloqueado = azar() < 0.3 ? 1 : 0;
+  m.serie.push({ ts: new Date(Date.parse(ultimo.ts) + 75000).toISOString(), ok, fallido, bloqueado, p95Ms: Math.round((18 + azar() * 12) * 10) / 10, p50Ms: Math.round((6 + azar() * 4) * 10) / 10 });
   m.serie.shift();
   m.resultadosVerificacion.ok += ok;
   m.resultadosVerificacion.invalid_code += fallido;
@@ -144,7 +149,7 @@ async function verificarCadenaCompleta() {
  */
 export async function mockFetch(url, opciones = {}) {
   await inicializar();
-  await espera(120 + Math.random() * 160);
+  await espera(120 + azar() * 160);
   const destino = new URL(url, location.href);
   const ruta = destino.pathname;
   const metodo = (opciones.method ?? 'GET').toUpperCase();
