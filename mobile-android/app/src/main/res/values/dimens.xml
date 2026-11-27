@@ -1,0 +1,8 @@
+<resources>
+    <!-- Escala de radios y ergonomía táctil — Issue #86 (DESIGN_SYSTEM.md) -->
+    <dimen name="radius_s">8dp</dimen>
+    <dimen name="radius_m">14dp</dimen>
+    <dimen name="radius_l">22dp</dimen>
+    <dimen name="touch_min">48dp</dimen>
+    <dimen name="tricolor_height">5dp</dimen>
+</resources>
