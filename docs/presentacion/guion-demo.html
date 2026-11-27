@@ -63,7 +63,8 @@ node attack-lab/ejecutar-todo.js --rapido          # ensayo completo: debe termi
 <ul>
   <li>CA local (<code>backend/certs/ca.crt</code>) importada en el navegador de la demo (README §6.5).</li>
   <li>App abierta en <code>https://localhost:8443/app/</code> con PIN creado y la cuenta del administrador añadida (pestaña <b>Pegar</b>).</li>
-  <li>Consola abierta en <code>https://localhost:8443/consola/</code> con sesión iniciada, en <b>Detector de anomalías</b>.</li>
+  <li>Consola abierta en <code>https://localhost:8443/consola/</code> con sesión iniciada, en <b>Detector de anomalías</b>. Para entrar: usuario <code>admin_seguridad</code> + contraseña impresa por <code>npm run seed</code> + código actual de la app. Si lo rechaza, esperar al siguiente código: cada código sirve una sola vez (README §6, «Guía rápida de uso»).</li>
+  <li>Recordatorio para el público: el <b>PIN</b> solo abre la app en ese navegador; la consola pide contraseña y código, y el Portal pide cédula, clave y código.</li>
   <li>Portal en <code>https://localhost:8444</code>, pantalla <b>Ingresar al portal</b>, panel «Lo que ocurre por dentro» visible.</li>
   <li>Ensayo hecho con <code>V-10.000.001</code> (Ana); en vivo se usa <b><code>V-10.000.002</code> (Bruno)</b> (sin segundo factor). Reserva: <code>E-80.000.003</code> (Carla). Clave de todos: <code>Tramites-Demo-2026</code>.</li>
   <li>Informe de la última ejecución abierto en otra pestaña: <code>attack-lab/resultados/informe-&lt;fecha&gt;.html</code> (copia en <code>docs/evidencias/</code>).</li>
