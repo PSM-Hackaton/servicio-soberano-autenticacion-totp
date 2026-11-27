@@ -72,7 +72,7 @@ export function ipCiudadano(req, confiarXff = false) {
  * @param {{ config: ReturnType<typeof import('./config.js').configuracion>, cliente?: any, registrar?: (m: string) => void }} o
  */
 export async function crearPortal({ config, cliente: clienteInyectado, registrar = () => {} }) {
-  const usuarios = await abrirUsuarios(config.archivoUsuarios, { secreto: config.secretoSeudonimos });
+  const usuarios = await abrirUsuarios(config.archivoUsuarios, { secreto: config.secretoSeudonimos, prefijo: config.prefijoSeudonimos });
   const tls = config.tls ? { cert: readFileSync(config.tls.cert), key: readFileSync(config.tls.key) } : null;
   const sesiones = crearAlmacenSesiones({
     nombreCookie: tls ? '__Host-ptd_sesion' : 'ptd_sesion',

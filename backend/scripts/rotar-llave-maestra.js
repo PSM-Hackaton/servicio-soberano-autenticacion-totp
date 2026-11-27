@@ -12,7 +12,7 @@ import { cargarConfig } from '../src/infrastructure/config/config.js';
 import { abrirBaseDatos } from '../src/infrastructure/persistence/db.js';
 import { crearRepositorios } from '../src/infrastructure/persistence/repositorios.js';
 import { recifrarConLlaveActiva } from '../src/infrastructure/persistence/rotacionLlaveMaestra.js';
-import { crearBitacora } from '../src/audit/index.js';
+import { crearBitacoraSqlite } from '../src/audit/index.js';
 import { crearVault } from '../src/core/vault/vault.js';
 
 const config = cargarConfig();
@@ -20,11 +20,11 @@ if (config.baseDatos.ruta === ':memory:' || !existsSync(config.baseDatos.ruta)) 
   console.error(`No existe la base de datos ${config.baseDatos.ruta}: no hay datos que rotar.`);
   process.exit(1);
 }
-const db = abrirBaseDatos(config.baseDatos.ruta);
+const db = abrirBaseDatos(config.baseDatos.ruta, { sincrono: config.baseDatos.sincrono });
 try {
   const repos = crearRepositorios(db);
   const vault = crearVault(config.vault);
-  const bitacora = crearBitacora({ ultimo: () => repos.auditLog.ultimo(), insertar: (f) => repos.auditLog.insertar(f).id });
+  const bitacora = crearBitacoraSqlite(repos);
   const r = recifrarConLlaveActiva({ repos, vault, bitacora });
   console.log(`Versión activa de la llave maestra: ${r.versionActiva}`);
   console.log(`  Semillas recifradas:                 ${r.semillas}`);

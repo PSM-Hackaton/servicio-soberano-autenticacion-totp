@@ -8,6 +8,7 @@
 //   - Booleanos (permitir_sha1, activo): INTEGER 0/1 en disco, boolean hacia fuera.
 
 import { randomUUID } from 'node:crypto';
+import { crearRepositorioDispositivos } from './dispositivos.js';
 
 /** @typedef {import('node:sqlite').DatabaseSync} DatabaseSync */
 /** @typedef {Record<string, any>} Fila */
@@ -312,7 +313,13 @@ export function crearRepositorios(db) {
     fallosUsuario: db.prepare(`SELECT COUNT(*) AS n FROM attempts WHERE user_ref_hash = ? AND resultado <> 'ok' AND ts >= ?`),
     fallosIp: db.prepare(`SELECT COUNT(*) AS n FROM attempts WHERE ip_hash = ? AND resultado <> 'ok' AND ts >= ?`),
     ultimosIp: db.prepare('SELECT * FROM attempts WHERE ip_hash = ? ORDER BY ts DESC, id DESC LIMIT ?'),
-    // Fallos de un usuario SIN enrolamiento activo (filas sin enrollment_id) de una app: usa idx_attempts_user_ts.
+    // Historial del detector: solo las columnas que usa (sin reasons_json ni JSON.parse por fila).
+    // Los índices de 003_indices_detector.sql las cubren: la consulta no toca la tabla.
+    historialIp: db.prepare(`SELECT id, user_ref_hash, ip_hash, resultado, ts FROM attempts
+      WHERE ip_hash = ? ORDER BY ts DESC, id DESC LIMIT ?`),
+    historialUsuario: db.prepare(`SELECT id, user_ref_hash, ip_hash, resultado, ts FROM attempts
+      WHERE user_ref_hash = ? ORDER BY ts DESC, id DESC LIMIT ?`),
+    // Fallos de un usuario SIN enrolamiento activo (filas sin enrollment_id) de una app: usa idx_attempts_user_ts_det (003).
     fallosSinEnrol: db.prepare(`SELECT COUNT(*) AS n, MAX(ts) AS ultimo FROM attempts
       WHERE user_ref_hash = ? AND ts >= ? AND app_id = ? AND enrollment_id IS NULL AND resultado IN ('invalid_code', 'replay')`),
     purgar: db.prepare('DELETE FROM attempts WHERE ts < ?'),
@@ -347,6 +354,16 @@ export function crearRepositorios(db) {
     },
     /** @param {string} ipHash @param {number} [limite] */
     ultimosPorIp: (ipHash, limite = 50) => sInt.ultimosIp.all(ipHash, limite).map(mapearIntento),
+    /**
+     * Historial mínimo para el detector (id, user_ref_hash, ip_hash, resultado, ts), más reciente primero.
+     * @param {{ ipHash?: string, userRefHash?: string }} filtro @param {number} [limite]
+     * @returns {{ id: number, user_ref_hash: string, ip_hash: string, resultado: string, ts: string }[]}
+     */
+    historialDetector({ ipHash, userRefHash }, limite = 50) {
+      if (ipHash != null) return /** @type {any} */ (sInt.historialIp.all(ipHash, limite));
+      if (userRefHash != null) return /** @type {any} */ (sInt.historialUsuario.all(userRefHash, limite));
+      throw new Error('Indica userRefHash o ipHash');
+    },
     /** Borra intentos con más de `dias` días (retención de 30 por defecto). @returns {number} filas borradas */
     purgarAntiguos(dias = 30, ahora = Date.now()) {
       return Number(sInt.purgar.run(new Date(ahora - dias * 86_400_000).toISOString()).changes);
@@ -458,6 +475,7 @@ export function crearRepositorios(db) {
       VALUES (?, ?, ?, ?, ?, ?, ?)`),
     porId: db.prepare('SELECT * FROM audit_log WHERE id = ?'),
     ultimo: db.prepare('SELECT * FROM audit_log ORDER BY id DESC LIMIT 1'),
+    ultimoHash: db.prepare('SELECT hash FROM audit_log ORDER BY id DESC LIMIT 1'),
     desdeId: db.prepare('SELECT * FROM audit_log WHERE id > ? ORDER BY id LIMIT ?'),
     desdeTs: db.prepare('SELECT * FROM audit_log WHERE ts >= ? ORDER BY id LIMIT ?'),
     todo: db.prepare('SELECT * FROM audit_log ORDER BY id'),
@@ -476,6 +494,14 @@ export function crearRepositorios(db) {
       return plano(sAudit.porId.get(r.lastInsertRowid));
     },
     ultimo: () => plano(sAudit.ultimo.get()),
+    /** Solo el hash de la última fila (encadenado de la bitácora). @returns {string | undefined} */
+    ultimoHash: () => /** @type {string | undefined} */ (sAudit.ultimoHash.get()?.hash),
+    /** Como insertar() pero sin volver a leer la fila: devuelve su id. @returns {number} */
+    insertarId(e) {
+      const detalle = e.detalle == null || typeof e.detalle === 'string' ? e.detalle : JSON.stringify(e.detalle);
+      return Number(sAudit.insertar.run(e.ts ?? ahoraIso(), e.actor, e.accion, valorSql(e.objetivo), valorSql(detalle),
+        e.prev_hash, e.hash).lastInsertRowid);
+    },
     /**
      * Página en orden de id. `desde` numérico = id exclusivo (cursor); texto = ts ISO inclusive.
      * @param {number | string} [desde] @param {number} [limite]
@@ -490,5 +516,8 @@ export function crearRepositorios(db) {
     },
   };
 
-  return { transaccion, apps, enrollments, recoveryCodes, attempts, consumedJti, signingKeys, admins, auditLog };
+  // Dispositivos vinculados a enrolamientos (migración 003, issue #47).
+  const dispositivos = crearRepositorioDispositivos(db);
+
+  return { transaccion, apps, enrollments, recoveryCodes, attempts, consumedJti, signingKeys, admins, auditLog, dispositivos };
 }

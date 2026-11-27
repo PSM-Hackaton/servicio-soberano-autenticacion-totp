@@ -165,6 +165,9 @@ export function validarConfig(vars, { base = CARPETA_BACKEND } = {}) {
 
   const driver = opcion('DB_DRIVER', ['sqlite'], 'sqlite');
   const rutaDb = texto('SQLITE_DB_PATH', { defecto: './data/totp_soberano.db' });
+  // FULL: un fsync por transacción (máxima durabilidad ante cortes de energía). NORMAL (por defecto
+  // en WAL): sin fsync por COMMIT; ver el compromiso en persistence/db.js y docs/escalabilidad.
+  const sincronoDb = opcion('SQLITE_SYNCHRONOUS', ['FULL', 'NORMAL'], 'NORMAL');
 
   // Llave maestra: se valida con el mismo lector que usa la bóveda.
   /** @type {ReturnType<typeof llavesDesdeEntorno> | undefined} */
@@ -227,7 +230,7 @@ export function validarConfig(vars, { base = CARPETA_BACKEND } = {}) {
     host,
     puerto,
     tls: Object.freeze(tls),
-    baseDatos: Object.freeze({ driver, ruta: rutaDb === ':memory:' ? rutaDb : ruta(rutaDb) }),
+    baseDatos: Object.freeze({ driver, ruta: rutaDb === ':memory:' ? rutaDb : ruta(rutaDb), sincrono: sincronoDb }),
     vault,
     userRefPepper,
     ipPepperSemilla,

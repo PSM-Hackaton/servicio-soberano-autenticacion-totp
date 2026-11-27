@@ -6,9 +6,11 @@
 // Uso:
 //   node scripts/verificar-todo.js
 //   node scripts/verificar-todo.js --cobertura [--guardar-cobertura docs/evidencias/cobertura-2026-11-26.txt]
+//   node scripts/verificar-todo.js --regenerar-sbom   (reescribe docs/sbom/; sin la bandera no toca el árbol)
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -112,7 +114,9 @@ export function validarOpenApiEstricto(textoYaml) {
  */
 // Línea de coautoría al inicio de línea (trailer de commit). Se compone por partes para que este archivo,
 // que sí se publica, no contenga la cadena que la verificación de la entrega rechaza.
-const RE_COAUTORIA = new RegExp(`^\\s*${['co', 'authored', 'by'].join('-')}:`, 'im');
+const PREFIJO_COAUTORIA = `${['co', 'authored', 'by'].join('-')}:`;
+/** ¿Alguna línea empieza (tras espacios) por la línea de coautoría? Sin mayúsculas/minúsculas. */
+const tieneCoautoria = (texto) => texto.split(/\r?\n/).some((l) => l.trimStart().toLowerCase().startsWith(PREFIJO_COAUTORIA));
 
 function auditarHigieneRepo() {
   const errores = [];
@@ -150,7 +154,7 @@ function auditarHigieneRepo() {
     if (!excluiblesRutas.has(rel) && /\/home\/[a-z0-9_.-]+\//i.test(contenido)) {
       errores.push(`Ruta local de usuario detectada en ${rel}`);
     }
-    if (!excluiblesRutas.has(rel) && RE_COAUTORIA.test(contenido)) {
+    if (!excluiblesRutas.has(rel) && tieneCoautoria(contenido)) {
       errores.push(`Rastro de coautoría de herramienta detectado en ${rel}`);
     }
   }
@@ -224,9 +228,15 @@ function main() {
 
   // 3. SBOM CycloneDX y 0 dependencias npm externas
   console.log('\n=== 3. Verificación SBOM y cero dependencias npm ===');
-  const sbomRes = ejecutarPaso('Regenerar SBOM CycloneDX 1.5', process.execPath, ['docs/sbom/generar-sbom.js']);
+  // Por defecto el SBOM se genera en una carpeta temporal y se comprueba allí: la verificación no
+  // modifica docs/sbom/ (fecha y commit cambian en cada ejecución). Para publicarlo: --regenerar-sbom.
+  const regenerarSbom = args.includes('--regenerar-sbom');
+  const dirSbom = regenerarSbom ? join(RAIZ, 'docs', 'sbom') : mkdtempSync(join(tmpdir(), 'sbom-'));
+  const sbomRes = ejecutarPaso(regenerarSbom ? 'Regenerar SBOM CycloneDX 1.5 en docs/sbom/' : 'Generar y comprobar SBOM CycloneDX 1.5 (carpeta temporal)',
+    process.execPath, ['docs/sbom/generar-sbom.js', '--comprobar', ...(regenerarSbom ? [] : ['--salida', dirSbom])]);
   if (sbomRes.status !== 0) fallos.push('SBOM');
-  const sbomJson = JSON.parse(readFileSync(join(RAIZ, 'docs', 'sbom', 'sbom.cdx.json'), 'utf8'));
+  const sbomJson = JSON.parse(readFileSync(join(dirSbom, 'sbom.cdx.json'), 'utf8'));
+  if (!regenerarSbom) rmSync(dirSbom, { recursive: true, force: true });
   const props = sbomJson?.metadata?.component?.properties || [];
   const depsProp = props.find((p) => /third_party|npm_deps|dependencias/i.test(p.name));
   if (depsProp && depsProp.value !== '0') {

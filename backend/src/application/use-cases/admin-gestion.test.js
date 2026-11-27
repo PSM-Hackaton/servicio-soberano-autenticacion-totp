@@ -197,7 +197,7 @@ describe('administradores de la consola (GET/POST /admin/api/admins, /disable)',
     assert.doesNotMatch(JSON.stringify(lista.cuerpo), /password|scrypt|hash/);
     const auditoria = JSON.stringify(m.db.prepare('SELECT * FROM audit_log').all());
     assert.ok(acciones(m).includes('admin.creado'));
-    assert.doesNotMatch(auditoria, new RegExp(r.cuerpo.password));
+    assert.ok(!auditoria.includes(r.cuerpo.password));
     assert.doesNotMatch(auditoria, /secret=/);
 
     assert.equal((await m.casos.adminCrearAdministrador({ usuario: 'operadora.1', rol: 'Auditor' }, ADMIN)).status, 409);
@@ -266,7 +266,7 @@ describe('POST /admin/api/apps/:id/secret (adminRegenerarSecretoApp)', () => {
     assert.equal(await m.casos.autenticarApp('portal', 'secreto-portal'), null, 'el anterior ya no autentica');
     assert.ok(await m.casos.autenticarApp('portal', r.cuerpo.client_secret));
     assert.ok(acciones(m).includes('app.secreto_regenerado'));
-    assert.doesNotMatch(JSON.stringify(m.db.prepare('SELECT detalle FROM audit_log').all()), new RegExp(r.cuerpo.client_secret));
+    assert.ok(!JSON.stringify(m.db.prepare('SELECT detalle FROM audit_log').all()).includes(r.cuerpo.client_secret));
 
     assert.equal((await m.casos.adminRegenerarSecretoApp({ id: m.app.id }, OPERADOR)).status, 403);
     assert.equal((await m.casos.adminRegenerarSecretoApp({ id: 'no-existe' }, ADMIN)).status, 404);
@@ -325,8 +325,8 @@ describe('búsqueda por cédula y por user_ref (GET /admin/api/enrollments)', ()
     assert.equal(busquedas[3].criterio, 'user_ref');
     const todo = JSON.stringify(m.db.prepare('SELECT * FROM audit_log').all());
     assert.doesNotMatch(todo, /12345678|12\.345\.678|80000003|11111111/);
-    assert.doesNotMatch(todo, new RegExp(ref));
-    assert.doesNotMatch(todo, new RegExp(alta.cuerpo.cedula_secreto));
+    assert.ok(!todo.includes(ref));
+    assert.ok(!todo.includes(alta.cuerpo.cedula_secreto));
     assert.equal(verificarCadena(m.db.prepare('SELECT * FROM audit_log ORDER BY id').all()).intact, true);
   });
 
@@ -369,7 +369,7 @@ describe('búsqueda por cédula y por user_ref (GET /admin/api/enrollments)', ()
     assert.equal((await m.casos.adminActualizarApp({ nombre: 'Otra', cedula_secreto: secreto }, ADMIN)).status, 400, 'secreto sin hmac');
     assert.equal((await m.casos.adminActualizarApp({ id: m.app.id, user_ref_desde_cedula: 'hmac', cedula_secreto: 'corto' }, ADMIN)).status, 400);
     assert.equal((await m.casos.adminActualizarApp({ id: m.app.id, user_ref_desde_cedula: 'hmac', cedula_prefijo: 'con espacio' }, ADMIN)).status, 400);
-    assert.doesNotMatch(JSON.stringify(m.db.prepare('SELECT detalle FROM audit_log').all()), new RegExp(secreto));
+    assert.ok(!JSON.stringify(m.db.prepare('SELECT detalle FROM audit_log').all()).includes(secreto));
   });
 });
 

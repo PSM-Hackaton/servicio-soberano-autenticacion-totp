@@ -9,7 +9,10 @@ import { createHash } from 'node:crypto';
  * @typedef {{ id?: number, ts: string, actor: string, accion: string, objetivo: string | null,
  *   detalle: string | null, prev_hash: string, hash: string }} FilaAuditoria
  * @typedef {{ ultimo: () => FilaAuditoria | undefined, insertar: (fila: FilaAuditoria) => number,
- *   ahora?: () => string }} OpcionesBitacora
+ *   transaccion?: <T>(fn: () => T) => T, ahora?: () => string }} OpcionesBitacora
+ *   `transaccion` (p. ej. repos.transaccion: BEGIN IMMEDIATE o SAVEPOINT si ya hay una abierta)
+ *   hace atómicos la lectura del último hash y la inserción: con varios procesos sobre la misma
+ *   base, ninguno puede leer el mismo prev_hash que otro y la cadena no se bifurca.
  */
 
 /** Hash previo de la primera fila de la cadena. */
@@ -92,12 +95,13 @@ export function calcularHash(prevHash, { ts, actor, accion, objetivo = null, det
 }
 
 /**
- * Crea la bitácora sobre un almacén inyectado. Las inserciones deben ser serializadas por el
- * llamador (en SQLite síncrono lo son de forma natural).
+ * Crea la bitácora sobre un almacén inyectado. Con `transaccion`, leer el último hash e insertar
+ * ocurren en una sola transacción de escritura (seguro con varios procesos); sin ella, las
+ * inserciones deben ser serializadas por el llamador (un solo proceso SQLite síncrono).
  * @param {OpcionesBitacora} opciones
  */
-export function crearBitacora({ ultimo, insertar, ahora = () => new Date().toISOString() }) {
-  if (typeof ultimo !== 'function' || typeof insertar !== 'function') {
+export function crearBitacora({ ultimo, insertar, transaccion = (fn) => fn(), ahora = () => new Date().toISOString() }) {
+  if (typeof ultimo !== 'function' || typeof insertar !== 'function' || typeof transaccion !== 'function') {
     throw new Error('El almacén debe proveer ultimo() e insertar(fila)');
   }
   return {
@@ -108,24 +112,43 @@ export function crearBitacora({ ultimo, insertar, ahora = () => new Date().toISO
      */
     registrar({ actor, accion, objetivo = null, detalle = null }) {
       if (!actor || !accion) throw new Error('actor y accion son obligatorios');
-      const anterior = ultimo();
-      const prev_hash = anterior?.hash ?? HASH_GENESIS;
-      const fila = {
-        ts: ahora(),
+      const campos = {
         actor: String(actor),
         accion: String(accion),
         objetivo: objetivo === null || objetivo === undefined ? null : String(objetivo),
         detalle: normalizarDetalle(detalle === null ? null : filtrarSensibles(
           typeof detalle === 'string' ? intentarParsear(detalle) : detalle,
         )),
-        prev_hash,
-        hash: '',
       };
-      fila.hash = calcularHash(prev_hash, fila);
-      const id = insertar({ ...fila });
-      return { id, ...fila };
+      return transaccion(() => {
+        // ts dentro de la transacción: con varios procesos, el orden de ts sigue el de id.
+        const contenido = { ts: ahora(), ...campos };
+        const prev_hash = ultimo()?.hash ?? HASH_GENESIS;
+        const fila = { ...contenido, prev_hash, hash: calcularHash(prev_hash, contenido) };
+        const id = insertar({ ...fila });
+        return { id, ...fila };
+      });
     },
   };
+}
+
+/**
+ * Bitácora sobre los repositorios SQLite (repos.auditLog + repos.transaccion): lectura del último
+ * hash e inserción en la misma transacción de escritura (BEGIN IMMEDIATE, o SAVEPOINT dentro de
+ * otra transacción ya abierta, p. ej. la de una verificación).
+ * @param {{ auditLog: { ultimoHash?: () => string | undefined, ultimo: () => FilaAuditoria | undefined,
+ *   insertarId?: (f: FilaAuditoria) => number, insertar: (f: FilaAuditoria) => { id: number } },
+ *   transaccion: <T>(fn: () => T) => T }} repos
+ * @param {{ ahora?: () => string }} [o]
+ */
+export function crearBitacoraSqlite(repos, { ahora } = {}) {
+  const { auditLog } = repos;
+  return crearBitacora({
+    ultimo: auditLog.ultimoHash ? () => { const hash = auditLog.ultimoHash(); return hash ? /** @type {any} */ ({ hash }) : undefined; } : () => auditLog.ultimo(),
+    insertar: auditLog.insertarId ? (f) => auditLog.insertarId(f) : (f) => auditLog.insertar(f).id,
+    transaccion: (fn) => repos.transaccion(fn),
+    ...(ahora ? { ahora } : {}),
+  });
 }
 
 /** Si `texto` es JSON se devuelve parseado (para poder filtrarlo); si no, se devuelve igual. */

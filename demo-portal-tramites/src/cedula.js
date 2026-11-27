@@ -1,8 +1,13 @@
 // Cédula de identidad venezolana: identificador institucional del ciudadano en el portal.
 // Forma normalizada: nacionalidad (V o E) + número sin puntos ni ceros a la izquierda, p. ej. V12345678.
-// El servicio TOTP nunca recibe la cédula: solo un seudónimo HMAC derivado con un secreto del portal.
+// El servicio TOTP nunca recibe la cédula: solo un seudónimo HMAC derivado con el secreto de derivación
+// de la app (modo `hmac` del servicio), calculado con la misma función del SDK que usa el servicio para
+// la búsqueda de soporte por cédula en la consola.
 
-import { createHmac } from 'node:crypto';
+import { derivarUserRefDesdeCedula } from '../../sdk/src/cedula.js';
+
+/** Prefijo por defecto del user_ref del portal (debe coincidir con `cedula_prefijo` de la app). */
+export const PREFIJO_POR_DEFECTO = 'ptd-';
 
 const NACIONALIDADES = new Set(['V', 'E']);
 
@@ -38,11 +43,17 @@ export function formatearCedula(normalizada) {
 }
 
 /**
- * Seudónimo estable que el portal envía al servicio como `user_ref`: ptd- + HMAC-SHA256(cédula, secreto),
- * acortado a 128 bits en hexadecimal. Sin el secreto del portal no se puede volver a la cédula
+ * Seudónimo estable que el portal envía al servicio como `user_ref`:
+ * prefijo + base64url(HMAC-SHA256(cédula canónica, secreto de derivación)), exactamente el formato del
+ * modo `hmac` del servicio (`derivarUserRefDesdeCedula` del SDK). Así el soporte puede buscar el
+ * enrolamiento escribiendo la cédula en la consola. Sin el secreto no se puede volver a la cédula
  * ni comprobar si una cédula concreta está enrolada.
+ * @param {string} normalizada cédula normalizada (V12345678)
+ * @param {string} secreto secreto de derivación de la app (base64url, 32 a 64 bytes)
+ * @param {string} [prefijo] `cedula_prefijo` de la app
  */
-export function seudonimo(normalizada, secreto) {
-  if (!secreto || String(secreto).length < 32) throw new Error('Secreto de seudónimos ausente o demasiado corto');
-  return `ptd-${createHmac('sha256', String(secreto)).update(String(normalizada)).digest('hex').slice(0, 32)}`;
+export function seudonimo(normalizada, secreto, prefijo = PREFIJO_POR_DEFECTO) {
+  const ref = derivarUserRefDesdeCedula(String(normalizada), String(secreto ?? ''), prefijo);
+  if (!ref) throw new Error('Cédula no válida para derivar el seudónimo');
+  return ref;
 }

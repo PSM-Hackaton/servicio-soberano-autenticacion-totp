@@ -171,7 +171,21 @@ function normalizarEnrolamiento(e) {
     created_at: primero(e, 'created_at', 'createdAt'),
     activated_at: primero(e, 'activated_at', 'activatedAt'),
     revoked_at: primero(e, 'revoked_at', 'revokedAt'),
-    last_used_at: primero(e, 'last_used_at', 'lastUsedAt'),
+    last_used_at: primero(e, 'last_used_at', 'lastUsedAt') ?? e?.device?.last_used_at ?? null,
+    device: normalizarDispositivo(primero(e, 'device', 'dispositivo')),
+  };
+}
+
+/** Dispositivo vinculado (issue #47): seudónimo, nombre visible, plataforma y fechas; o null. */
+function normalizarDispositivo(d) {
+  if (!d || typeof d !== 'object') return null;
+  return {
+    device_id: primero(d, 'device_id', 'id'),
+    name: primero(d, 'name', 'nombre') ?? 'Dispositivo',
+    platform: primero(d, 'platform', 'plataforma') ?? 'otro',
+    created_at: primero(d, 'created_at', 'createdAt'),
+    last_used_at: primero(d, 'last_used_at', 'lastUsedAt'),
+    unlinked_at: primero(d, 'unlinked_at', 'unlinkedAt'),
   };
 }
 

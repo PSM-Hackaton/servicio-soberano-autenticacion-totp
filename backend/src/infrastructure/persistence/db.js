@@ -9,16 +9,35 @@ import { fileURLToPath } from 'node:url';
 /** Carpeta de migraciones, resuelta respecto a este archivo (no al directorio de trabajo). */
 export const CARPETA_MIGRACIONES = fileURLToPath(new URL('../../../migrations/', import.meta.url));
 
+/** Modos admitidos de PRAGMA synchronous (SQLITE_SYNCHRONOUS). */
+export const MODOS_SINCRONO = Object.freeze(['FULL', 'NORMAL']);
+
+/**
+ * Modo de confirmación a disco por defecto: NORMAL en WAL.
+ * Compromiso (https://www.sqlite.org/pragma.html#pragma_synchronous): en modo WAL, NORMAL no
+ * sincroniza el WAL en cada COMMIT sino en cada checkpoint. La base NUNCA se corrompe y una caída
+ * del PROCESO no pierde nada (el WAL ya está en el sistema operativo); solo un corte de energía o
+ * una caída del sistema operativo puede deshacer las últimas transacciones confirmadas antes del
+ * siguiente checkpoint. En este servicio eso equivale, como mucho, a perder los últimos intentos,
+ * eventos de bitácora o pasos aceptados de ese instante (un código ya usado podría volver a valer
+ * dentro de su ventana de 30 s tras el corte). FULL elimina esa ventana a cambio de un fsync por
+ * transacción (×3 a ×5 menos verificaciones por segundo medidas: docs/escalabilidad).
+ */
+export const SINCRONO_POR_DEFECTO = 'NORMAL';
+
 /**
  * Abre (o crea) la base de datos, configura los PRAGMA y aplica las migraciones pendientes.
  * @param {string} ruta Ruta del archivo SQLite o ':memory:'.
- * @param {{ carpetaMigraciones?: string }} [opciones]
+ * @param {{ carpetaMigraciones?: string, sincrono?: 'FULL' | 'NORMAL' }} [opciones]
  * @returns {DatabaseSync}
  */
 export function abrirBaseDatos(ruta, opciones = {}) {
+  const sincrono = opciones.sincrono ?? SINCRONO_POR_DEFECTO;
+  if (!MODOS_SINCRONO.includes(sincrono)) throw new TypeError(`Modo synchronous no admitido: ${sincrono}`);
   const db = new DatabaseSync(ruta);
   // WAL no aplica a bases en memoria (SQLite responde 'memory' y lo ignora).
   if (ruta !== ':memory:') db.exec('PRAGMA journal_mode = WAL;');
+  db.exec(`PRAGMA synchronous = ${sincrono};`);
   db.exec('PRAGMA foreign_keys = ON;');
   db.exec('PRAGMA busy_timeout = 5000;');
   aplicarMigraciones(db, opciones.carpetaMigraciones ?? CARPETA_MIGRACIONES);

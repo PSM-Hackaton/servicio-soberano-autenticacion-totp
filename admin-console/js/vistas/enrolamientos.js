@@ -1,6 +1,8 @@
 // Enrolamientos TOTP: listado con filtros por estado, aplicación y búsqueda; búsqueda de soporte
 // por cédula (apps que derivan el user_ref con HMAC) o por user_ref exacto; suspensión,
 // reactivación y revocación según rol. La cédula se envía al servidor, que la audita solo como HMAC.
+// Cada enrolamiento muestra su dispositivo vinculado (issue #47: nombre visible, plataforma, alta y
+// último uso) y, si lo tiene, la acción «Revocar dispositivo» (revoca el enrolamiento).
 import { h, reemplazar, numero, tiempo, hashCorto, rebote, idUnico } from '../dom.js';
 import { icono } from '../iconos.js';
 import { api, mensajeDeError } from '../api.js';
@@ -24,6 +26,20 @@ function cedulaLegible(texto) {
   return `${m[1].toUpperCase()}-${numero.replace(/\B(?=(?:[0-9]{3})+$)/g, '.')}`;
 }
 const NOMBRE_ALG = { SHA256: 'SHA-256', SHA512: 'SHA-512', SHA1: 'SHA-1' };
+const NOMBRE_PLATAFORMA = { android: 'Android', pwa: 'PWA', otro: 'Otro' };
+/** ¿El enrolamiento tiene un dispositivo aún vinculado? */
+const conDispositivo = (e) => Boolean(e.device && !e.device.unlinked_at);
+
+/** Celda del dispositivo: nombre visible (texto plano, nunca HTML), plataforma, alta y estado. */
+function celdaDispositivo(e) {
+  const d = e.device;
+  if (!d) return h('span.tenue', { text: '—', title: 'Sin dispositivo vinculado (alta con QR en un autenticador estándar)' });
+  return h('div.celda-principal.celda-principal--enr', null,
+    h('span', { title: d.device_id ?? '', text: d.name }),
+    h('span.tenue.texto-pequeno', null,
+      `${NOMBRE_PLATAFORMA[d.platform] ?? d.platform} · alta `, tiempo(d.created_at, { corta: true }),
+      d.unlinked_at ? ' · desvinculado' : ''));
+}
 
 export function montar(raiz, ctx) {
   const puedeSuspender = ctx.puede('enrolamientos.suspender');
@@ -165,7 +181,8 @@ export function montar(raiz, ctx) {
   function filtrados() {
     const t = filtros.texto.trim().toLowerCase();
     return todos.filter((e) => (!filtros.estado || e.estado === filtros.estado)
-      && (!t || e.id?.toLowerCase().includes(t) || e.user_ref_hash?.toLowerCase().includes(t)));
+      && (!t || e.id?.toLowerCase().includes(t) || e.user_ref_hash?.toLowerCase().includes(t)
+        || e.device?.name?.toLowerCase().includes(t) || e.device?.device_id?.toLowerCase().includes(t)));
   }
 
   function pintarChips() {
@@ -193,8 +210,11 @@ export function montar(raiz, ctx) {
       b.addEventListener('click', () => ejecutar(e, 'reactivate'));
       grupo.append(b);
     }
-    const r = botonConPermiso({ permitido: puedeRevocar, motivo: ctx.motivo('enrolamientos.revocar'), class: 'boton boton--fantasma-peligro boton--compacto', 'aria-label': `Revocar enrolamiento ${hashCorto(e.id, 8, 0)}`, title: 'Revocar' }, icono('revocar'), h('span.texto-accion', { text: 'Revocar' }));
-    r.addEventListener('click', () => ejecutar(e, 'revoke'));
+    // Con dispositivo vinculado, la revocación se presenta como «Revocar dispositivo» (misma acción).
+    const disp = conDispositivo(e);
+    const textoRevocar = disp ? 'Revocar dispositivo' : 'Revocar';
+    const r = botonConPermiso({ permitido: puedeRevocar, motivo: ctx.motivo('enrolamientos.revocar'), class: 'boton boton--fantasma-peligro boton--compacto', 'aria-label': disp ? `Revocar dispositivo ${e.device.name} del enrolamiento ${hashCorto(e.id, 8, 0)}` : `Revocar enrolamiento ${hashCorto(e.id, 8, 0)}`, title: textoRevocar }, icono('revocar'), h('span.texto-accion', { text: textoRevocar }));
+    r.addEventListener('click', () => ejecutar(e, disp ? 'revoke-device' : 'revoke'));
     grupo.append(r);
     return grupo;
   }
@@ -216,7 +236,7 @@ export function montar(raiz, ctx) {
       h('div.tabla-contenedor', null, h('table.tabla.tabla--apilable', null,
         h('caption.solo-lectores', { text: 'Enrolamientos TOTP' }),
         h('thead', null, h('tr', null,
-          ['Enrolamiento', 'Usuario (hash)', 'Aplicación', 'Estado', 'Deriva', 'Fallos', 'Creado', 'Último uso'].map((t, i) => h('th', { scope: 'col', class: i === 4 || i === 5 ? 'num' : null, text: t })),
+          ['Enrolamiento', 'Usuario (hash)', 'Aplicación', 'Dispositivo', 'Estado', 'Deriva', 'Fallos', 'Creado', 'Último uso'].map((t, i) => h('th', { scope: 'col', class: i === 5 || i === 6 ? 'num' : null, text: t })),
           h('th', null, h('span.solo-lectores', { text: 'Acciones' })))),
         h('tbody', null, vista.map((e) => h('tr', { class: e.estado === 'revocado' ? 'fila-apagada' : null },
           h('td', { dataset: { etiqueta: 'Enrolamiento' } }, valorHash(e.id, { etiqueta: 'identificador' })),
@@ -224,6 +244,7 @@ export function montar(raiz, ctx) {
           h('td', { dataset: { etiqueta: 'Aplicación' } }, h('div.celda-principal.celda-principal--enr', null,
             h('span', { text: e.app_nombre ?? apps.find((a) => a.id === e.app_id)?.nombre ?? '—' }),
             h('span.tenue.texto-pequeno.num', { text: `${NOMBRE_ALG[e.algoritmo] ?? e.algoritmo ?? '—'} · ${e.digitos ?? '—'} dígitos` }))),
+          h('td', { dataset: { etiqueta: 'Dispositivo' } }, celdaDispositivo(e)),
           h('td', { dataset: { etiqueta: 'Estado' } }, insigniaEstado(e.estado)),
           h('td.num', { dataset: { etiqueta: 'Deriva' }, title: 'Pasos de deriva de reloj compensados', text: e.drift_steps > 0 ? `+${e.drift_steps}` : String(e.drift_steps) }),
           h('td.num', { dataset: { etiqueta: 'Fallos' }, class: e.failed_attempts >= 3 ? 'texto-aviso' : null, text: numero(e.failed_attempts) }),
@@ -247,15 +268,21 @@ export function montar(raiz, ctx) {
       suspend: { titulo: 'Suspender enrolamiento', mensaje: 'El usuario no podrá verificar códigos hasta que se reactive. Puede revertirse.', boton: 'Suspender', tono: 'primario', ok: 'Enrolamiento suspendido.' },
       reactivate: { titulo: 'Reactivar enrolamiento', mensaje: 'El factor volverá a aceptar códigos válidos.', boton: 'Reactivar', tono: 'primario', ok: 'Enrolamiento reactivado.' },
       revoke: { titulo: 'Revocar enrolamiento', mensaje: 'La revocación es definitiva: la semilla queda inutilizable y el usuario deberá enrolarse de nuevo.', boton: 'Revocar definitivamente', tono: 'peligro', ok: 'Enrolamiento revocado.' },
+      'revoke-device': { titulo: 'Revocar dispositivo', mensaje: 'El dispositivo dejará de generar códigos válidos: se revoca su enrolamiento de forma definitiva y el usuario deberá vincular de nuevo su teléfono o la PWA.', boton: 'Revocar dispositivo', tono: 'peligro', ok: 'Dispositivo revocado.' },
     }[accion];
+    const d = e.device;
     const ok = await confirmar({
       titulo: textos.titulo, mensaje: textos.mensaje, confirmar: textos.boton, tono: textos.tono,
-      detalle: h('dl.datos-clave', null, h('dt', { text: 'Enrolamiento' }), h('dd', null, h('code', { text: e.id })), h('dt', { text: 'Usuario (hash)' }), h('dd', null, h('code', { text: e.user_ref_hash }))),
+      detalle: h('dl.datos-clave', null, h('dt', { text: 'Enrolamiento' }), h('dd', null, h('code', { text: e.id })), h('dt', { text: 'Usuario (hash)' }), h('dd', null, h('code', { text: e.user_ref_hash })),
+        d ? [h('dt', { text: 'Dispositivo' }), h('dd', { text: `${d.name} (${NOMBRE_PLATAFORMA[d.platform] ?? d.platform})` }),
+          h('dt', { text: 'Alta · último uso' }), h('dd', null, tiempo(d.created_at, { corta: true }), ' · ', tiempo(d.last_used_at, { relativa: true }))] : null),
     });
     if (!ok) return;
     try {
-      const r = await api.accionEnrolamiento(e.id, accion);
-      Object.assign(e, { estado: r.estado ?? { suspend: 'suspendido', reactivate: 'activo', revoke: 'revocado' }[accion], revoked_at: r.revoked_at ?? e.revoked_at });
+      // «Revocar dispositivo» reutiliza la revocación del enrolamiento (POST …/revoke).
+      const r = await api.accionEnrolamiento(e.id, accion === 'revoke-device' ? 'revoke' : accion);
+      Object.assign(e, { estado: r.estado ?? { suspend: 'suspendido', reactivate: 'activo', revoke: 'revocado', 'revoke-device': 'revocado' }[accion], revoked_at: r.revoked_at ?? e.revoked_at });
+      if (e.device && e.estado === 'revocado') e.device = r.device ?? { ...e.device, unlinked_at: e.device.unlinked_at ?? e.revoked_at };
       pintarChips();
       pintar();
       notificar(textos.ok, 'ok');

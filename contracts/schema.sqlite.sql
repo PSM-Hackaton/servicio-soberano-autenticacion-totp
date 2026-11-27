@@ -1,10 +1,11 @@
 -- ==============================================================================
 -- CONTRATO: esquema SQLite del Servicio Soberano TOTP (base de datos de esta versión).
--- Copia exacta de backend/migrations/001_esquema.sql seguida de 002_cedula_apps.sql,
+-- Copia exacta de backend/migrations/001_esquema.sql seguida de 002_cedula_apps.sql, 003_indices_detector.sql
+-- y 004_dispositivos.sql,
 -- que son la fuente de verdad: el backend aplica las migraciones al abrir la base (node:sqlite, modo WAL y
 -- foreign_keys activados por backend/src/infrastructure/persistence/db.js).
 -- Si cambia una migración, este archivo se regenera copiándolas tal cual y en orden.
--- Alineado con el código el 26-11-2026.
+-- Alineado con el código el 27-11-2026.
 -- ==============================================================================
 
 -- ==============================================================================
@@ -151,3 +152,45 @@ ALTER TABLE apps ADD COLUMN cedula_secreto_ct TEXT;          -- base64 AES-256-G
 ALTER TABLE apps ADD COLUMN cedula_secreto_nonce TEXT;       -- base64 96-bit nonce
 ALTER TABLE apps ADD COLUMN cedula_secreto_auth_tag TEXT;    -- base64 128-bit GCM auth tag
 ALTER TABLE apps ADD COLUMN cedula_key_version TEXT;
+
+-- ==============================================================================
+-- Migración 003: índices de cobertura para el historial del detector de anomalías.
+--   Cada verificación lee hasta 100 intentos recientes (50 por origen y 50 por cuenta) con solo
+--   id, user_ref_hash, ip_hash, resultado y ts. Con estos índices la consulta se resuelve solo con
+--   el índice (COVERING INDEX), sin leer la fila completa de attempts (ni reasons_json).
+--   Sustituyen a idx_attempts_ip_ts e idx_attempts_user_ts (mismas columnas iniciales, por lo que
+--   también sirven a los conteos de fallos y al bloqueo de cuentas inexistentes): el número de
+--   índices que se actualizan en cada inserción no cambia. `id DESC` (alias de rowid) evita el
+--   ordenamiento temporal (TEMP B-TREE) del desempate ORDER BY ts DESC, id DESC.
+-- ==============================================================================
+
+DROP INDEX IF EXISTS idx_attempts_ip_ts;
+DROP INDEX IF EXISTS idx_attempts_user_ts;
+CREATE INDEX IF NOT EXISTS idx_attempts_ip_ts_det ON attempts(ip_hash, ts DESC, id DESC, resultado, user_ref_hash);
+CREATE INDEX IF NOT EXISTS idx_attempts_user_ts_det ON attempts(user_ref_hash, ts DESC, id DESC, resultado, ip_hash);
+
+-- ==============================================================================
+-- Migración 004: vinculación de dispositivos (issue #47, M8).
+-- Cada enrolamiento puede quedar asociado a UN dispositivo (la app móvil Android, la PWA u otro
+-- autenticador estándar) para que el integrador y la consola puedan consultarlo y revocarlo.
+--   id          seudónimo aleatorio 'dev_' + 22 caracteres base64url (128 bits). No deriva de
+--               ningún identificador de hardware (IMEI, MAC, Android ID…): no se recogen.
+--   nombre      nombre visible que elige el usuario ("Teléfono de trabajo"), ya saneado por el
+--               caso de uso (sin controles ni caracteres invisibles, espacios colapsados, ≤ 64).
+--   plataforma  'android' | 'pwa' | 'otro'.
+--   created_at  alta (al crear el enrolamiento pendiente).
+--   ultimo_uso  último código aceptado (activación o verificación); NULL si nunca se usó.
+--   desvinculado_en  fecha de desvinculación explícita (DELETE /api/v1/enrollments/{id}/device).
+-- Sin datos personales: el nombre lo escribe el usuario y la consola recomienda no usar su nombre.
+-- Al borrar el enrolamiento se borra el dispositivo (ON DELETE CASCADE).
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS dispositivos (
+    id TEXT PRIMARY KEY CHECK (id GLOB 'dev_*' AND length(id) = 26),
+    enrollment_id TEXT UNIQUE NOT NULL REFERENCES enrollments(id) ON DELETE CASCADE,
+    nombre TEXT NOT NULL CHECK (length(nombre) BETWEEN 1 AND 64),
+    plataforma TEXT NOT NULL DEFAULT 'otro' CHECK (plataforma IN ('android', 'pwa', 'otro')),
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    ultimo_uso TEXT,
+    desvinculado_en TEXT
+);

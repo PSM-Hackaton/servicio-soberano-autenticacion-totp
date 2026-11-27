@@ -6,6 +6,7 @@
 // IP TCP es alto a propósito (anti-DDoS: un portal concentra a todos sus ciudadanos en una IP).
 // Opciones: --peticiones N (400), --concurrencia N (50).
 
+import { randomInt } from 'node:crypto';
 import { esPrincipal, exigirCredenciales, nuevoUserRef, principal, sondearSalud } from '../lib/escenario.js';
 import { codigoError, etiquetaEstado } from '../lib/http.js';
 import { cronometro, distribucionEstados, dormir, enParalelo, redondear, resumenLatencias, tasa } from '../lib/metricas.js';
@@ -36,7 +37,7 @@ export async function ejecutar(ctx, res) {
 
   const reloj = cronometro();
   const respuestas = await enParalelo(total, concurrencia, () =>
-    verificar(cliente, nuevoUserRef('inundacion'), String(Math.floor(Math.random() * 1e6)).padStart(6, '0'), { ...op, timeoutMs: 10000 }));
+    verificar(cliente, nuevoUserRef('inundacion'), String(randomInt(1e6)).padStart(6, '0'), { ...op, timeoutMs: 10000 }));
   const duracion = reloj.s();
   await dormir(1000);
   activo = false;

@@ -73,7 +73,7 @@ test('reencrypt pasa a la versión activa y sigue descifrando', () => {
 
 test('encryptBlob / decryptBlob genéricos con contexto', () => {
   const vault = crearVault({ llaves: { v1: LLAVE_V1 }, versionActiva: 'v1' });
-  const privada = Buffer.from('-----BEGIN PRIVATE KEY-----...');
+  const privada = Buffer.from('material de llave de ejemplo (no es una llave real)');
   const registro = vault.encryptBlob(privada, 'firma:ed25519');
   assert.deepEqual(vault.decryptBlob(registro, 'firma:ed25519'), privada);
   assert.throws(() => vault.decryptBlob(registro, 'firma:otra'), ERROR);

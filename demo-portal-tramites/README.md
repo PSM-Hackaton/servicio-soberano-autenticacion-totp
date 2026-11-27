@@ -6,7 +6,7 @@ Sistema institucional **ficticio** que muestra cómo una institución añade el 
 
 ```bash
 cd demo-portal-tramites
-cp .env.example .env                 # ponga TOTP_CLIENT_ID / TOTP_CLIENT_SECRET de la app "Portal de Trámites" (obligatorios: sin ellos no arranca)
+cp .env.example .env                 # ponga TOTP_CLIENT_ID / TOTP_CLIENT_SECRET (obligatorios) y TOTP_CEDULA_SECRETO de la app "Portal de Trámites"
 node scripts/crear-usuarios.js       # ciudadanos ficticios: V-10.000.001, V-10.000.002, E-80.000.003 (contraseña: Tramites-Demo-2026)
 node server.js                       # https://localhost:8444 si existen ../backend/certs/, si no http://localhost:8444
 ```
@@ -22,7 +22,7 @@ Pruebas: `node --test tests/*.test.js` (desde la raíz: `node --test 'sdk/tests/
 
 ## Flujo
 
-1. **Cédula de identidad y contraseña** (primer factor propio del portal, scrypt). El portal solo envía al servicio un seudónimo `user_ref` (`ptd-…`, ver *Identificación del ciudadano*): ni nombre ni cédula.
+1. **Cédula de identidad y contraseña** (primer factor propio del portal, scrypt). El portal solo envía al servicio un seudónimo `user_ref` (`ptd-…` en el formato `hmac` del servicio, ver *Identificación del ciudadano*): ni nombre ni cédula.
    En cada llamada que comprueba un código (`verify`, `activate`, `recovery`) envía además `client_ip`, la IP de la conexión del ciudadano con el portal (dirección del socket), para que el detector de anomalías y los límites del servicio traten a cada ciudadano como un origen propio y los fallos de unos no bloqueen a todo el portal. `X-Forwarded-For` solo se usa con `PORTAL_CONFIAR_X_FORWARDED_FOR=1` (proxy inverso propio delante; vale la última entrada).
 2. **Sin segundo factor → enrolamiento:** QR del servicio (como imagen `data:`; nunca SVG en línea), clave manual, botón *Abrir en el Autenticador Soberano* (`AUTENTICADOR_URL#add=<otpauth>`), primer código para activar y **10 códigos de recuperación mostrados una sola vez** (copiar / imprimir).
 3. **Con segundo factor → código TOTP:** `verificar` → JWT EdDSA → firma comprobada localmente con la JWKS en caché → `tokens/validate` (consume el `jti`) → sesión nueva.
@@ -39,10 +39,12 @@ La **cédula de identidad** es el identificador institucional del ciudadano en e
 El **servicio TOTP nunca ve la cédula**: el portal le envía como `user_ref` un seudónimo estable
 
 ```
-user_ref = "ptd-" + primeros 32 hex de HMAC-SHA256(cédula normalizada, secreto del portal)
+user_ref = TOTP_CEDULA_PREFIJO + base64url(HMAC-SHA256(cédula canónica, TOTP_CEDULA_SECRETO))   # p. ej. ptd-3q2-…
 ```
 
-El secreto se toma de `PORTAL_SECRETO_SEUDONIMOS` (≥ 32 caracteres) o, si no se define, de `datos/seudonimos.clave`, generado al azar la primera vez (permisos 0600). Sin ese secreto no se puede volver del seudónimo a la cédula ni comprobar si una cédula concreta está enrolada en el servicio. La etiqueta de cuenta que viaja en el `otpauth://` lleva solo los tres últimos dígitos (`Portal de Trámites (…001)`). Cambiar el secreto desvincula a todos los ciudadanos de sus autenticadores. `datos/usuarios.json` guarda la cédula normalizada, el nombre, el hash scrypt y el `enrollment_id`; nunca el seudónimo ni la semilla.
+Es exactamente la derivación del modo `user_ref_desde_cedula = hmac` del servicio: el portal la calcula con `derivarUserRefDesdeCedula` del SDK (`sdk/src/cedula.js`, el mismo archivo que usa el backend). `npm run seed` registra la app «Portal de Trámites» con ese modo y el prefijo `ptd-`, e imprime **una sola vez** su `cedula_secreto` junto al `client_secret` (`deploy/instalar.sh` lo copia a `TOTP_CEDULA_SECRETO`). Con ello el soporte de la consola puede **buscar el enrolamiento de un ciudadano escribiendo su cédula**: el servicio descifra el secreto de la app con la bóveda, recalcula el `user_ref` y no guarda la cédula en ningún sitio (en la bitácora solo queda su HMAC con pepper).
+
+Si `TOTP_CEDULA_SECRETO` está vacío, el portal usa un secreto local al azar en `datos/seudonimos.clave` (0600) y avisa al arrancar: funciona igual, pero la consola no podrá encontrar a esos ciudadanos por cédula. Sin el secreto no se puede volver del seudónimo a la cédula ni comprobar si una cédula concreta está enrolada en el servicio. La etiqueta de cuenta que viaja en el `otpauth://` lleva solo los tres últimos dígitos (`Portal de Trámites (…001)`). Cambiar el secreto (o el prefijo) desvincula a todos los ciudadanos de sus autenticadores. `datos/usuarios.json` guarda la cédula normalizada, el nombre, el hash scrypt y el `enrollment_id`; nunca el seudónimo ni la semilla.
 
 Las cédulas de demostración (`V-10.000.001` Ana Rivera Soto, `V-10.000.002` Bruno Méndez Lara, `E-80.000.003` Carla Ortiz Peña) son **ficticias y de prueba**.
 

@@ -17,6 +17,8 @@
 //   POST   /api/v1/enrollments/{id}/resync    → resincronizar      200 | 400 | 401 | 429
 //   POST   /api/v1/recovery                   → recuperar          200 | 400 | 401 | 429
 //   DELETE /api/v1/enrollments/{id}           → revocar            200 | 400 | 401 | 404
+//   GET    /api/v1/enrollments/{id}/device    → dispositivo        200 | 400 | 401 | 404
+//   DELETE /api/v1/enrollments/{id}/device    → desvincularDispositivo 200 | 400 | 401 | 404
 //   GET    /.well-known/jwks.json             → jwks               200
 //   POST   /admin/api/login                   → adminLogin         200 | 400 | 401 | 429
 //   GET    /admin/api/apps                    → adminListarApps    200 | 401 | 403
@@ -40,6 +42,7 @@
 import { crearConsultas } from './consultas.js';
 import { crearControlBloqueos } from './bloqueos.js';
 import { crearCasosMfa } from './mfa.js';
+import { crearCasosDispositivos } from './dispositivos.js';
 import { crearCasosAdmin } from './admin.js';
 
 export { puede, MATRIZ_RBAC, ACCIONES } from './rbac.js';
@@ -56,6 +59,8 @@ export { puede, MATRIZ_RBAC, ACCIONES } from './rbac.js';
  * @property {number} [esperaExtraMs] Retardo ante 'espera_extra' en modo bloqueo (0 = sin retardo).
  * @property {number} [ventanaInexistentesMin] Ventana (min) de fallos de usuarios sin enrolamiento
  *   contados desde attempts para su bloqueo progresivo (BLOQUEO_INEXISTENTES_VENTANA_MIN, 1440).
+ * @property {string | null} [caHuellaSha256] Huella SHA-256 (AA:BB:…) del certificado de la CA publicada
+ *   en /ca.crt (TLS_CA_PUBLIC_PATH); se entrega en `provisioning` para fijar el certificado en la app.
  * @property {'local' | 'monitorizacion' | 'mock'} [modoHeuristica] HEURISTICS_MODE. 'monitorizacion'
  *   prevalece sobre modo_heuristica de cada app: nunca se bloquea por anomalía, solo se alerta y audita.
  */
@@ -92,7 +97,8 @@ export function crearCasosDeUso(deps) {
   const bloqueos = crearControlBloqueos({ repos, reloj, ventanaInexistentesMin: config.ventanaInexistentesMin });
   const comunes = { repos, vault, firmas, detector, bitacora, metricas, config, reloj, consultas, bloqueos };
 
-  const mfa = crearCasosMfa(comunes);
+  const dispositivos = crearCasosDispositivos(comunes);
+  const mfa = crearCasosMfa({ ...comunes, dispositivos });
   // La gestión de administradores reutiliza enrolar/activar para el TOTP propio de cada cuenta.
-  return Object.freeze({ ...mfa, ...crearCasosAdmin({ ...comunes, mfa }) });
+  return Object.freeze({ ...mfa, ...dispositivos.casos, ...crearCasosAdmin({ ...comunes, mfa, dispositivos }) });
 }

@@ -1,5 +1,6 @@
 // Generador de códigos para el laboratorio: reutiliza el motor RFC 6238 propio del backend.
 
+import { setTimeout as dormir } from 'node:timers/promises';
 import { generateHotp, pasoDeTiempo } from '../../backend/src/core/totp/totp.js';
 import { base32Decode } from '../../backend/src/core/totp/base32.js';
 
@@ -73,6 +74,6 @@ export async function codigoNuevo(usuario, { ventana = 1, esperar = true } = {})
     }
     if (!esperar) return null;
     const msHastaSiguiente = (t + 1) * usuario.datos.periodo * 1000 - Date.now() + 50;
-    await new Promise((r) => setTimeout(r, Math.max(50, msHastaSiguiente)));
+    await dormir(Math.max(50, msHastaSiguiente));
   }
 }

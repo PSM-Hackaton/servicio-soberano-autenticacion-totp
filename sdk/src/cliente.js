@@ -2,7 +2,7 @@
 // Falla cerrado: los métodos devuelven un resultado aprobado SOLO ante una respuesta 2xx
 // que cumple el contrato; cualquier otra cosa lanza ErrorTotp.
 
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { isIPv4, isIPv6 } from 'node:net';
 import { ErrorTotp, CODIGOS_LOCALES } from './errores.js';
 import { validarBaseUrl, crearAgente, peticion } from './http.js';
@@ -114,7 +114,7 @@ export function crearClienteTotp(opciones) {
           ? true
           : error.status === 503;
         if (!reintentable || intento > reintentos) throw error;
-        await pausa(100 + Math.floor(Math.random() * 150));
+        await pausa(100 + randomInt(150)); // espera con fluctuación (CSPRNG del sistema)
       }
     }
     throw ultimo;
@@ -131,15 +131,20 @@ export function crearClienteTotp(opciones) {
     /**
      * POST /api/v1/enrollments — crea un enrolamiento PENDIENTE (10 min).
      * @param {string} userRef identificador opaco del usuario en su sistema (no use nombres ni documentos)
-     * @param {{ etiquetaCuenta?: string, algoritmo?: 'SHA1'|'SHA256'|'SHA512', digitos?: 6|8, periodo?: number, idempotencyKey?: string }} [o]
+     * Con `dispositivo` el enrolamiento queda vinculado a la app móvil o la PWA (issue #47) y la
+     * respuesta añade `dispositivoId` y `aprovisionamiento` (URI con la semilla, una sola vez, y la
+     * huella SHA-256 de la CA si el servicio la publica).
+     * @param {{ etiquetaCuenta?: string, algoritmo?: 'SHA1'|'SHA256'|'SHA512', digitos?: 6|8, periodo?: number, idempotencyKey?: string,
+     *   dispositivo?: { nombre: string, plataforma?: 'android'|'pwa'|'otro' } }} [o]
      */
-    async enrolar(userRef, { etiquetaCuenta, algoritmo, digitos, periodo, idempotencyKey } = {}) {
+    async enrolar(userRef, { etiquetaCuenta, algoritmo, digitos, periodo, idempotencyKey, dispositivo } = {}) {
       exigirUserRef(userRef, 'enrolar');
       const cuerpo = { user_ref: userRef };
       if (etiquetaCuenta !== undefined) cuerpo.account_label = String(etiquetaCuenta).slice(0, 120);
       if (algoritmo !== undefined) cuerpo.algorithm = algoritmo;
       if (digitos !== undefined) cuerpo.digits = digitos;
       if (periodo !== undefined) cuerpo.period = periodo;
+      if (dispositivo !== undefined) cuerpo.device = cuerpoDispositivo(dispositivo);
       const r = await llamar('enrolar', 'POST', '/api/v1/enrollments', { cuerpo, idempotencyKey: idempotencyKey ?? randomUUID() });
       exigir(r, ['enrollment_id', 'otpauth_uri', 'qr_svg'], 'enrolar');
       return {
@@ -152,6 +157,15 @@ export function crearClienteTotp(opciones) {
         qrSvg: r.qr_svg,
         expiraEn: r.expires_at,
         claveManual: claveDeOtpauth(r.otpauth_uri),
+        ...(r.device_id ? {
+          dispositivoId: r.device_id,
+          aprovisionamiento: {
+            otpauthUri: r.provisioning?.otpauth_uri ?? r.otpauth_uri,
+            expiraEn: r.provisioning?.expires_at ?? r.expires_at,
+            dispositivoId: r.device_id,
+            huellaCaSha256: r.provisioning?.ca_fingerprint_sha256 ?? null,
+          },
+        } : {}),
       };
     },
 
@@ -263,6 +277,42 @@ export function crearClienteTotp(opciones) {
       return { enrollmentId: r.enrollment_id, estado: r.estado, revocadoEn: r.revoked_at };
     },
 
+    /**
+     * GET /api/v1/enrollments/{id}/device — dispositivo vinculado (nombre, plataforma, alta, último uso).
+     * @param {string} enrollmentId
+     */
+    async dispositivo(enrollmentId) {
+      exigirId(enrollmentId, 'dispositivo');
+      const r = await llamar('dispositivo', 'GET', `/api/v1/enrollments/${encodeURIComponent(enrollmentId)}/device`);
+      exigir(r, ['enrollment_id', 'device_id', 'name', 'platform'], 'dispositivo');
+      return {
+        enrollmentId: r.enrollment_id,
+        estadoEnrolamiento: r.enrollment_estado,
+        dispositivoId: r.device_id,
+        nombre: r.name,
+        plataforma: r.platform,
+        creadoEn: r.created_at,
+        ultimoUso: r.last_used_at ?? null,
+        desvinculadoEn: r.unlinked_at ?? null,
+      };
+    },
+
+    /**
+     * DELETE /api/v1/enrollments/{id}/device — desvincula el dispositivo y revoca el enrolamiento.
+     * Idempotente (se reintenta con la misma Idempotency-Key ante fallos de red o 503).
+     * @param {string} enrollmentId
+     */
+    async desvincularDispositivo(enrollmentId) {
+      exigirId(enrollmentId, 'desvincularDispositivo');
+      const r = await llamar('desvincularDispositivo', 'DELETE', `/api/v1/enrollments/${encodeURIComponent(enrollmentId)}/device`, {
+        idempotencyKey: randomUUID(),
+      });
+      if (!r || r.estado !== 'revocado') invalida('desvincularDispositivo');
+      return {
+        enrollmentId: r.enrollment_id, dispositivoId: r.device_id, estado: r.estado, revocadoEn: r.revoked_at, desvinculadoEn: r.unlinked_at,
+      };
+    },
+
     /** GET /.well-known/jwks.json (público, sin credenciales). */
     async jwks() {
       const r = await llamar('jwks', 'GET', '/.well-known/jwks.json', { autenticar: false });
@@ -322,6 +372,7 @@ function errorDeRespuesta(res, datos, operacion) {
       : res.status === 503 ? 'SERVICE_UNAVAILABLE' : `HTTP_${res.status}`;
   let reintentarEn = Number.isFinite(d.retry_after_seconds) ? d.retry_after_seconds
     : Number.isFinite(d.retryAfterSeconds) ? d.retryAfterSeconds : null;
+  // nosemgrep: nodejs_scan.javascript-dos-rule-regex_dos -- lee una cabecera de la respuesta del servicio, no una petición; literal anclado y lineal
   if (reintentarEn === null && res.cabeceras['retry-after'] && /^\d+$/.test(res.cabeceras['retry-after'])) {
     reintentarEn = Number(res.cabeceras['retry-after']);
   }
@@ -338,13 +389,15 @@ function exigir(r, campos, operacion) {
 }
 
 function exigirCodigo(codigo, operacion) {
-  if (typeof codigo !== 'string' || !CODIGO.test(codigo)) {
+  // nosemgrep: nodejs_scan.javascript-dos-rule-regex_dos -- validación local de un argumento; CODIGO es un literal anclado y acotado (6 a 8 cifras)
+  if (typeof codigo !== 'string' || codigo.length > 8 || !CODIGO.test(codigo)) {
     throw new ErrorTotp('El código debe tener entre 6 y 8 dígitos', { codigo: CODIGOS_LOCALES.ENTRADA_INVALIDA, operacion });
   }
 }
 
 function exigirUserRef(userRef, operacion) {
   const largo = typeof userRef === 'string' ? [...userRef].length : 0;
+  // nosemgrep: nodejs_scan.javascript-dos-rule-regex_dos -- validación local de un argumento ya acotado a 128 caracteres; literal anclado sin repeticiones anidadas
   if (largo < 1 || largo > 128 || !USER_REF.test(userRef)) {
     throw new ErrorTotp('userRef debe tener 1 a 128 caracteres imprimibles, sin espacios en los extremos ni caracteres de control',
       { codigo: CODIGOS_LOCALES.ENTRADA_INVALIDA, operacion });
@@ -371,6 +424,20 @@ function conOrigen(cuerpo, clientIp, operacion) {
     throw new ErrorTotp('clientIp debe ser una IPv4 o IPv6 válida', { codigo: CODIGOS_LOCALES.ENTRADA_INVALIDA, operacion });
   }
   return { ...cuerpo, client_ip: ip };
+}
+
+const PLATAFORMAS = new Set(['android', 'pwa', 'otro']);
+
+/** Valida y traduce `dispositivo` al cuerpo del contrato (el servicio sanea además el nombre). */
+function cuerpoDispositivo(d) {
+  const nombre = d?.nombre;
+  if (typeof nombre !== 'string' || nombre.trim().length === 0 || [...nombre].length > 64) {
+    throw new ErrorTotp('dispositivo.nombre debe tener entre 1 y 64 caracteres', { codigo: CODIGOS_LOCALES.ENTRADA_INVALIDA, operacion: 'enrolar' });
+  }
+  if (d.plataforma !== undefined && !PLATAFORMAS.has(d.plataforma)) {
+    throw new ErrorTotp('dispositivo.plataforma debe ser android, pwa u otro', { codigo: CODIGOS_LOCALES.ENTRADA_INVALIDA, operacion: 'enrolar' });
+  }
+  return d.plataforma === undefined ? { name: nombre } : { name: nombre, platform: d.plataforma };
 }
 
 function exigirId(id, operacion) {

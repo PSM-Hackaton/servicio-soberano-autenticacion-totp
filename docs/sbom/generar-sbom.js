@@ -13,19 +13,23 @@
 //   4. Escribe docs/sbom/sbom.cdx.json, docs/sbom/hashes-sha256.txt y docs/sbom/README.md.
 // Todas las rutas que imprime o escribe son relativas a la raíz del repositorio.
 //
-// Uso (desde cualquier carpeta):  node docs/sbom/generar-sbom.js [--comprobar]
+// Uso (desde cualquier carpeta):  node docs/sbom/generar-sbom.js [--comprobar] [--salida DIR]
 //   --comprobar  termina con código 1 si encuentra dependencias declaradas o importaciones externas.
+//   --salida DIR escribe los tres archivos en DIR en lugar de docs/sbom/ (lo usa verificar-todo.js
+//                para comprobar sin modificar el árbol de trabajo).
 // Solo se consideran los archivos versionados o versionables (git ls-files, respetando .gitignore):
 // nunca .env, certificados, bases de datos ni resultados locales.
 
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join, relative, sep } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const SALIDA = dirname(fileURLToPath(import.meta.url));
-const RAIZ = join(SALIDA, '..', '..');
+const CARPETA_SBOM = dirname(fileURLToPath(import.meta.url));
+const RAIZ = join(CARPETA_SBOM, '..', '..');
+const iSalida = process.argv.indexOf('--salida');
+const SALIDA = iSalida !== -1 && process.argv[iSalida + 1] ? resolve(process.argv[iSalida + 1]) : CARPETA_SBOM;
 const COMPROBAR = process.argv.includes('--comprobar');
 
 const NOMBRE_PROYECTO = 'servicio-soberano-autenticacion-totp';

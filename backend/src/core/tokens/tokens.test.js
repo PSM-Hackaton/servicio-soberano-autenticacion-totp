@@ -41,7 +41,8 @@ test('generarParFirma: kid es el thumbprint truncado del JWK público', () => {
   assert.equal(par.kid, calcularKid(par.publicJwk));
   assert.match(par.kid, /^[A-Za-z0-9_-]{22}$/);
   assert.equal(par.privateKey.asymmetricKeyType, 'ed25519');
-  assert.match(par.privatePem, /^-----BEGIN PRIVATE KEY-----/);
+  // PEM PKCS#8: exportar de nuevo la llave produce exactamente el mismo texto.
+  assert.equal(createPrivateKey(par.privatePem).export({ type: 'pkcs8', format: 'pem' }), par.privatePem);
   assert.equal(createPrivateKey(par.privatePem).asymmetricKeyType, 'ed25519');
   assert.notEqual(generarParFirma().kid, par.kid);
 });

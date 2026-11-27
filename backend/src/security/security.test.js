@@ -148,8 +148,8 @@ const ESQUEMA_VERIFY = {
   type: 'object',
   required: ['enrollment_id', 'code'],
   properties: {
-    enrollment_id: { type: 'string', pattern: '^[0-9a-f-]{36}$' },
-    code: { type: 'string', pattern: '^[0-9]{6,8}$' },
+    enrollment_id: { type: 'string', pattern: /^[0-9a-f-]{36}$/u },
+    code: { type: 'string', pattern: /^[0-9]{6,8}$/u },
     digitos: { type: 'integer', minimum: 6, maximum: 8 },
     algoritmo: { type: 'string', enum: ['SHA256', 'SHA512'] },
     recordar: { type: 'boolean' },

@@ -1,26 +1,26 @@
 {
-  "generado": "2026-11-26T17:47:42.931Z",
-  "destino": "https://localhost:18443",
+  "generado": "2026-11-26T21:32:12.944Z",
+  "destino": "https://localhost:9643",
   "entorno": {
     "node": "v22.22.1",
     "plataforma": "linux",
     "salud": {
       "status": "ok",
-      "timestamp": "2026-11-26T17:45:40.299Z",
+      "timestamp": "2026-11-26T21:30:05.822Z",
       "dbDriver": "sqlite",
-      "activeKeyId": "JrgHgyWQnX_sZgobtZrDBw",
+      "activeKeyId": "Vcjkn1IPxJdrGSRKoB2PYA",
       "heuristicsMode": "local"
     }
   },
   "resumen": {
-    "evaluados": 11,
-    "correctos": 11,
+    "evaluados": 12,
+    "correctos": 12,
     "fallidos": [],
     "omitidos": [],
-    "verificaciones": 116,
-    "verificacionesOk": 116,
+    "verificaciones": 127,
+    "verificacionesOk": 127,
     "hallazgos": 0,
-    "duracionMs": 122627
+    "duracionMs": 127117
   },
   "resultados": [
     {
@@ -70,18 +70,18 @@
         "respuesta del replay": "{\"error\":\"VERIFICATION_FAILED\",\"message\":\"No se pudo completar la verificación.\"}",
         "latencia verificación": {
           "n": 12,
-          "min": 2.5,
-          "p50": 70.3,
-          "p95": 100.9,
-          "p99": 101.4,
-          "max": 101.5,
-          "media": 62.8
+          "min": 1.8,
+          "p50": 13.3,
+          "p95": 15,
+          "p99": 15.2,
+          "max": 15.3,
+          "media": 12.4
         }
       },
       "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T17:45:40.303Z",
-      "duracionMs": 19882
+      "inicio": "2026-11-26T21:30:05.826Z",
+      "duracionMs": 24263
     },
     {
       "id": "jwt",
@@ -169,14 +169,14 @@
         }
       ],
       "metricas": {
-        "JWT legítimo": "alg=EdDSA kid=JrgHgyWQnX_sZgobtZrDBw aud=app_b98b35d6d6e15479c7e0780690dd15d6 ttl=300 s amr=[\"otp\"]"
+        "JWT legítimo": "alg=EdDSA kid=Vcjkn1IPxJdrGSRKoB2PYA aud=app_951ccda48e56de58c79ed5188dc86512 ttl=300 s amr=[\"otp\"]"
       },
       "notas": [
         "La caducidad real se prueba con --esperar-caducidad (espera TTL + 30 s de tolerancia)."
       ],
       "hallazgos": [],
-      "inicio": "2026-11-26T17:46:03.190Z",
-      "duracionMs": 207
+      "inicio": "2026-11-26T21:30:33.093Z",
+      "duracionMs": 205
     },
     {
       "id": "entradas",
@@ -480,17 +480,101 @@
         "latencia": {
           "n": 44,
           "min": 0.3,
-          "p50": 1.1,
-          "p95": 4.9,
-          "p99": 18.7,
-          "max": 28.7,
-          "media": 2
+          "p50": 0.7,
+          "p95": 4.7,
+          "p99": 32.4,
+          "max": 34.4,
+          "media": 2.3
         }
       },
       "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T17:46:06.399Z",
-      "duracionMs": 106
+      "inicio": "2026-11-26T21:30:36.298Z",
+      "duracionMs": 115
+    },
+    {
+      "id": "dast",
+      "nombre": "Escaneo dinámico de seguridad (DAST propio)",
+      "demuestra": "TLS 1.3 estricto, cabeceras OWASP en todas las rutas, métodos 405, CORS cerrado, cookies seguras y respuestas de error sin filtraciones.",
+      "ok": true,
+      "verificaciones": [
+        {
+          "descripcion": "TLS 1.3 negociado con cifrado AEAD moderno",
+          "esperado": "TLSv1.3 + cifrado AEAD",
+          "obtenido": "TLSv1.3 · TLS_AES_256_GCM_SHA384",
+          "ok": true
+        },
+        {
+          "descripcion": "TLS 1.2 y versiones antiguas rechazados",
+          "esperado": "conexión rechazada",
+          "obtenido": "rechazado (ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION)",
+          "ok": true
+        },
+        {
+          "descripcion": "Certificado TLS vigente",
+          "esperado": "no expirado",
+          "obtenido": "Feb 28 21:03:59 2029 GMT",
+          "ok": true
+        },
+        {
+          "descripcion": "Cabeceras OWASP en todas las rutas (34 rutas)",
+          "esperado": "34/34 sin faltantes ni huellas",
+          "obtenido": "34/34 OK",
+          "ok": true
+        },
+        {
+          "descripcion": "Política Permissions-Policy en PWA (/app/)",
+          "esperado": "camera=(self) para escáner QR",
+          "obtenido": "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
+          "ok": true
+        },
+        {
+          "descripcion": "Rutas administrativas protegidas sin sesión",
+          "esperado": "401 en todas las rutas /admin/api/* privadas",
+          "obtenido": "todas devolvieron 401",
+          "ok": true
+        },
+        {
+          "descripcion": "Errores genéricos y cero fugas internas / 5xx",
+          "esperado": "0 errores 5xx, 0 fugas, formato { error, message }",
+          "obtenido": "5xx=0, fugas=0, formatoInvalido=0",
+          "ok": true
+        },
+        {
+          "descripcion": "Métodos HTTP peligrosos / no permitidos (TRACE, PUT, PATCH, DELETE)",
+          "esperado": "7/7 rechazados sin reflejo",
+          "obtenido": "7/7 OK",
+          "ok": true
+        },
+        {
+          "descripcion": "CORS cerrado ante orígenes maliciosos y preflight OPTIONS",
+          "esperado": "sin comodín * ni reflejo de orígenes externos",
+          "obtenido": "9 sondas CORS seguras",
+          "ok": true
+        },
+        {
+          "descripcion": "Aislamiento de /metrics fuera de 127.0.0.1",
+          "esperado": "403",
+          "obtenido": "403",
+          "ok": true
+        }
+      ],
+      "metricas": {
+        "tlsProtocolo": "TLSv1.3",
+        "tlsCifrado": "TLS_AES_256_GCM_SHA384",
+        "rutasAuditadas": 34,
+        "cabecerasOk": 34,
+        "metodosRechazadosOk": 7,
+        "corsOk": 9,
+        "errores5xx": 0,
+        "fugasDetectadas": 0
+      },
+      "notas": [
+        "Auditoría de Set-Cookie admin en vivo disponible pasando --admin-user, --admin-pass y --admin-totp."
+      ],
+      "hallazgos": [],
+      "inicio": "2026-11-26T21:30:39.414Z",
+      "duracionMs": 54
     },
     {
       "id": "deriva",
@@ -540,15 +624,21 @@
       },
       "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T17:46:09.505Z",
-      "duracionMs": 281
+      "inicio": "2026-11-26T21:30:42.469Z",
+      "duracionMs": 237
     },
     {
       "id": "fuerza-bruta",
       "nombre": "Fuerza bruta secuencial",
-      "demuestra": "Tras 5 fallos la cuenta se bloquea (429, 30 s); al vencer, el siguiente fallo vuelve a bloquear (escala 30 s → 2 min → 10 min → 1 h); un código correcto tampoco pasa durante el bloqueo.",
+      "demuestra": "Un ciudadano que falla 3 códigos rápido y teclea el correcto entra; tras 5 fallos la cuenta se bloquea (429, 30 s); al vencer, el siguiente fallo vuelve a bloquear (escala 30 s → 2 min → 10 min → 1 h); un código correcto tampoco pasa durante el bloqueo.",
       "ok": true,
       "verificaciones": [
+        {
+          "descripcion": "Ciudadano: 3 fallos rápidos y luego el código correcto",
+          "esperado": "401 ×3 → 200 (sin bloqueo de 5 min)",
+          "obtenido": "401 → 401 → 401 → 200",
+          "ok": true
+        },
         {
           "descripcion": "Bloqueo tras 5 fallos",
           "esperado": "429 en el intento 6",
@@ -557,7 +647,7 @@
         },
         {
           "descripcion": "Primer escalón de bloqueo",
-          "esperado": "≈30 s (Retry-After)",
+          "esperado": "≈30 s (bloqueo progresivo; el detector no se adelanta)",
           "obtenido": "30",
           "ok": true
         },
@@ -593,27 +683,28 @@
         }
       ],
       "metricas": {
+        "ciudadano legítimo (3 fallos rápidos + correcto)": "401 → 401 → 401 → 200",
         "secuencia de respuestas": "401 → 401 → 401 → 401 → 401 → 429",
         "escalones observados": "30 s → 300 s (detector de anomalías)",
-        "peticiones": 23,
+        "peticiones": 26,
         "estados": {
-          "401": 5,
+          "401": 8,
           "429": 18
         },
         "latencia": {
-          "n": 23,
-          "min": 1.1,
-          "p50": 1.4,
-          "p95": 2.3,
-          "p99": 26.5,
-          "max": 33.3,
-          "media": 2.9
+          "n": 26,
+          "min": 0.5,
+          "p50": 0.6,
+          "p95": 2.6,
+          "p99": 31,
+          "max": 40.3,
+          "media": 2.3
         }
       },
       "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T17:46:12.787Z",
-      "duracionMs": 31721
+      "inicio": "2026-11-26T21:30:45.707Z",
+      "duracionMs": 31801
     },
     {
       "id": "fuerza-bruta-distribuida",
@@ -624,7 +715,7 @@
         {
           "descripcion": "Bloqueo de la cuenta pese a rotar IP",
           "esperado": "429 a partir del intento 6",
-          "obtenido": "429 en el intento 6 (TOO_MANY_REQUESTS)",
+          "obtenido": "429 en el intento 5 (TOO_MANY_REQUESTS)",
           "ok": true
         },
         {
@@ -654,34 +745,32 @@
         {
           "descripcion": "Detector local de anomalías",
           "esperado": "bloqueo adaptativo o registro del patrón",
-          "obtenido": "sin bloqueos del detector (actuó antes el bloqueo por cuenta)",
+          "obtenido": "37 bloqueos del detector",
           "ok": null
         }
       ],
       "metricas": {
-        "orígenes simulados": "40 IP de loopback reales (127.211.6.10 … 127.211.6.49)",
-        "Δ verificaciones bloqueadas (métrica locked)": 36,
-        "Δ bloqueos del detector (métrica anomaly_blocked)": 0,
+        "orígenes simulados": "40 IP de loopback reales (127.217.7.10 … 127.217.7.49)",
+        "Δ verificaciones bloqueadas (métrica locked)": 37,
+        "Δ bloqueos del detector (métrica anomaly_blocked)": 37,
         "estados": {
-          "401": 5,
-          "429": 35
+          "401": 4,
+          "429": 36
         },
         "latencia": {
           "n": 40,
-          "min": 2.6,
-          "p50": 2.9,
-          "p95": 5.1,
-          "p99": 9,
-          "max": 11.3,
-          "media": 3.3
+          "min": 2.2,
+          "p50": 2.4,
+          "p95": 3.1,
+          "p99": 5.3,
+          "max": 5.9,
+          "media": 2.5
         }
       },
-      "notas": [
-        "El bloqueo vigente de la cuenta se comprueba antes que el detector, así que con 1 intento por IP la defensa que actúa es el bloqueo por cuenta; el detector registra cada intento (bitácora y /admin/api/anomalies)."
-      ],
+      "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T17:46:47.512Z",
-      "duracionMs": 268
+      "inicio": "2026-11-26T21:31:20.511Z",
+      "duracionMs": 231
     },
     {
       "id": "spraying",
@@ -716,7 +805,7 @@
         {
           "descripcion": "Detector local de anomalías bloquea el origen",
           "esperado": "Δ anomaly_blocked > 0 (en /metrics, solo loopback)",
-          "obtenido": "36 bloqueos del detector",
+          "obtenido": "38 bloqueos del detector",
           "ok": true
         },
         {
@@ -733,28 +822,28 @@
         }
       ],
       "metricas": {
-        "latencia p50 cuentas reales / inexistentes": "2.4 ms / 2.4 ms",
+        "latencia p50 cuentas reales / inexistentes": "0.8 ms / 0.8 ms",
         "verificación legítima posterior desde el origen atacante": "429 TOO_MANY_REQUESTS",
-        "429 durante el spraying (bloqueo del detector)": 35,
-        "Δ bloqueos del detector (métrica anomaly_blocked)": 36,
+        "429 durante el spraying (bloqueo del detector)": 37,
+        "Δ bloqueos del detector (métrica anomaly_blocked)": 38,
         "estados": {
-          "401": 5,
-          "429": 35
+          "401": 3,
+          "429": 37
         },
         "latencia": {
           "n": 40,
-          "min": 1.3,
-          "p50": 2.4,
-          "p95": 4.3,
-          "p99": 6.5,
-          "max": 6.9,
-          "media": 2.6
+          "min": 0.6,
+          "p50": 0.8,
+          "p95": 2,
+          "p99": 6.8,
+          "max": 9.8,
+          "media": 1.1
         }
       },
       "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T17:46:50.782Z",
-      "duracionMs": 856
+      "inicio": "2026-11-26T21:31:23.742Z",
+      "duracionMs": 651
     },
     {
       "id": "origen-compartido",
@@ -777,7 +866,7 @@
         {
           "descripcion": "Atacante con un único client_ip",
           "esperado": "bloqueado por el detector (429 y Δ anomaly_blocked > 0)",
-          "obtenido": "40 × 429 · Δ anomaly_blocked 41",
+          "obtenido": "37 × 429 · Δ anomaly_blocked 38",
           "ok": true
         },
         {
@@ -806,18 +895,19 @@
         }
       ],
       "metricas": {
-        "IP TCP del portal": "127.211.8.2",
+        "IP TCP del portal": "127.217.9.2",
         "fallos de ciudadanos tras el portal": "48 (24 client_ip distintos × 2)",
         "respuestas al atacante": {
-          "429": 40
+          "401": 3,
+          "429": 37
         }
       },
       "notas": [
         "Sin client_ip todos los usuarios del integrador comparten origen (la IP de su servidor): el contrato recomienda enviarlo siempre."
       ],
       "hallazgos": [],
-      "inicio": "2026-11-26T17:46:54.638Z",
-      "duracionMs": 5705
+      "inicio": "2026-11-26T21:31:27.395Z",
+      "duracionMs": 2811
     },
     {
       "id": "inundacion",
@@ -828,7 +918,7 @@
         {
           "descripcion": "La ráfaga es frenada (limitador o detector)",
           "esperado": "≥ 1 respuesta 429",
-          "obtenido": "395 × 429",
+          "obtenido": "397 × 429",
           "ok": true
         },
         {
@@ -846,7 +936,7 @@
         {
           "descripcion": "Disponibilidad de /health durante la ráfaga",
           "esperado": "≥ 95 %",
-          "obtenido": "100 % (12/12)",
+          "obtenido": "100 % (11/11)",
           "ok": true
         },
         {
@@ -858,40 +948,40 @@
       ],
       "metricas": {
         "peticiones / concurrencia": "400 / 50",
-        "duración de la ráfaga": "0.23 s",
-        "rendimiento": "1715 pet/s",
+        "duración de la ráfaga": "0.15 s",
+        "rendimiento": "2752 pet/s",
         "estados": {
-          "401": 5,
-          "429": 395
+          "401": 3,
+          "429": 397
         },
-        "tasa de 429": "98.8 %",
+        "tasa de 429": "99.3 %",
         "códigos de error": {
-          "VERIFICATION_FAILED": 5,
-          "TOO_MANY_REQUESTS": 395
+          "VERIFICATION_FAILED": 3,
+          "TOO_MANY_REQUESTS": 397
         },
         "latencia (todas)": {
           "n": 400,
-          "min": 3.2,
-          "p50": 10.3,
-          "p95": 108.4,
-          "p99": 212.1,
-          "max": 212.8,
-          "media": 27.2
+          "min": 4.5,
+          "p50": 11,
+          "p95": 49.1,
+          "p99": 57.8,
+          "max": 83.9,
+          "media": 16.4
         },
         "latencia de /health durante la ráfaga": {
-          "n": 12,
-          "min": 0.9,
-          "p50": 1.8,
-          "p95": 34.8,
-          "p99": 42.6,
-          "max": 44.5,
-          "media": 7.4
+          "n": 11,
+          "min": 1.7,
+          "p50": 2.3,
+          "p95": 24.1,
+          "p99": 39.2,
+          "max": 43,
+          "media": 6.2
         }
       },
       "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T17:47:03.345Z",
-      "duracionMs": 1299
+      "inicio": "2026-11-26T21:31:33.211Z",
+      "duracionMs": 1180
     },
     {
       "id": "caos",
@@ -902,7 +992,7 @@
         {
           "descripcion": "Códigos INCORRECTOS aprobados durante todo el caos",
           "esperado": "0 (falla cerrado)",
-          "obtenido": "0 de 112",
+          "obtenido": "0 de 114",
           "ok": true
         },
         {
@@ -920,7 +1010,7 @@
         {
           "descripcion": "Titular con latencia 800 ms",
           "esperado": "200 (más lento)",
-          "obtenido": "200 en 849 ms",
+          "obtenido": "200 en 805 ms",
           "ok": true
         },
         {
@@ -949,18 +1039,18 @@
         }
       ],
       "metricas": {
-        "proxies de caos": "ráfaga 127.0.0.1:45183 · titular 127.0.0.1:38969 → localhost:18443",
-        "fase «base»": "26 pet · 26 con respuesta · 0 timeouts · 0 errores de red · p50 5.6 ms · p95 6.6 ms",
-        "fase «latencia 800 ms»": "14 pet · 12 con respuesta · 0 timeouts · 2 errores de red · p50 806.8 ms · p95 809.6 ms",
+        "proxies de caos": "ráfaga 127.0.0.1:42987 · titular 127.0.0.1:42619 → localhost:9643",
+        "fase «base»": "26 pet · 26 con respuesta · 0 timeouts · 0 errores de red · p50 4.5 ms · p95 5.6 ms",
+        "fase «latencia 800 ms»": "14 pet · 12 con respuesta · 0 timeouts · 2 errores de red · p50 806.3 ms · p95 835.4 ms",
         "fase «corte total 10 s»": "48 pet · 0 con respuesta · 0 timeouts · 48 errores de red · p50 — ms · p95 — ms",
-        "fase «restauración»": "24 pet · 24 con respuesta · 0 timeouts · 0 errores de red · p50 6.1 ms · p95 9.8 ms",
+        "fase «restauración»": "26 pet · 26 con respuesta · 0 timeouts · 0 errores de red · p50 4.6 ms · p95 5.8 ms",
         "estados (ráfaga completa)": {
-          "401": 5,
-          "429": 57,
+          "401": 3,
+          "429": 61,
           "ECONNRESET": 50
         },
-        "primera respuesta tras restaurar": "12 ms",
-        "tiempo de recuperación (/health 200)": "12 ms",
+        "primera respuesta tras restaurar": "10 ms",
+        "tiempo de recuperación (/health 200)": "10 ms",
         "estadísticas del proxy (ráfaga)": {
           "aceptadas": 52,
           "reenviadas": 4,
@@ -968,15 +1058,15 @@
           "perdidas": 0,
           "cortadas": 2,
           "erroresDestino": 0,
-          "bytesSubida": 29106,
-          "bytesBajada": 63891,
+          "bytesSubida": 29793,
+          "bytesBajada": 65687,
           "activas": 2
         }
       },
       "notas": [],
       "hallazgos": [],
-      "inicio": "2026-11-26T17:47:07.645Z",
-      "duracionMs": 28725
+      "inicio": "2026-11-26T21:31:37.393Z",
+      "duracionMs": 29022
     },
     {
       "id": "reinicio",
@@ -997,7 +1087,7 @@
           "ok": true
         },
         {
-          "descripcion": "Matar el backend (PID 111981, SIGKILL)",
+          "descripcion": "Matar el backend (PID 277813, SIGKILL)",
           "esperado": "proceso terminado",
           "obtenido": "señal enviada",
           "ok": true
@@ -1022,16 +1112,16 @@
         }
       ],
       "metricas": {
-        "tiempo hasta dejar de responder": "11 ms",
-        "PID del backend relanzado": 113406,
-        "comando": "ENV_FILE=<tmp>/.env node src/main.js (cwd backend)"
+        "tiempo hasta dejar de responder": "10 ms",
+        "PID del backend relanzado": 278241,
+        "comando": "node src/main.js (cwd backend)"
       },
       "notas": [
-        "El backend relanzado sigue en marcha (PID 113406); salida en attack-lab/resultados/backend-reinicio.log."
+        "El backend relanzado sigue en marcha (PID 278241); salida en attack-lab/resultados/backend-reinicio.log."
       ],
       "hallazgos": [],
-      "inicio": "2026-11-26T17:47:39.373Z",
-      "duracionMs": 555
+      "inicio": "2026-11-26T21:32:09.419Z",
+      "duracionMs": 521
     }
   ]
 }

@@ -3,6 +3,7 @@
 // → casos de uso → servidor HTTPS. Tareas periódicas y apagado ordenado (SIGINT/SIGTERM).
 // Los registros nunca incluyen secretos ni direcciones IP.
 
+import { X509Certificate } from 'node:crypto';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -12,7 +13,7 @@ import { crearFirmas } from './infrastructure/config/firmas.js';
 import { abrirBaseDatos } from './infrastructure/persistence/db.js';
 import { crearRepositorios } from './infrastructure/persistence/repositorios.js';
 import { crearVault } from './core/vault/vault.js';
-import { crearBitacora, crearMetricas } from './audit/index.js';
+import { crearBitacoraSqlite, crearMetricas } from './audit/index.js';
 import { entrenarDetectorPorDefecto } from './heuristics/index.js';
 import { crearCasosDeUso, puede } from './application/use-cases/index.js';
 import { crearServidor } from './api/servidor.js';
@@ -55,9 +56,9 @@ async function medirDesfase(url) {
 export async function iniciar({ config = cargarConfig(), registro = crearRegistro(), senales = true } = {}) {
   // Base de datos
   if (config.baseDatos.ruta !== ':memory:') mkdirSync(dirname(config.baseDatos.ruta), { recursive: true });
-  const db = abrirBaseDatos(config.baseDatos.ruta);
+  const db = abrirBaseDatos(config.baseDatos.ruta, { sincrono: config.baseDatos.sincrono });
   const repos = crearRepositorios(db);
-  registro.info('Base de datos SQLite abierta y migrada');
+  registro.info(`Base de datos SQLite abierta y migrada (synchronous=${config.baseDatos.sincrono})`);
 
   // Bóveda y firmas
   const vault = crearVault(config.vault);
@@ -71,11 +72,33 @@ export async function iniciar({ config = cargarConfig(), registro = crearRegistr
     : entrenarDetectorPorDefecto(42, { modo: config.heuristicas === 'monitorizacion' ? 'monitorizacion' : 'bloqueo' });
   registro.info(`Detector de anomalías listo (modo ${detector.modo}, ${Math.round(performance.now() - inicioDetector)} ms)`);
 
+  // Certificado público de la CA (opcional) para GET /ca.crt. Nunca se sirve algo que contenga una llave.
+  let certificadoCa = null;
+  let huellaCa = null;
+  if (config.tls.caPublica) {
+    try {
+      const pem = readFileSync(config.tls.caPublica, 'utf8');
+      if (/PRIVATE KEY/.test(pem) || !/-----BEGIN CERTIFICATE-----/.test(pem)) throw new Error('no es un certificado PEM sin llave');
+      certificadoCa = pem;
+    } catch (e) {
+      registro.warn(`No se ofrecerá /ca.crt (${config.tls.caPublica}): ${e?.message ?? e}`);
+    }
+  }
+  // Huella SHA-256 (AA:BB:…) del certificado para fijarlo en la app móvil (issue #47, `provisioning`).
+  if (certificadoCa) {
+    try {
+      huellaCa = new X509Certificate(certificadoCa).fingerprint256;
+    } catch (e) {
+      registro.warn(`No se pudo calcular la huella SHA-256 de la CA: ${e?.message ?? e}`);
+    }
+  }
+
   // Auditoría, métricas y casos de uso
-  const bitacora = crearBitacora({ ultimo: () => repos.auditLog.ultimo(), insertar: (fila) => repos.auditLog.insertar(fila).id });
+  // Último hash + inserción en una sola transacción (cadena sin bifurcaciones con varios procesos).
+  const bitacora = crearBitacoraSqlite(repos);
   const metricas = crearMetricas();
   const casos = crearCasosDeUso({
-    repos, vault, firmas, detector, bitacora, metricas, config: configCasosDeUso(config), reloj: () => Date.now(), db,
+    repos, vault, firmas, detector, bitacora, metricas, config: { ...configCasosDeUso(config), caHuellaSha256: huellaCa }, reloj: () => Date.now(), db,
   });
 
   const salud = () => {
@@ -91,18 +114,6 @@ export async function iniciar({ config = cargarConfig(), registro = crearRegistr
     } catch {
       db.close();
       throw new Error(`No se pudieron leer el certificado o la llave TLS (${config.tls.cert}). Ejecute "npm run certs".`);
-    }
-  }
-
-  // Certificado público de la CA (opcional) para GET /ca.crt. Nunca se sirve algo que contenga una llave.
-  let certificadoCa = null;
-  if (config.tls.caPublica) {
-    try {
-      const pem = readFileSync(config.tls.caPublica, 'utf8');
-      if (/PRIVATE KEY/.test(pem) || !/-----BEGIN CERTIFICATE-----/.test(pem)) throw new Error('no es un certificado PEM sin llave');
-      certificadoCa = pem;
-    } catch (e) {
-      registro.warn(`No se ofrecerá /ca.crt (${config.tls.caPublica}): ${e?.message ?? e}`);
     }
   }
 

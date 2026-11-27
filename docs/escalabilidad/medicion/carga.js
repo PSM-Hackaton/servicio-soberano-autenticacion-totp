@@ -58,7 +58,8 @@ function muestraProceso() {
   const campos = stat.slice(stat.lastIndexOf(')') + 2).split(' ');
   const ticks = Number(campos[11]) + Number(campos[12]); // utime + stime
   const status = readFileSync(`/proc/${banco.pid}/status`, 'utf8');
-  const kb = (c) => Number(new RegExp(`${c}:\\s+(\\d+)`).exec(status)?.[1] ?? 0);
+  const campo = (c) => status.split('\n').find((l) => l.startsWith(`${c}:`))?.slice(c.length + 1).trim() ?? '';
+  const kb = (c) => Number.parseInt(campo(c), 10) || 0;
   return { cpuS: ticks / 100, rssMB: kb('VmRSS') / 1024, hwmMB: kb('VmHWM') / 1024, hilos: kb('Threads') };
 }
 function infoBase() {
