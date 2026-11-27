@@ -66,6 +66,15 @@ export function configuracion(env = cargarEnv()) {
       timeoutMs: Number(env.TOTP_TIMEOUT_MS ?? 3000),
     },
     autenticadorUrl: env.AUTENTICADOR_URL ?? 'https://localhost:8443/app/',
+    // Verificación humana (Reto 2): opcional. Sin PORTAL_CAPTCHA_URL el portal funciona igual que antes.
+    captcha: (env.PORTAL_CAPTCHA_URL ?? '').trim()
+      ? {
+          url: env.PORTAL_CAPTCHA_URL.trim().replace(/\/+$/, ''),
+          siteKey: (env.PORTAL_CAPTCHA_SITE_KEY ?? '').trim(),
+          secreto: (env.PORTAL_CAPTCHA_SECRETO ?? '').trim(),
+          timeoutMs: Number(env.PORTAL_CAPTCHA_TIMEOUT_MS ?? 3000),
+        }
+      : null,
     etiquetaCuenta: env.PORTAL_ETIQUETA_CUENTA ?? 'Portal de Trámites',
     archivoUsuarios: rutaRel(env.PORTAL_USUARIOS ?? 'datos/usuarios.json'),
     // Derivación del user_ref desde la cédula (modo 'hmac' de la app en el servicio): el secreto es el

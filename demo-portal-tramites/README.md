@@ -55,3 +55,20 @@ Estilo de portal institucional: cintillo blanco con la bandera nacional (SVG pro
 ## Seguridad
 
 Cookie `__Host-` HttpOnly; Secure; SameSite=Strict, rotada al validar la contraseña y el segundo factor; CSRF por sesión + comprobación de `Origin`; CSP `default-src 'none'` sin nada en línea; HSTS con TLS; `Referrer-Policy: same-origin`; freno de contraseñas por cédula; sesiones de 15 min de inactividad.
+
+## Verificación humana (Reto 2) en el ingreso
+
+El portal puede exigir la verificación humana del servicio Captcha soberano del equipo antes de comprobar la
+contraseña, sin SDK ni servicios externos. Es opcional: sin `PORTAL_CAPTCHA_URL` el portal funciona igual.
+
+| Variable | Uso |
+| :--- | :--- |
+| `PORTAL_CAPTCHA_URL` | URL del servicio Captcha en la misma PC, por ejemplo `http://127.0.0.1:3000` |
+| `PORTAL_CAPTCHA_SITE_KEY` | Clave pública del sitio (opcional en modo memoria) |
+| `PORTAL_CAPTCHA_SECRETO` | Clave secreta del sitio para `validate-token` |
+| `PORTAL_CAPTCHA_TIMEOUT_MS` | Tiempo máximo por llamada (3000 por defecto) |
+
+Flujo: el navegador pide el reto al portal (`POST /captcha/reto`), resuelve la prueba de trabajo SHA-256
+(`publico/captcha.js`), la envía (`POST /captcha/verificar`) y recibe un token de un solo uso que viaja en el
+formulario. El portal valida el token en el servidor (`/api/captcha/validate-token`) y solo entonces comprueba la
+contraseña y pasa al segundo factor TOTP. Pruebas: `tests/captcha.test.js`.

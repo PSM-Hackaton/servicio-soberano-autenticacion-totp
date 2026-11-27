@@ -258,7 +258,7 @@ const SERVICIOS = [
   { icono: 'escudo', titulo: 'Seguridad de la cuenta', texto: 'Vincule, cambie o revoque su autenticador.', sello: 'Segundo factor' },
 ];
 
-export function paginaIngresar({ sesion, error, errorCedula = false, previo = {}, demo = [] }) {
+export function paginaIngresar({ sesion, error, errorCedula = false, previo = {}, demo = [], captcha = false }) {
   const nac = previo.nacionalidad === 'E' ? 'E' : 'V';
   return html`
   <section class="portada" aria-labelledby="portada-titulo">
@@ -277,8 +277,9 @@ export function paginaIngresar({ sesion, error, errorCedula = false, previo = {}
       ${pasos(1, 'Código')}
       ${error ? aviso(error.tipo ?? 'error', error.titulo, error.texto) : ''}
       ${sesion.aviso ? aviso(sesion.aviso.tipo, sesion.aviso.texto, null) : ''}
-      <form method="post" action="/ingresar" class="formulario" data-un-envio>
+      <form method="post" action="/ingresar" class="formulario" data-un-envio ${captcha ? crudo('data-captcha') : ''}>
         ${csrf(sesion)}
+        ${captcha ? crudo('<input type="hidden" name="captcha_token" value="">') : ''}
         <fieldset class="campo campo-cedula">
           <legend>Cédula de identidad</legend>
           <div class="cedula-fila">
@@ -299,8 +300,10 @@ export function paginaIngresar({ sesion, error, errorCedula = false, previo = {}
           <label for="contrasena">Contraseña</label>
           <input id="contrasena" name="contrasena" type="password" autocomplete="current-password" required maxlength="128">
         </div>
+        ${captcha ? html`<p class="ayuda" data-captcha-estado aria-live="polite">Protegido por verificación humana soberana (sin servicios externos): se comprueba al pulsar «Continuar».</p>` : ''}
         <button type="submit" class="boton boton-primario boton-ancho">Continuar${icono('flecha', 'icono icono-chico')}</button>
       </form>
+      ${captcha ? crudo('<script src="/publico/captcha.js" defer></script>') : ''}
     </div>
     ${demo.length ? html`
     <section class="demo" aria-labelledby="demo-titulo">

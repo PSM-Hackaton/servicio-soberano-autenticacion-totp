@@ -22,6 +22,7 @@ const RUTAS_CONOCIDAS = /^\/(?:|ingresar|ayuda|enrolar(?:\/codigos)?|verificar|r
 const ESTATICOS = {
   '/publico/estilos.css': 'text/css; charset=utf-8',
   '/publico/app.js': 'text/javascript; charset=utf-8',
+  '/publico/captcha.js': 'text/javascript; charset=utf-8',
   '/publico/emblema.svg': 'image/svg+xml',
   '/publico/bandera.svg': 'image/svg+xml',
   '/publico/estrellas.svg': 'image/svg+xml',
@@ -250,6 +251,19 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
     enviar(res, 303, '', { Location: destino, 'Cache-Control': 'no-store', 'Set-Cookie': sesiones.cookie(sesion) });
   }
 
+  /** Llama al servicio Captcha (Reto 2) con JSON y un tiempo máximo. @returns {Promise<{ ok: boolean, datos: any }>} */
+  async function llamarCaptcha(camino, datos) {
+    try {
+      const r = await fetch(`${config.captcha.url}${camino}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos),
+        signal: AbortSignal.timeout(config.captcha.timeoutMs),
+      });
+      return { ok: r.ok, datos: await r.json().catch(() => ({})) };
+    } catch {
+      return { ok: false, datos: {} };
+    }
+  }
+
   async function leerCuerpo(req) {
     const tipo = String(req.headers['content-type'] ?? '');
     if (!tipo.startsWith('application/x-www-form-urlencoded')) return null;
@@ -329,6 +343,22 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
     const enSegundoPaso = etapa === 'contrasena';
     const ver = (p) => pagina(res, sesion, { usuario, ruta, ...p });
 
+    // ---- verificación humana (Reto 2): el portal hace de intermediario con el servicio Captcha
+    if (metodo === 'POST' && (ruta === '/captcha/reto' || ruta === '/captcha/verificar')) {
+      if (!config.captcha) return enviar(res, 404, JSON.stringify({ error: 'Verificación humana desactivada' }), { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      const cuerpoCaptcha = ruta === '/captcha/reto'
+        ? { site_key: config.captcha.siteKey || undefined }
+        : { challenge_id: String(cuerpo.get('challenge_id') ?? '').slice(0, 64), nonce: String(cuerpo.get('nonce') ?? '').slice(0, 64), hp: String(cuerpo.get('hp') ?? '').slice(0, 64) };
+      const r = await llamarCaptcha(ruta === '/captcha/reto' ? '/api/captcha/challenge' : '/api/captcha/verify', cuerpoCaptcha);
+      if (ruta === '/captcha/verificar') {
+        trazar(sesion, { tipo: 'servicio', titulo: r.ok ? 'Captcha: prueba de trabajo aceptada, token de un solo uso emitido' : 'Captcha: verificación rechazada', detalle: 'POST /api/captcha/verify (servicio del Reto 2, misma PC)', estado: r.ok ? 'ok' : 'error' });
+      }
+      const salida = r.ok ? (ruta === '/captcha/reto'
+        ? { challenge_id: r.datos.challenge_id, prefix: r.datos.prefix, difficulty: r.datos.difficulty, min_solve_ms: r.datos.min_solve_ms }
+        : { token: r.datos.token }) : { error: 'Verificación humana no superada' };
+      return enviar(res, r.ok ? 200 : 400, JSON.stringify(salida), { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    }
+
     if (metodo === 'POST' && ruta === '/trazas') {
       sesion.trazasVisibles = !sesion.trazasVisibles;
       return redirigir(res, sesion, rutaSegura(cuerpo.get('volver')));
@@ -359,18 +389,30 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
     // ---- paso 1: contraseña
     if (ruta === '/ingresar') {
       if (etapa === 'autenticado') return redirigir(res, sesion, '/panel');
-      if (metodo === 'GET') return ver({ titulo: 'Ingresar', ancho: 'portada', contenido: V.paginaIngresar({ sesion, demo: usuarios.listar() }) });
+      if (metodo === 'GET') return ver({ titulo: 'Ingresar', ancho: 'portada', contenido: V.paginaIngresar({ sesion, demo: usuarios.listar(), captcha: Boolean(config.captcha) }) });
 
       const nacionalidad = String(cuerpo.get('nacionalidad') ?? 'V').slice(0, 1);
       const escrita = String(cuerpo.get('cedula') ?? '').slice(0, 24);
       const clave = String(cuerpo.get('contrasena') ?? '').slice(0, 128);
       const nombre = normalizarCedula(nacionalidad, escrita);
       const previo = { nacionalidad, cedula: escrita };
+      if (config.captcha) {
+        const token = String(cuerpo.get('captcha_token') ?? '').slice(0, 2048);
+        const v = token ? await llamarCaptcha('/api/captcha/validate-token', { token, secret_key: config.captcha.secreto }) : { ok: false };
+        const valido = v.ok && v.datos.valid === true;
+        trazar(sesion, { tipo: 'servicio', titulo: valido ? 'Captcha: token validado en el servidor (un solo uso)' : 'Captcha: falta el token o no es válido', detalle: 'POST /api/captcha/validate-token con la clave secreta del portal', estado: valido ? 'ok' : 'error' });
+        if (!valido) {
+          return ver({
+            status: 400, titulo: 'Ingresar', ancho: 'portada',
+            contenido: V.paginaIngresar({ sesion, previo, demo: usuarios.listar(), captcha: true, error: { titulo: 'Verificación humana no superada', texto: 'Vuelva a pulsar «Continuar» para repetir la comprobación.' } }),
+          });
+        }
+      }
       if (!nombre) {
         trazar(sesion, { tipo: 'local', titulo: 'Cédula con formato no válido: se rechaza sin consultar usuarios', detalle: 'Se espera V o E y de 6 a 9 dígitos, con o sin puntos.', estado: 'error' });
         return ver({
           status: 400, titulo: 'Ingresar', ancho: 'portada',
-          contenido: V.paginaIngresar({ sesion, previo, demo: usuarios.listar(), errorCedula: true, error: { titulo: 'Cédula de identidad no válida', texto: 'Escriba de 6 a 9 dígitos, con o sin puntos (por ejemplo 12.345.678), y elija V o E.' } }),
+          contenido: V.paginaIngresar({ sesion, previo, demo: usuarios.listar(), captcha: Boolean(config.captcha), errorCedula: true, error: { titulo: 'Cédula de identidad no válida', texto: 'Escriba de 6 a 9 dígitos, con o sin puntos (por ejemplo 12.345.678), y elija V o E.' } }),
         });
       }
       const freno = intentosContrasena.get(nombre);
@@ -379,7 +421,7 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
         trazar(sesion, { tipo: 'decision', titulo: 'Demasiados intentos de contraseña: el portal frena el ingreso', detalle: `${s} s`, estado: 'error' });
         return ver({
           status: 429, titulo: 'Ingresar', ancho: 'portada',
-          contenido: V.paginaIngresar({ sesion, previo, demo: usuarios.listar(), error: { tipo: 'bloqueo', titulo: 'Demasiados intentos', texto: `Espere ${s} segundos antes de volver a intentarlo.` } }),
+          contenido: V.paginaIngresar({ sesion, previo, demo: usuarios.listar(), captcha: Boolean(config.captcha), error: { tipo: 'bloqueo', titulo: 'Demasiados intentos', texto: `Espere ${s} segundos antes de volver a intentarlo.` } }),
         });
       }
       const t0 = performance.now();
@@ -393,7 +435,7 @@ export async function crearPortal({ config, cliente: clienteInyectado, registrar
         trazar(sesion, { tipo: 'local', titulo: 'Cédula o contraseña incorrectas', detalle: 'scrypt con el mismo coste exista o no la cédula (sin enumeración).', ms, estado: 'error' });
         return ver({
           status: 401, titulo: 'Ingresar', ancho: 'portada',
-          contenido: V.paginaIngresar({ sesion, previo, demo: usuarios.listar(), error: { titulo: 'Cédula o contraseña incorrectas', texto: 'Revise los datos e inténtelo de nuevo.' } }),
+          contenido: V.paginaIngresar({ sesion, previo, demo: usuarios.listar(), captcha: Boolean(config.captcha), error: { titulo: 'Cédula o contraseña incorrectas', texto: 'Revise los datos e inténtelo de nuevo.' } }),
         });
       }
       intentosContrasena.delete(nombre);
