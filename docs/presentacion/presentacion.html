@@ -127,7 +127,7 @@
       Giovani Marcano <span>· seguridad y laboratorio de ataques</span><br>
       Enggel Rodríguez <span>· detector local, documentación y presentación</span>
     </div>
-    <div class="der"><b>Equipo PSM-Hackaton</b><br>27 de noviembre de 2026</div>
+    <div class="der"><b>Grupo 4 · Sede Chuao</b><br>27 de noviembre de 2026</div>
   </div>
 </section>
 <aside class="notas"><b>Notas (20 s).</b> Presentar al equipo y el nombre del proyecto. Mensaje de una línea: «Construimos un segundo factor de autenticación que la institución controla de punta a punta, sin depender de nadie de fuera».</aside>
@@ -143,7 +143,7 @@
     <div class="tarjeta"><h3>Tiendas e Internet</h3><p>La app depende de tiendas que pueden retirarla y de tener conexión.</p></div>
   </div>
   <p class="grande" style="margin-top: 44px; max-width: 1080px;">El reto: un servicio <b>independiente y seguro</b> en infraestructura propia, con semillas y registros <b>cifrados localmente</b> y bajo control nacional e institucional.</p>
-  <div class="pie"><span>Servicio Soberano TOTP · Equipo PSM-Hackaton</span><b>2</b></div>
+  <div class="pie"><span>Servicio Soberano TOTP · Grupo 4 · Sede Chuao</span><b>2</b></div>
 </section>
 <aside class="notas"><b>Notas (40 s).</b> Fuente: enunciado y Términos de Referencia del reto (docs/reto/) y apartado 3 del README. No nombrar marcas comerciales: basta con «autenticadores comerciales y servicios en nubes extranjeras». Remarcar que el reto exige HMAC-SHA256/SHA-512 y almacenamiento cifrado local.</aside>
 
@@ -160,7 +160,7 @@
   </div>
   <p class="medio gris" style="margin-top: 34px;">Código abierto bajo licencia <b style="color: var(--tinta)">GNU AGPL-3.0</b>: cualquier institución puede auditarlo, desplegarlo y mejorarlo.</p>
   <div class="fuente">Fuentes: README (apartados 1, 3 y 5), docs/sbom/README.md (0 dependencias npm, 0 importaciones externas, 0 recursos externos).</div>
-  <div class="pie"><span>Servicio Soberano TOTP · Equipo PSM-Hackaton</span><b>3</b></div>
+  <div class="pie"><span>Servicio Soberano TOTP · Grupo 4 · Sede Chuao</span><b>3</b></div>
 </section>
 <aside class="notas"><b>Notas (40 s).</b> Frase clave: «Lo propio no es el algoritmo, que es un estándar abierto; lo propio es la implementación y la custodia». Si preguntan por criptografía casera: usamos las primitivas de node:crypto y los vectores oficiales del RFC 6238 en las pruebas.</aside>
 
@@ -272,7 +272,7 @@
     <text class="s" x="962" y="404">CA institucional</text>
     <path class="fl" d="M940 335 H 898"/>
   </svg>
-  <div class="pie"><span>Servicio Soberano TOTP · Equipo PSM-Hackaton</span><b>4</b></div>
+  <div class="pie"><span>Servicio Soberano TOTP · Grupo 4 · Sede Chuao</span><b>4</b></div>
 </section>
 <aside class="notas"><b>Notas (45 s).</b> Recorrer de izquierda a derecha: el ciudadano genera el código en su app; el sistema institucional (nuestro Portal de Trámites o el Reto 3) llama a la API; dentro del servicio, cada verificación pasa por los pasos 1 a 5 y termina en un JWT firmado. Todo vive en un proceso y un archivo SQLite; la llave maestra está fuera de la base. Fuente: README §3, ARCHITECTURE.md (ADR-001 y ADR-002).</aside>
 
@@ -340,7 +340,7 @@
     </g>
   </svg>
   <p class="medio" style="margin-top: 26px;">Si el código se pierde o el reloj se desvía: <b>resincronización</b> con dos códigos consecutivos (±10 pasos) y <b>10 códigos de recuperación</b> guardados con scrypt.</p>
-  <div class="pie"><span>Servicio Soberano TOTP · Equipo PSM-Hackaton</span><b>5</b></div>
+  <div class="pie"><span>Servicio Soberano TOTP · Grupo 4 · Sede Chuao</span><b>5</b></div>
 </section>
 <aside class="notas"><b>Notas (40 s).</b> Explicar como a un ciudadano: «escaneas una vez; desde ahí tu teléfono y el servidor calculan el mismo número a partir de la hora». Paso 4 es lo que recibe el sistema institucional: una constancia firmada que solo vale para esa app y una sola vez. Fuente: README §4 (motor, tokens, API v1).</aside>
 
@@ -367,7 +367,7 @@
       <p style="font-size: 17px; color: #E8EEFA; margin-top: 4px;">dependencias npm, importaciones externas y recursos externos en los frontends</p>
     </div>
   </div>
-  <div class="pie"><span>Servicio Soberano TOTP · Equipo PSM-Hackaton · Fuentes: análisis técnico (8 pilares), docs/sbom/README.md</span><b>6</b></div>
+  <div class="pie"><span>Servicio Soberano TOTP · Grupo 4 · Sede Chuao · Fuentes: análisis técnico (8 pilares), docs/sbom/README.md</span><b>6</b></div>
 </section>
 <aside class="notas"><b>Notas (40 s).</b> «La soberanía no se declara: se demuestra». Mostrar en vivo (guion 0:45–1:30): node docs/sbom/generar-sbom.js y la pestaña Red del navegador sin peticiones externas; luego, en el bloque de caos, desconectar la red. El pilar 7 se actualizó respecto del análisis inicial: ya no hay contenedores (ADR-002), solo cero dependencias.</aside>
 
@@ -576,6 +576,38 @@
 </section>
 <aside class="notas"><b>Notas (30 s).</b> Cada fila de la matriz cita textualmente el requisito y señala el archivo de código y la prueba que lo demuestran: invitar al jurado a abrirla. Ser explícitos con lo parcial: preferimos declarar los límites antes de que nos los encuentren.</aside>
 
+<!-- ============ 14. POR QUÉ ES LA SOLUCIÓN IDEAL ============ -->
+<section class="diapo">
+  <div class="seccion">Por qué es la solución ideal</div>
+  <h1>Cumple el reto completo y se puede instalar mañana</h1>
+  <div class="rejilla" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="tarjeta"><h3>Soberanía real</h3><p>Semillas, validación y registros en el servidor de la institución. Sin nubes, sin claves de terceros, 0 dependencias npm.</p></div>
+    <div class="tarjeta"><h3>Estándar abierto</h3><p>RFC 6238 con SHA-256/512: funciona con nuestra app y con cualquier autenticador libre.</p></div>
+    <div class="tarjeta"><h3>Seguridad comprobada</h3><p>Laboratorio de ataques contra el servicio real: 12/12 escenarios y 127/127 verificaciones, 0 hallazgos.</p></div>
+    <div class="tarjeta"><h3>Fácil de integrar</h3><p>SDK y cuatro llamadas HTTPS; integrado de punta a punta con un Portal de Trámites.</p></div>
+    <div class="tarjeta"><h3>Fácil de operar</h3><p>Un proceso, una base local, instalador con systemd, copias cifradas y rotación de llaves sin corte.</p></div>
+    <div class="tarjeta"><h3>Costo cero en licencias</h3><p>Software libre AGPL-3.0: solo hardware propio; ningún pago por usuario.</p></div>
+  </div>
+  <div class="pie"><span>Servicio Soberano TOTP · Fuentes: README, informe del laboratorio (27-11-2026), docs/sbom</span><b>14</b></div>
+</section>
+<aside class="notas"><b>Notas (40 s).</b> Resumir en una frase: «es soberano, estándar, probado contra ataques reales y cuesta cero en licencias».</aside>
+
+<!-- ============ 15. INNOVACIÓN ============ -->
+<section class="diapo">
+  <div class="seccion">Innovación</div>
+  <h1>Lo que no trae un segundo factor convencional</h1>
+  <div class="rejilla" style="grid-template-columns: repeat(2, 1fr);">
+    <div class="tarjeta"><h3>IA local que explica sus decisiones</h3><p>Isolation Forest programado desde cero, con razones legibles y respuesta adaptativa por aplicación, sin telemetría.</p></div>
+    <div class="tarjeta"><h3>Se ataca a sí mismo</h3><p>Laboratorio de ataques y caos integrado: fuerza bruta, spraying, replay, JWT manipulado, cortes de red y caída del servidor.</p></div>
+    <div class="tarjeta"><h3>Identidad sin exponer la cédula</h3><p>El usuario se identifica por cédula, pero el servicio solo guarda un seudónimo HMAC con pepper: nunca el número.</p></div>
+    <div class="tarjeta"><h3>Bitácora encadenada verificable</h3><p>Cada evento enlaza el hash del anterior; la consola comprueba que nadie alteró el historial.</p></div>
+    <div class="tarjeta"><h3>Transparencia para el ciudadano</h3><p>«Lo que ocurre por dentro»: el portal muestra en vivo cada llamada, firma y validación, sin mostrar secretos.</p></div>
+    <div class="tarjeta"><h3>Todo propio, de la criptografía al QR</h3><p>Motor TOTP, JWT Ed25519, bóveda AES-256-GCM, generador de QR y PWA sin una sola librería externa.</p></div>
+  </div>
+  <div class="pie"><span>Servicio Soberano TOTP · Fuentes: ARCHITECTURE.md, attack-lab/, backend/src/heuristics y audit</span><b>15</b></div>
+</section>
+<aside class="notas"><b>Notas (45 s).</b> Elegir dos ejemplos y mostrarlos en vivo si hay tiempo: la razón legible de una alerta del detector y la verificación de la cadena de auditoría.</aside>
+
 <!-- ============ 13. HOJA DE RUTA ============ -->
 <section class="diapo">
   <div class="seccion">Hoja de ruta</div>
@@ -607,7 +639,7 @@
     </div>
   </div>
   <p class="medio" style="margin-top: 34px; border-left: 6px solid var(--azul); padding-left: 18px;">En cada etapa se mantienen AES-256 en reposo, TLS 1.3, anonimización HMAC, OWASP y la bitácora encadenada, <b>solo con infraestructura propia o nacional y software libre</b>.</p>
-  <div class="pie"><span>Servicio Soberano TOTP · Fuentes: matriz de cumplimiento §6, escalabilidad §C, README §4 (límites)</span><b>14</b></div>
+  <div class="pie"><span>Servicio Soberano TOTP · Fuentes: matriz de cumplimiento §6, escalabilidad §C, README §4 (límites)</span><b>16</b></div>
 </section>
 <aside class="notas"><b>Notas (30 s).</b> Lo inmediato son tareas pequeñas y ya preparadas (protocolo de usabilidad, instalador probado en modo usuario, base Kotlin con RFC 6238). El piloto valida el punto parcial de impacto: el despliegue en un servidor real. La escala nacional sigue la escalera de la diapositiva 11, siempre con infraestructura propia o nacional.</aside>
 
@@ -627,7 +659,7 @@
     <div><div class="cifra" style="color: #FFCC00;">127/127</div><div class="etq" style="color: #D6E0F7;">verificaciones de ataque</div></div>
     <div><div class="cifra" style="color: #FFCC00;">$0</div><div class="etq" style="color: #D6E0F7;">en licencias · AGPL-3.0</div></div>
   </div>
-  <div class="pie"><span>Repositorio: gitlab.nube.gob.ve/grupo/chuao/chuao_grupo4/reto_otp · Instalación: README §6 · Producción: deploy/README.md</span><b>15</b></div>
+  <div class="pie"><span>Repositorio: gitlab.nube.gob.ve/grupo/chuao/chuao_grupo4/reto_otp · Instalación: README §6 · Producción: deploy/README.md</span><b>17</b></div>
 </section>
 <aside class="notas"><b>Notas (30 s).</b> Cerrar con la frase: «Cualquier sistema se integra con nuestro SDK o con cuatro llamadas HTTPS; lo hicimos con el Portal de Trámites y lo ofrecemos al equipo del Reto 3». Fuentes de las cifras: README §4 y §6 (340 pruebas, instalación), informe del laboratorio (127/127), docs/sbom (0 dependencias). Agradecer y abrir preguntas.</aside>
 
