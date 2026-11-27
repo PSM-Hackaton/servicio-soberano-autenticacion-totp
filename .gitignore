@@ -32,3 +32,11 @@ Thumbs.db
 
 # Carpetas locales de herramientas
 .claude/
+
+# Android / Gradle y llaves de firma
+.gradle/
+local.properties
+*.jks
+*.keystore
+keystore.properties
+.idea/
