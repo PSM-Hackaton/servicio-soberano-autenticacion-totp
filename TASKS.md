@@ -3,7 +3,7 @@
 > **Regla de Oro:** Solo se marca `[x]` con evidencia real en verde. Prohibido tocar `main`.
 > **Remotos:** Pushes **EXCLUSIVAMENTE a GitHub (`origin`)**. **GitLab BLOQUEADO** hasta `/push gitlab final`.
 > **Stack vigente:** **ADR-002** (26-11-2026) — 100 % Node.js 22.5+ nativo, **0 dependencias npm**, SQLite WAL única, HTML+CSS+JS propios.
-> **Última verificación (26-11-2026, copia limpia del árbol de trabajo, Node.js 22.22.1):** `node scripts/verificar-todo.js` en verde: **309 pruebas** (backend 211, app 26, SDK 28, portal 16, attack-lab 28); contrato con las **31 rutas** del servidor; laboratorio **11/11** escenarios y **116/116** verificaciones; DAST en vivo **12/12** (34 sondas, `camera=(self)` en `/app/`); verificación institucional `systemd` 10/10 (`systemd-analyze security: 3.0 OK`, `VACUUM INTO`, `SIGTERM` 5 ms).
+> **Última verificación (27-11-2026, Node.js 22.22.1):** `node scripts/verificar-todo.js` en verde: **312 pruebas** (backend 213, app 26, SDK 28, portal 17, attack-lab 28; `docs/evidencias/cifras.json`); contrato con las **31 rutas** del servidor; laboratorio **11/11** escenarios y **116/116** verificaciones; DAST en vivo **12/12** (34 sondas, `camera=(self)` en `/app/`); verificación institucional `systemd` 10/10 (`systemd-analyze security: 3.0 OK`, `VACUUM INTO`, `SIGTERM` 5 ms).
 
 ---
 
@@ -73,6 +73,7 @@
 - [x] `[F7 · #54 (base)]` Guion y plantilla de observación de usabilidad en `docs/evidencias/guion-usabilidad.md` (pendiente sesión presencial con 3 personas).
 - [x] `[H1]` `.env.example` deja `TLS_CA_PUBLIC_PATH=./certs/ca.crt` por defecto para que `GET /ca.crt` funcione tras `npm run env && npm run certs` (verificado en `backend/src/infrastructure/config/config.test.js`).
 - [x] `[#71]` `mobile-android/probar-motor.sh` (script POSIX para ejecutar `TotpEngineTest` con `kotlinc`) y alcance explícito de prototipo de hoja de ruta no compilable con Gradle en `mobile-android/README.md` y `docs/cumplimiento/matriz-cumplimiento.html`.
+- [x] `[#66]` Cifras finales unificadas en `docs/evidencias/cifras.json` (312 pruebas: 213+26+28+17+28), validadas por `backend/src/infrastructure/config/cifras.test.js`, y sincronizadas en `README.md`, `matriz-cumplimiento.{html,pdf}`, `presentacion.{html,pdf}`, `guion-demo.{html,pdf}` y `lista-entrega.md`.
 
 ---
 

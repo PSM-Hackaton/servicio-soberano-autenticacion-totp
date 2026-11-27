@@ -118,13 +118,13 @@ node attack-lab/escenarios/spraying.js
 </ol>
 
 <h3><span class="t">6:20–7:00</span> Impacto y viabilidad</h3>
-<div class="di">«Se despliega en cualquier servidor de la institución con Node.js y <code>systemd</code>, sin contenedores ni Internet, con su propio NTP y su propia CA. Cualquier sistema se integra con nuestro SDK o con cuatro llamadas HTTPS: lo hicimos con el Portal de Trámites y lo ofrecemos al equipo del Reto 3. 309 pruebas automatizadas, 116 verificaciones de ataque y 12 del escaneo dinámico en verde, cero costo de licencias y cero dependencia extranjera.»</div>
+<div class="di">«Se despliega en cualquier servidor de la institución con Node.js y <code>systemd</code>, sin contenedores ni Internet, con su propio NTP y su propia CA. Cualquier sistema se integra con nuestro SDK o con cuatro llamadas HTTPS: lo hicimos con el Portal de Trámites y lo ofrecemos al equipo del Reto 3. 312 pruebas automatizadas, 116 verificaciones de ataque y 12 del escaneo dinámico en verde, cero costo de licencias y cero dependencia extranjera.»</div>
 <p>Mostrar el informe autocontenido de <code>attack-lab/ejecutar-todo.js</code> y la unidad <code>deploy/servicio-totp.service</code>. Cerrar con la matriz de cumplimiento (<code>docs/cumplimiento/matriz-cumplimiento.pdf</code>) y la escalabilidad (<code>docs/escalabilidad/</code>).</p>
 
 <h2 class="pb">2. Plan B</h2>
 <table>
   <tr><th style="width:30%">Si falla…</th><th>Hacer</th></tr>
-  <tr><td>El backend no arranca</td><td>Mostrar <code>cd backend &amp;&amp; npm test</code> (211 pruebas en ~7 s) y el informe HTML de <code>docs/evidencias/</code>. Revisar que <code>backend/.env</code> no conserve <code>CHANGE_ME</code> (el servicio lo indica al arrancar).</td></tr>
+  <tr><td>El backend no arranca</td><td>Mostrar <code>cd backend &amp;&amp; npm test</code> (213 pruebas en ~7 s) y el informe HTML de <code>docs/evidencias/</code>. Revisar que <code>backend/.env</code> no conserve <code>CHANGE_ME</code> (el servicio lo indica al arrancar).</td></tr>
   <tr><td>El portal no conecta con el servicio</td><td>Revisar <code>TOTP_CLIENT_ID</code>/<code>TOTP_CLIENT_SECRET</code> en <code>demo-portal-tramites/.env</code>. Alternativa sin backend: <code>node ../sdk/testing/servicio-falso.js --puerto 8099 &amp;</code> y <code>TOTP_BASE_URL=http://127.0.0.1:8099 TOTP_CLIENT_SECRET=secreto-de-prueba-no-usar-en-produccion node server.js</code>.</td></tr>
   <tr><td>Aviso de certificado en el navegador</td><td>Importar <code>backend/certs/ca.crt</code> (README §6.5). No usar la opción de ignorar el aviso delante del jurado.</td></tr>
   <tr><td>La cámara no lee el QR</td><td>Usar <b>Abrir en el Autenticador Soberano</b> o la clave manual (la cámara está permitida en <code>/app/</code>, pero la lectura depende de <code>BarcodeDetector</code> en el navegador).</td></tr>
