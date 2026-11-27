@@ -1,0 +1,17 @@
+{
+  "origen": "Consola del Servicio de Verificación Humana (Reto 2) · Grupo 4 · Sede Chuao",
+  "paquetes": [
+    {
+      "nombre": "@pow-captcha/client",
+      "version": "1.0.0",
+      "archivo": "pow-captcha-client-1.0.0.tgz",
+      "sha256": "da9763498d4f4a8e3f733398e0ed6eeec9a23667173a56672028f42de102009c"
+    },
+    {
+      "nombre": "@pow-captcha/server",
+      "version": "1.0.0",
+      "archivo": "pow-captcha-server-1.0.0.tgz",
+      "sha256": "9d1e50de23d9c7eee2f5b937e98c75c96879aa6766097c75ee87a79101ac5ccf"
+    }
+  ]
+}

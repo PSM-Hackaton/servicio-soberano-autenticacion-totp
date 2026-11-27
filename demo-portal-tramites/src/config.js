@@ -71,7 +71,7 @@ export function configuracion(env = cargarEnv()) {
       ? {
           url: env.PORTAL_CAPTCHA_URL.trim().replace(/\/+$/, ''),
           siteKey: (env.PORTAL_CAPTCHA_SITE_KEY ?? '').trim(),
-          secreto: (env.PORTAL_CAPTCHA_SECRETO ?? '').trim(),
+          secreto: (env.PORTAL_CAPTCHA_SECRETO ?? '').trim() || 'sin-clave-modo-memoria',
           timeoutMs: Number(env.PORTAL_CAPTCHA_TIMEOUT_MS ?? 3000),
         }
       : null,

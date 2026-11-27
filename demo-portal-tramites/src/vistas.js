@@ -258,7 +258,7 @@ const SERVICIOS = [
   { icono: 'escudo', titulo: 'Seguridad de la cuenta', texto: 'Vincule, cambie o revoque su autenticador.', sello: 'Segundo factor' },
 ];
 
-export function paginaIngresar({ sesion, error, errorCedula = false, previo = {}, demo = [], captcha = false }) {
+export function paginaIngresar({ sesion, error, errorCedula = false, previo = {}, demo = [], captcha = null }) {
   const nac = previo.nacionalidad === 'E' ? 'E' : 'V';
   return html`
   <section class="portada" aria-labelledby="portada-titulo">
@@ -300,10 +300,13 @@ export function paginaIngresar({ sesion, error, errorCedula = false, previo = {}
           <label for="contrasena">Contraseña</label>
           <input id="contrasena" name="contrasena" type="password" autocomplete="current-password" required maxlength="128">
         </div>
-        ${captcha ? html`<p class="ayuda" data-captcha-estado aria-live="polite">Protegido por verificación humana soberana (sin servicios externos): se comprueba al pulsar «Continuar».</p>` : ''}
+        ${captcha ? html`<div class="campo">
+          <div id="captcha-widget" data-sitekey="${captcha.siteKey ?? ''}" data-api="/captcha/api"></div>
+          <p class="ayuda" data-captcha-estado aria-live="polite">Verificación humana soberana del Reto 2: sin servicios externos.</p>
+        </div>` : ''}
         <button type="submit" class="boton boton-primario boton-ancho">Continuar${icono('flecha', 'icono icono-chico')}</button>
       </form>
-      ${captcha ? crudo('<script src="/publico/captcha.js" defer></script>') : ''}
+      ${captcha ? crudo('<script type="module" src="/publico/captcha.js"></script>') : ''}
     </div>
     ${demo.length ? html`
     <section class="demo" aria-labelledby="demo-titulo">

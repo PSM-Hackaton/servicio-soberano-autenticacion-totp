@@ -1,5 +1,5 @@
-// Portal de Trámites + verificación humana (Reto 2): el portal hace de intermediario con el servicio Captcha
-// y valida el token en el servidor antes de comprobar la contraseña.
+// Portal de Trámites + verificación humana (Reto 2) con los SDK del servicio (vendor/): el widget habla con el
+// intermediario de mismo origen del portal y el servidor valida el token con CaptchaVerifier antes de la contraseña.
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
@@ -49,6 +49,7 @@ class Navegador {
 
 /** Servicio Captcha falso: un reto fijo, un token por verificación y validación de un solo uso. */
 function captchaFalso() {
+  // El SDK de servidor envía la clave en el cuerpo y en Authorization: Bearer.
   const tokens = new Set();
   let n = 0;
   const srv = createServer(async (req, res) => {
@@ -99,13 +100,29 @@ describe('Portal con verificación humana (Reto 2) antes del segundo factor', ()
 
   const ingreso = { nacionalidad: 'V', cedula: '10.000.001', contrasena: CLAVE };
 
-  test('el formulario de ingreso carga la verificación humana desde el propio portal', async () => {
+  /** Llama al intermediario JSON del portal como lo hace el widget del SDK. */
+  const widget = (camino, datos, origen = base) => fetch(`${base}/captcha/api/${camino}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Origin: origen }, body: JSON.stringify(datos),
+  });
+
+  test('la página de ingreso monta el widget del SDK instalado en vendor/ y sirve el SDK desde el portal', async () => {
     const nav = new Navegador(base);
     const r = await nav.get('/ingresar');
-    assert.match(r.html, /data-captcha/);
-    assert.match(r.html, /<script src="\/publico\/captcha\.js" defer><\/script>/);
-    const js = await fetch(`${base}/publico/captcha.js`);
-    assert.equal(js.status, 200);
+    assert.match(r.html, /id="captcha-widget"/);
+    assert.match(r.html, /<script type="module" src="\/publico\/captcha\.js"><\/script>/);
+    assert.match(r.cabeceras.get('content-security-policy'), /worker-src blob:/);
+    const init = await (await fetch(`${base}/publico/captcha.js`)).text();
+    assert.match(init, /from '\/vendor\/pow-captcha-client\/dist\/index\.js'/);
+    const sdk = await fetch(`${base}/vendor/pow-captcha-client/dist/index.js`);
+    assert.equal(sdk.status, 200);
+    assert.match(await sdk.text(), /export class PowCaptchaClient/);
+  });
+
+  test('las demás páginas conservan la CSP estricta', async () => {
+    const r = await fetch(`${base}/ayuda`);
+    const csp = r.headers.get('content-security-policy');
+    assert.match(csp, /style-src 'self'(;|$)/);
+    assert.doesNotMatch(csp, /blob:|unsafe-inline/);
   });
 
   test('sin token de verificación humana no se comprueba la contraseña', async () => {
@@ -116,13 +133,13 @@ describe('Portal con verificación humana (Reto 2) antes del segundo factor', ()
     assert.match(r.html, /Verificación humana no superada/);
   });
 
-  test('reto → verificación → token válido: pasa al segundo factor; el token no se reutiliza', async () => {
+  test('reto → verificación (widget) → CaptchaVerifier: pasa al segundo factor; el token no se reutiliza', async () => {
+    const reto = await (await widget('challenge', {})).json();
+    assert.equal(reto.prefix, 'abc');
+    const v = await (await widget('verify', { challenge_id: reto.challenge_id, nonce: '7', hp: '' })).json();
+    assert.match(v.token, /^tok-/);
     const nav = new Navegador(base);
     await nav.get('/ingresar');
-    const reto = JSON.parse((await nav.post('/captcha/reto', {})).html);
-    assert.equal(reto.prefix, 'abc');
-    const v = JSON.parse((await nav.post('/captcha/verificar', { challenge_id: reto.challenge_id, nonce: '7', hp: '' })).html);
-    assert.match(v.token, /^tok-/);
     const r = await nav.post('/ingresar', { ...ingreso, captcha_token: v.token });
     assert.ok(['/enrolar', '/verificar'].includes(r.url), `redirige al segundo factor (${r.url})`);
 
@@ -133,9 +150,13 @@ describe('Portal con verificación humana (Reto 2) antes del segundo factor', ()
   });
 
   test('el campo trampa (honeypot) relleno no obtiene token', async () => {
-    const nav = new Navegador(base);
-    await nav.get('/ingresar');
-    const r = await nav.post('/captcha/verificar', { challenge_id: 'reto-1', nonce: '7', hp: 'soy-un-bot' });
+    const r = await widget('verify', { challenge_id: 'reto-1', nonce: '7', hp: 'soy-un-bot' });
     assert.equal(r.status, 400);
+  });
+
+  test('el intermediario rechaza otro origen y cuerpos que no son JSON', async () => {
+    assert.equal((await widget('challenge', {}, 'https://atacante.example')).status, 403);
+    const r = await fetch(`${base}/captcha/api/challenge`, { method: 'POST', headers: { 'Content-Type': 'text/plain', Origin: base }, body: '{}' });
+    assert.equal(r.status, 403);
   });
 });
