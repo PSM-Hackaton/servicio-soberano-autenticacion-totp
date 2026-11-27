@@ -33,5 +33,13 @@ Thumbs.db
 # Carpetas locales de herramientas
 .claude/
 
+# Android / Gradle y llaves de firma
+.gradle/
+local.properties
+*.jks
+*.keystore
+keystore.properties
+.idea/
+
 # SDK del Reto 2 instalados en el portal: su dist/ es el propio paquete y debe versionarse
 !demo-portal-tramites/vendor/*/dist/
